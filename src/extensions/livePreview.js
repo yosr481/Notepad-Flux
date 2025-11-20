@@ -141,9 +141,89 @@ const buildDecorations = (state) => {
                 }
             }
 
+            // 8. Strikethrough (~~text~~)
+            if (name === "Strikethrough") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    // Hide markers
+                    // We need to find the markers inside.
+                    // Or we can just iterate children?
+                    // The iterate function we are in is for the tree.
+                    // We can't easily find children here without iterating or using node object.
+                    // But we are IN the enter callback.
+
+                    // Actually, let's rely on the child "StrikethroughMark" trigger I added before?
+                    // No, I added it as a separate block.
+                    // Let's consolidate.
+
+                    // Apply styling to the whole thing
+                    decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.mark({ class: "cm-strikethrough" }) });
+                }
+            }
+
+            if (name === "StrikethroughMark") {
+                const parent = node.node.parent;
+                if (parent && parent.name === "Strikethrough") {
+                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            // 9. Inline Code (`text`)
+            if (name === "InlineCode") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.mark({ class: "cm-inline-code" }) });
+                }
+            }
+
+            if (name === "CodeMark") {
+                const parent = node.node.parent;
+                if (parent && parent.name === "InlineCode") {
+                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            // 10. Code Blocks (Fenced)
+            if (name === "FencedCode") {
+                // Always style the code block lines, even when active
+                for (let i = nodeFrom; i < nodeTo;) {
+                    const line = doc.lineAt(i);
+                    decorations.push({
+                        from: line.from, to: line.from, value: Decoration.line({
+                            class: "cm-code-block"
+                        })
+                    });
+                    i = line.to + 1;
+                }
+
+                // Only hide markers when cursor is not touching
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    let startMark = node.node.getChild("CodeMark");
+                    let info = node.node.getChild("CodeInfo");
+                    let lastMark = node.node.lastChild;
+
+                    // Hide opening ```
+                    if (startMark) {
+                        decorations.push({ from: startMark.from, to: startMark.to, value: Decoration.replace({}) });
+                    }
+
+                    // Hide language info (e.g. "javascript")
+                    if (info) {
+                        decorations.push({ from: info.from, to: info.to, value: Decoration.replace({}) });
+                    }
+
+                    // Hide closing ```
+                    if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
+                        decorations.push({ from: lastMark.from, to: lastMark.to, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
             // --- Block Triggers ---
 
-            // 8. Tables
+            // 11. Tables
             if (name === "Table") {
                 if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
                     const tableText = doc.sliceString(nodeFrom, nodeTo);
