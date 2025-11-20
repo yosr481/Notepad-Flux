@@ -115,6 +115,11 @@ const buildDecorations = (state) => {
             if (name === "QuoteMark") {
                 const parent = node.node.parent;
                 if (parent && parent.name === "Blockquote") {
+                    // Add line decoration for the blockquote border
+                    builder.add(parent.from, parent.from, Decoration.line({
+                        class: "cm-blockquote-line"
+                    }));
+
                     if (!isCursorOnLine(selection, doc, parent.from)) {
                         builder.add(nodeFrom, nodeTo, Decoration.replace({}));
                     }

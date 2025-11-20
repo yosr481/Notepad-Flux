@@ -5,6 +5,9 @@ import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { livePreview } from '../extensions/livePreview';
+import { imagePreview } from '../extensions/imagePreview';
+import { linkPreview } from '../extensions/linkPreview';
+import { obsidianTheme } from '../theme';
 
 const Editor = () => {
     const editorRef = useRef(null);
@@ -14,17 +17,16 @@ const Editor = () => {
         if (!editorRef.current) return;
 
         const startState = EditorState.create({
-            doc: "# Welcome to Obsidian-like Editor\n\nTry typing **bold** or *italic* text.\n\n- [ ] Checkbox item\n- List item\n\n[Link](https://example.com)\n",
+            doc: "# Welcome to Obsidian-like Editor\n\nTry typing **bold** or *italic* text.\n\n> This is a quote.\n\n- [ ] Checkbox item\n- List item\n\n[Link](https://example.com)\n\n![Image](https://via.placeholder.com/150)\n",
             extensions: [
                 keymap.of([...defaultKeymap, ...historyKeymap]),
                 history(),
                 EditorView.lineWrapping,
                 markdown({ base: markdownLanguage, codeLanguages: languages }),
                 livePreview, // Our custom extension
-                EditorView.theme({
-                    "&": { height: "100%" },
-                    ".cm-content": { fontFamily: "var(--font-text)" }
-                })
+                imagePreview,
+                linkPreview,
+                obsidianTheme
             ]
         });
 

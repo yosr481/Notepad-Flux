@@ -4,10 +4,14 @@
     --background-secondary: #202020;
     --text-normal: #dcddde;
     --text-muted: #999;
+    --text-faint: #666;
     --text-accent: #705dcf;
-    /* Purple accent */
+    --text-accent-hover: #7a6ae6;
     --text-selection: rgba(255, 255, 255, 0.1);
     --interactive-accent: #705dcf;
+    --background-modifier-border: #333;
+    --background-modifier-form-field: #2a2a2a;
+    --blockquote-border: #705dcf;
 
     /* Fonts */
     --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -44,6 +48,11 @@ body {
     color: var(--text-normal);
 }
 
+/* Cursor Visibility Fix */
+.cm-content {
+    caret-color: var(--text-normal);
+}
+
 .cm-scroller {
     overflow: auto;
     padding: 20px 0;
@@ -60,39 +69,18 @@ body {
     padding: 0.2em 0;
 }
 
-color: var(--text-normal);
-}
-
-.cm-line.HyperMD-header-1 {
-    font-size: 1.6em;
-}
-
-.cm-line.HyperMD-header-2 {
-    font-size: 1.4em;
-}
-
-.cm-line.HyperMD-header-3 {
-    font-size: 1.2em;
-}
-
-.cm-line.HyperMD-header-4 {
-    font-size: 1.1em;
-}
-
-.cm-line.HyperMD-header-5 {
-    font-size: 1.0em;
-}
-
-.cm-line.HyperMD-header-6 {
-    font-size: 0.9em;
-    color: var(--text-muted);
+/* Blockquote Line Decoration */
+.cm-blockquote-line {
+    border-left: 4px solid var(--blockquote-border);
+    padding-left: 1em;
+    margin-left: 0;
 }
 
 /* Live Preview Widgets */
 .cm-bullet {
     display: inline-block;
     margin-right: 0.5em;
-    color: var(--text-normal);
+    color: var(--text-muted);
 }
 
 .cm-checkbox {
@@ -104,6 +92,15 @@ color: var(--text-normal);
     border: none;
     border-top: 2px solid var(--interactive-accent);
     margin: 1em 0;
+    opacity: 0.5;
+}
+
+.cm-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 0.5em 0;
 }
 
 .cm-table-widget {
@@ -119,25 +116,22 @@ color: var(--text-normal);
 
 .cm-table-widget th,
 .cm-table-widget td {
-    border: 1px solid var(--text-muted);
+    border: 1px solid var(--background-modifier-border);
     padding: 8px;
     text-align: left;
 }
 
 .cm-table-widget th {
     background-color: var(--background-secondary);
+    font-weight: 600;
 }
 
-/* Syntax Highlighting Overrides */
-.cm-formatting-header {
-    color: var(--text-accent) !important;
-    /* Purple/Blue for # */
+/* Syntax Highlighting Overrides (Hidden/Faint syntax) */
+/* Most styling is now handled by theme.js via HighlightStyle */
+.cm-formatting {
+    color: var(--text-faint);
 }
 
-.cm-formatting-quote {
-    color: var(--text-muted);
-}
-
-.cm-formatting-list {
-    color: var(--text-accent);
+.cm-formatting-link {
+    color: var(--text-faint);
 }
