@@ -1,4 +1,4 @@
-import { Decoration, EditorView } from "@codemirror/view";
+import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget } from "./widgets";
@@ -18,6 +18,7 @@ const buildDecorations = (state) => {
     const builder = new RangeSetBuilder();
     const selection = state.selection;
     const doc = state.doc;
+    const decorations = [];
 
     syntaxTree(state).iterate({
         enter: (node) => {
@@ -30,7 +31,7 @@ const buildDecorations = (state) => {
                 const parent = node.node.parent;
                 if (parent && (parent.name === "Emphasis" || parent.name === "StrongEmphasis" || parent.name === "Strikethrough")) {
                     if (!isCursorTouching(selection, parent.from, parent.to)) {
-                        builder.add(nodeFrom, nodeTo, Decoration.replace({}));
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
                 }
             }
@@ -40,7 +41,7 @@ const buildDecorations = (state) => {
                 const parent = node.node.parent;
                 if (parent && parent.name === "Link") {
                     if (!isCursorTouching(selection, parent.from, parent.to)) {
-                        builder.add(nodeFrom, nodeTo, Decoration.replace({}));
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
                 }
             }
@@ -62,14 +63,16 @@ const buildDecorations = (state) => {
                     if (taskChild) {
                         // Task List: Hide the dash if not touching
                         if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
-                            builder.add(nodeFrom, nodeTo, Decoration.replace({}));
+                            decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                         }
                     } else {
                         // Normal Bullet List: Replace with Bullet Widget if not touching
                         if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
-                            builder.add(nodeFrom, nodeTo, Decoration.replace({
-                                widget: new BulletWidget()
-                            }));
+                            decorations.push({
+                                from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                    widget: new BulletWidget()
+                                })
+                            });
                         }
                     }
                 }
@@ -79,9 +82,11 @@ const buildDecorations = (state) => {
             if (name === "TaskMarker") {
                 if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
                     const isChecked = doc.sliceString(nodeFrom, nodeTo).includes("x");
-                    builder.add(nodeFrom, nodeTo, Decoration.replace({
-                        widget: new CheckboxWidget(isChecked)
-                    }));
+                    decorations.push({
+                        from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                            widget: new CheckboxWidget(isChecked)
+                        })
+                    });
                 }
             }
 
@@ -97,7 +102,7 @@ const buildDecorations = (state) => {
                     if (match) {
                         const hideFrom = nodeFrom;
                         const hideTo = nodeFrom + match[0].length;
-                        builder.add(hideFrom, hideTo, Decoration.replace({}));
+                        decorations.push({ from: hideFrom, to: hideTo, value: Decoration.replace({}) });
                     }
                 }
             }
@@ -105,24 +110,34 @@ const buildDecorations = (state) => {
             // 6. Horizontal Rules
             if (name === "HorizontalRule") {
                 if (!isCursorOnLine(selection, doc, nodeFrom)) {
-                    builder.add(nodeFrom, nodeTo, Decoration.replace({
-                        widget: new HRWidget()
-                    }));
+                    decorations.push({
+                        from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                            widget: new HRWidget()
+                        })
+                    });
                 }
             }
 
             // 7. Blockquotes
-            if (name === "QuoteMark") {
-                const parent = node.node.parent;
-                if (parent && parent.name === "Blockquote") {
-                    // Add line decoration for the blockquote border
-                    builder.add(parent.from, parent.from, Decoration.line({
-                        class: "cm-blockquote-line"
-                    }));
+            // 7. Blockquotes
+            if (name === "Blockquote") {
+                // Iterate over lines in the blockquote to apply decoration to each line
+                // This ensures continuous border even if it's multiple lines
+                for (let i = nodeFrom; i < nodeTo;) {
+                    const line = doc.lineAt(i);
+                    decorations.push({
+                        from: line.from, to: line.from, value: Decoration.line({
+                            class: "cm-blockquote-line"
+                        })
+                    });
+                    i = line.to + 1;
+                }
+            }
 
-                    if (!isCursorOnLine(selection, doc, parent.from)) {
-                        builder.add(nodeFrom, nodeTo, Decoration.replace({}));
-                    }
+            if (name === "QuoteMark") {
+                // Check if cursor is on the SPECIFIC LINE of this QuoteMark
+                if (!isCursorOnLine(selection, doc, nodeFrom)) {
+                    decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                 }
             }
 
@@ -133,15 +148,27 @@ const buildDecorations = (state) => {
                 if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
                     const tableText = doc.sliceString(nodeFrom, nodeTo);
                     const html = convertTableToHTML(tableText);
-                    builder.add(nodeFrom, nodeTo, Decoration.replace({
-                        widget: new TableWidget(html),
-                        block: true // Block replacement is allowed in StateField
-                    }));
+                    decorations.push({
+                        from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                            widget: new TableWidget(html),
+                            block: true // Block replacement is allowed in StateField
+                        })
+                    });
                     return false; // SKIP CHILDREN
                 }
             }
         }
     });
+
+    // Sort decorations by 'from' position to satisfy RangeSetBuilder requirements
+    decorations.sort((a, b) => {
+        if (a.from !== b.from) return a.from - b.from;
+        return a.to - b.to;
+    });
+
+    for (const deco of decorations) {
+        builder.add(deco.from, deco.to, deco.value);
+    }
 
     return builder.finish();
 };
@@ -179,7 +206,7 @@ function convertTableToHTML(text) {
         html += "<tr>";
         cells.forEach(cell => {
             const tag = isHeader ? "th" : "td";
-            html += `<${tag}>${cell.trim()}</${tag}>`;
+            html += `<${tag}>${parseCellContent(cell.trim())}</${tag}>`;
         });
         html += "</tr>";
         hasContent = true;
@@ -189,6 +216,91 @@ function convertTableToHTML(text) {
     return hasContent ? html : "<div style='color: gray; padding: 1em;'>Empty Table</div>";
 }
 
+// --- Highlights (==text==) ---
+
+
+// We need to handle Highlights in the main loop if we want the "hide markers" behavior.
+// Standard Markdown doesn't support ==, but GFM might if enabled. 
+// If not, we treat it as text.
+// Let's assume we need to regex search for it in the visible ranges or use a ViewPlugin.
+
+// Let's use a ViewPlugin for Highlights that respects selection
+const highlightPlugin = ViewPlugin.fromClass(class {
+    constructor(view) {
+        this.decorations = this.compute(view);
+    }
+
+    update(update) {
+        if (update.docChanged || update.selectionSet || update.viewportChanged) {
+            this.decorations = this.compute(update.view);
+        }
+    }
+
+    compute(view) {
+        const builder = new RangeSetBuilder();
+        const { state } = view;
+        const { doc, selection } = state;
+
+        for (const { from, to } of view.visibleRanges) {
+            const text = doc.sliceString(from, to);
+            const regex = /==(.*?)==/g;
+            let match;
+            while ((match = regex.exec(text))) {
+                const start = from + match.index;
+                const end = start + match[0].length;
+
+                // If cursor touches, don't hide markers (just style background if we want, or nothing)
+                if (isCursorTouching(selection, start, end)) {
+                    // Style the background of the inner text even when active
+                    const innerStart = start + 2;
+                    const innerEnd = end - 2;
+                    if (innerEnd > innerStart) {
+                        builder.add(innerStart, innerEnd, Decoration.mark({ class: "cm-highlight" }));
+                    }
+                } else {
+                    // Hide markers, style content
+                    const innerStart = start + 2;
+                    const innerEnd = end - 2;
+
+                    // Hide leading ==
+                    builder.add(start, innerStart, Decoration.replace({}));
+                    // Style content
+                    builder.add(innerStart, innerEnd, Decoration.mark({ class: "cm-highlight" }));
+                    // Hide trailing ==
+                    builder.add(innerEnd, end, Decoration.replace({}));
+                }
+            }
+        }
+        return builder.finish();
+    }
+}, {
+    decorations: v => v.decorations
+});
+
+function parseCellContent(content) {
+    // Basic markdown parsing for table cells
+    let html = content
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    // Bold **text**
+    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+    // Italic *text*
+    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+    // Strikethrough ~~text~~
+    html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
+    // Code `text`
+    html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+    // Links [text](url)
+    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    // Highlights ==text==
+    html = html.replace(/==(.*?)==/g, "<mark>$1</mark>");
+
+    return html;
+}
+
 export const livePreview = [
-    livePreviewField
+    livePreviewField,
+    highlightPlugin
 ];

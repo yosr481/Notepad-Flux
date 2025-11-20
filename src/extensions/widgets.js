@@ -46,10 +46,25 @@ export class TableWidget extends WidgetType {
         this.htmlContent = htmlContent;
     }
 
-    toDOM() {
+    toDOM(view) {
         const div = document.createElement("div");
         div.className = "cm-table-widget";
         div.innerHTML = this.htmlContent;
+
+        div.addEventListener("mousedown", (e) => {
+            // Allow clicking links inside the table
+            if (e.target.tagName === 'A') return;
+
+            e.preventDefault();
+            const pos = view.posAtDOM(div);
+            if (pos !== null) {
+                view.dispatch({
+                    selection: { anchor: pos, head: pos },
+                    scrollIntoView: true
+                });
+            }
+        });
+
         return div;
     }
 
