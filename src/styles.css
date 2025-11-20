@@ -1,0 +1,143 @@
+:root {
+    /* Obsidian Default Dark Theme Variables */
+    --background-primary: #1e1e1e;
+    --background-secondary: #202020;
+    --text-normal: #dcddde;
+    --text-muted: #999;
+    --text-accent: #705dcf;
+    /* Purple accent */
+    --text-selection: rgba(255, 255, 255, 0.1);
+    --interactive-accent: #705dcf;
+
+    /* Fonts */
+    --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-monospace: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Editor Dimensions */
+    --line-width: 700px;
+    --line-height: 1.5;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-family: var(--font-text);
+    overflow: hidden;
+    /* Editor handles scrolling */
+}
+
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* CodeMirror Base Styling */
+.cm-editor {
+    height: 100%;
+    font-family: var(--font-text);
+    font-size: 16px;
+    line-height: var(--line-height);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.cm-scroller {
+    overflow: auto;
+    padding: 20px 0;
+}
+
+.cm-content {
+    max-width: var(--line-width);
+    margin: 0 auto;
+    padding-bottom: 30vh;
+    /* Overscroll */
+}
+
+.cm-line {
+    padding: 0.2em 0;
+}
+
+color: var(--text-normal);
+}
+
+.cm-line.HyperMD-header-1 {
+    font-size: 1.6em;
+}
+
+.cm-line.HyperMD-header-2 {
+    font-size: 1.4em;
+}
+
+.cm-line.HyperMD-header-3 {
+    font-size: 1.2em;
+}
+
+.cm-line.HyperMD-header-4 {
+    font-size: 1.1em;
+}
+
+.cm-line.HyperMD-header-5 {
+    font-size: 1.0em;
+}
+
+.cm-line.HyperMD-header-6 {
+    font-size: 0.9em;
+    color: var(--text-muted);
+}
+
+/* Live Preview Widgets */
+.cm-bullet {
+    display: inline-block;
+    margin-right: 0.5em;
+    color: var(--text-normal);
+}
+
+.cm-checkbox {
+    margin-right: 0.5em;
+    cursor: pointer;
+}
+
+.cm-hr {
+    border: none;
+    border-top: 2px solid var(--interactive-accent);
+    margin: 1em 0;
+}
+
+.cm-table-widget {
+    display: block;
+    margin: 1em 0;
+    overflow-x: auto;
+}
+
+.cm-table-widget table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.cm-table-widget th,
+.cm-table-widget td {
+    border: 1px solid var(--text-muted);
+    padding: 8px;
+    text-align: left;
+}
+
+.cm-table-widget th {
+    background-color: var(--background-secondary);
+}
+
+/* Syntax Highlighting Overrides */
+.cm-formatting-header {
+    color: var(--text-accent) !important;
+    /* Purple/Blue for # */
+}
+
+.cm-formatting-quote {
+    color: var(--text-muted);
+}
+
+.cm-formatting-list {
+    color: var(--text-accent);
+}
