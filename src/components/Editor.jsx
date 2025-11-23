@@ -7,6 +7,8 @@ import { languages } from '@codemirror/language-data';
 import { livePreview } from '../extensions/livePreview';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
+import { linkHandler } from '../extensions/linkHandler';
+import { listKeymap } from '../extensions/listKeymap';
 import { obsidianTheme } from '../theme';
 
 const Editor = ({ onStatsUpdate }) => {
@@ -153,10 +155,10 @@ class Editor {
 ### 2.5 Complex Table
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
-| Bold | ✅ | High | Working |
-| Italic | ✅ | High | Working |
-| Tables | 🔧 | Medium | Testing |
-| Code | ✅ | High | Working |
+-| Bold | ✅ | High | Working |
+-| Italic | ✅ | High | Working |
+-| Tables | 🔧 | Medium | Testing |
+-| Code | ✅ | High | Working |
 
 ## 3. Nested Markdown
 
@@ -251,8 +253,8 @@ Multiple empty lines above
 ### 4.7 Table Edge Cases
 | Left | Center | Right |
 |:-----|:------:|------:|
-| L1   | C1     | R1    |
-|Very long cell content that should wrap|C2|R2|
+-| L1   | C1     | R1    |
+-|Very long cell content that should wrap|C2|R2|
 
 ### 4.8 Blockquote Edge Cases
 >No space after marker
@@ -305,6 +307,8 @@ C:\\Users\\Path\\To\\File.txt
         livePreview, // Our custom extension
         imagePreview,
         linkPreview,
+        linkHandler,
+        listKeymap,
         obsidianTheme,
         EditorView.updateListener.of((update) => {
           if (update.docChanged || update.selectionSet) {

@@ -10,7 +10,7 @@ export class BulletWidget extends WidgetType {
 
     eq(other) { return true; }
 
-    ignoreEvent() { return true; }
+    ignoreEvent() { return false; }
 }
 
 export class CheckboxWidget extends WidgetType {
@@ -24,16 +24,40 @@ export class CheckboxWidget extends WidgetType {
         input.type = "checkbox";
         input.checked = this.checked;
         input.className = "cm-checkbox";
-        // Prevent default to avoid cursor jumping, handle click via editor transaction if needed
-        // For now, let's just let it be visual or handle mousedown
+
         input.addEventListener("mousedown", (e) => {
-            // Logic to toggle markdown would go here, but for now just stop propagation
-            // e.preventDefault(); 
+            e.preventDefault(); // Prevent default focus change issues
+            const pos = view.posAtDOM(input);
+            if (pos === null) return;
+
+            // Find the line at this position
+            const line = view.state.doc.lineAt(pos);
+            const lineText = line.text;
+
+            // Find the checkbox pattern in the line
+            // We look for - [ ] or - [x]
+            const match = lineText.match(/^(\s*[-*] )\[([ x])\]/);
+
+            if (match) {
+                const prefix = match[1];
+                const currentStatus = match[2];
+                const newStatus = currentStatus === ' ' ? 'x' : ' ';
+
+                // Calculate position of the character to replace
+                // line.from + prefix.length + 1 (the character inside brackets)
+                const charPos = line.from + prefix.length + 1;
+
+                view.dispatch({
+                    changes: { from: charPos, to: charPos + 1, insert: newStatus }
+                });
+            }
         });
         return input;
     }
 
     eq(other) { return other.checked === this.checked; }
+
+    ignoreEvent() { return true; }
 }
 
 export class HRWidget extends WidgetType {

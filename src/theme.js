@@ -56,7 +56,21 @@ export const obsidianHighlightStyle = HighlightStyle.define([
     // But livePreview.js handles hiding them completely. 
     // We style them just in case they are visible (e.g. under cursor)
     { tag: tags.processingInstruction, color: "var(--text-faint)" },
-    { tag: tags.meta, color: "var(--text-faint)" }
+    { tag: tags.meta, color: "var(--text-faint)" },
+
+    // Code Highlighting
+    { tag: tags.keyword, color: "var(--syntax-keyword)" },
+    { tag: tags.operator, color: "var(--text-accent)" },
+    { tag: tags.comment, color: "var(--text-faint)", fontStyle: "italic" },
+    { tag: tags.string, color: "var(--syntax-string)" },
+    { tag: tags.regexp, color: "var(--syntax-regexp)" },
+    { tag: tags.number, color: "var(--syntax-number)" },
+    { tag: tags.bool, color: "var(--syntax-bool)" },
+    { tag: tags.variableName, color: "var(--text-normal)" },
+    { tag: tags.function(tags.variableName), color: "var(--syntax-function)" },
+    { tag: tags.className, color: "var(--syntax-class)" },
+    { tag: tags.typeName, color: "var(--syntax-class)" },
+    { tag: tags.propertyName, color: "var(--syntax-property)" }
 ]);
 
 export const obsidianTheme = [

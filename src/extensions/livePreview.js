@@ -218,14 +218,40 @@ const buildDecorations = (state) => {
 
             // 10. Code Blocks (Fenced)
             if (name === "FencedCode") {
-                // Always style the code block lines, even when active
+                // Style the code block content with Decoration.mark instead of line
+                // This allows the background to wrap the text content only
+                // We need to iterate lines to apply it per line content
                 for (let i = nodeFrom; i < nodeTo;) {
                     const line = doc.lineAt(i);
-                    decorations.push({
-                        from: line.from, to: line.from, value: Decoration.line({
-                            class: "cm-code-block"
-                        })
-                    });
+                    // Apply mark to the text content of the line
+                    // If line is empty, we might want to apply to a widget or just leave it?
+                    // Decoration.mark requires non-empty range usually, or at least doesn't show on empty line without css hacks.
+                    // But for code blocks, we usually want the block to extend at least a bit.
+                    // Let's use Decoration.line but with a class that has width: fit-content?
+                    // No, Decoration.line wraps the whole line div.
+                    // Let's use Decoration.mark.
+
+                    if (line.length > 0) {
+                        decorations.push({
+                            from: line.from, to: line.to, value: Decoration.mark({
+                                class: "cm-code-block"
+                            })
+                        });
+                    } else {
+                        // Empty line in code block - maybe add a widget or just style the line?
+                        // If we want the "block" look on empty lines, we might need Decoration.line for those,
+                        // or a special widget.
+                        // Let's stick to Decoration.line for empty lines to keep the block structure visible?
+                        // Or just ignore empty lines for "wrapping content" look.
+                        // User said "only wrap their inner content".
+                        // So empty lines might not need background? Or maybe a small height?
+                        // Let's try applying to line.from to line.to (which is empty range) - mark won't show.
+                        // Let's use Decoration.line for empty lines to maintain continuity?
+                        // Or better: use Decoration.line but set display: inline-block on the line?
+                        // No, line is a block.
+
+                        // Let's try Decoration.mark for content.
+                    }
                     i = line.to + 1;
                 }
 
@@ -274,6 +300,7 @@ const buildDecorations = (state) => {
     // Sort decorations by 'from' position to satisfy RangeSetBuilder requirements
     decorations.sort((a, b) => {
         if (a.from !== b.from) return a.from - b.from;
+        if (a.value.startSide !== b.value.startSide) return a.value.startSide - b.value.startSide;
         return a.to - b.to;
     });
 
