@@ -30,6 +30,14 @@ class ImageWidget extends WidgetType {
         container.appendChild(img);
         return container;
     }
+
+    eq(other) {
+        return other.url === this.url && other.alt === this.alt;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
 }
 
 const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;

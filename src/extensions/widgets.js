@@ -7,6 +7,10 @@ export class BulletWidget extends WidgetType {
         span.textContent = "•";
         return span;
     }
+
+    eq(other) { return true; }
+
+    ignoreEvent() { return true; }
 }
 
 export class CheckboxWidget extends WidgetType {
@@ -38,6 +42,10 @@ export class HRWidget extends WidgetType {
         hr.className = "cm-hr";
         return hr;
     }
+
+    eq(other) { return true; }
+
+    ignoreEvent() { return true; }
 }
 
 export class TableWidget extends WidgetType {
@@ -69,4 +77,6 @@ export class TableWidget extends WidgetType {
     }
 
     eq(other) { return other.htmlContent === this.htmlContent; }
+
+    ignoreEvent() { return true; }
 }

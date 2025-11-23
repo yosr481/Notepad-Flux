@@ -17,6 +17,14 @@ class LinkWidget extends WidgetType {
         link.rel = "noopener noreferrer";
         return link;
     }
+
+    eq(other) {
+        return other.text === this.text && other.url === this.url;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
 }
 
 const linkMatcher = /\[(.*?)\]\((.*?)\)/g;

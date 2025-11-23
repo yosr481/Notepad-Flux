@@ -229,24 +229,27 @@ const buildDecorations = (state) => {
                     i = line.to + 1;
                 }
 
-                // STOP HIDING FENCES to prevent jitter
-                // Instead, we can style them faintly if needed, but for now let's just leave them visible
-                // or apply a class to make them faint.
-
                 let startMark = node.node.getChild("CodeMark");
                 let info = node.node.getChild("CodeInfo");
                 let lastMark = node.node.lastChild;
 
-                const faintMark = Decoration.mark({ class: "cm-faint-syntax" });
+                const isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
 
-                if (startMark) {
-                    decorations.push({ from: startMark.from, to: startMark.to, value: faintMark });
-                }
-                if (info) {
-                    decorations.push({ from: info.from, to: info.to, value: faintMark });
-                }
-                if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
-                    decorations.push({ from: lastMark.from, to: lastMark.to, value: faintMark });
+                if (!isTouching) {
+                    // Hide fences if not active
+                    if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: Decoration.replace({}) });
+                    if (info) decorations.push({ from: info.from, to: info.to, value: Decoration.replace({}) });
+                    if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
+                        decorations.push({ from: lastMark.from, to: lastMark.to, value: Decoration.replace({}) });
+                    }
+                } else {
+                    // Make faint if active
+                    const faintMark = Decoration.mark({ class: "cm-faint-syntax" });
+                    if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: faintMark });
+                    if (info) decorations.push({ from: info.from, to: info.to, value: faintMark });
+                    if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
+                        decorations.push({ from: lastMark.from, to: lastMark.to, value: faintMark });
+                    }
                 }
             }
 
@@ -259,8 +262,7 @@ const buildDecorations = (state) => {
                     const html = convertTableToHTML(tableText);
                     decorations.push({
                         from: nodeFrom, to: nodeTo, value: Decoration.replace({
-                            widget: new TableWidget(html),
-                            block: true // Block replacement is allowed in StateField
+                            widget: new TableWidget(html)
                         })
                     });
                     return false; // SKIP CHILDREN
