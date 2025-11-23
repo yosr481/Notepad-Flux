@@ -295,29 +295,37 @@ body {
     border-left: 4px solid var(--blockquote-border);
     padding-left: 1.5em;
     margin-left: 0;
+}
 
-    .cm-image-broken {
-        display: flex;
-        width: fit-content;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 8px;
-        background-color: var(--background-secondary);
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 4px;
-        color: var(--text-muted);
-        font-size: 0.9em;
-        margin: 0.5em 0;
-        max-width: 100%;
-    }
+.cm-image-broken {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin: 0.5em 0;
+    max-width: 100%;
+}
 
-    .cm-broken-icon {
-        color: var(--text-faint);
-        flex-shrink: 0;
-    }
+.cm-broken-icon {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
 
-    .cm-broken-text {
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+.cm-broken-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Highlighted Text (==text==) */
+.cm-highlight {
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: var(--text-normal);
+}
