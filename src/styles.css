@@ -1,18 +1,19 @@
 :root {
-    /* Obsidian Minimal Theme Dark Palette */
+    /* Obsidian Minimal Theme Dark Palette (Default) */
     --background-primary: #202020;
     --background-secondary: #262626;
     --text-normal: #dcddde;
     --text-muted: #999999;
     --text-faint: #666666;
     --text-accent: #7b6cd9;
-    /* Minimal Purple Accent */
     --text-accent-hover: #8e7ce6;
     --text-selection: rgba(123, 108, 217, 0.2);
     --interactive-accent: #7b6cd9;
     --background-modifier-border: #333333;
     --background-modifier-form-field: #2a2a2a;
     --blockquote-border: #7b6cd9;
+    --scrollbar-thumb: #4a4a4a;
+    --scrollbar-track: transparent;
 
     /* Fonts */
     --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
@@ -23,6 +24,24 @@
     --line-height: 1.5;
 }
 
+[data-theme="light"] {
+    /* Notepad / Light Theme Palette */
+    --background-primary: #ffffff;
+    --background-secondary: #f0f0f0;
+    --text-normal: #000000;
+    --text-muted: #666666;
+    --text-faint: #999999;
+    --text-accent: #0078d7;
+    /* Windows Blue */
+    --text-accent-hover: #005a9e;
+    --text-selection: rgba(0, 120, 215, 0.2);
+    --interactive-accent: #0078d7;
+    --background-modifier-border: #e0e0e0;
+    --background-modifier-form-field: #ffffff;
+    --blockquote-border: #0078d7;
+    --scrollbar-thumb: #cdcdcd;
+}
+
 body {
     margin: 0;
     padding: 0;
@@ -30,13 +49,95 @@ body {
     color: var(--text-normal);
     font-family: var(--font-text);
     overflow: hidden;
-    /* Editor handles scrolling */
 }
 
 .app-container {
     height: 100vh;
     display: flex;
     flex-direction: column;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+/* --- Layout Components --- */
+
+.menu-bar {
+    height: 30px;
+    background-color: var(--background-secondary);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--background-modifier-border);
+    flex-shrink: 0;
+    justify-content: space-between;
+    user-select: none;
+}
+
+.menu-items {
+    display: flex;
+    gap: 15px;
+    font-size: 13px;
+}
+
+.menu-item {
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 2px;
+}
+
+.menu-item:hover {
+    background-color: var(--background-modifier-border);
+}
+
+.theme-toggle {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-normal);
+    display: flex;
+    align-items: center;
+    padding: 4px;
+    border-radius: 4px;
+}
+
+.theme-toggle:hover {
+    background-color: var(--background-modifier-border);
+}
+
+.status-bar {
+    height: 24px;
+    background-color: var(--background-secondary);
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text-normal);
+    flex-shrink: 0;
+    justify-content: flex-end;
+    gap: 20px;
+}
+
+.status-item {
+    padding: 0 10px;
+    border-left: 1px solid var(--background-modifier-border);
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.status-item:first-child {
+    border-left: none;
+    margin-right: auto;
+    /* Push others to right */
+}
+
+/* --- Editor Container --- */
+
+.editor-wrapper {
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
 }
 
 /* CodeMirror Base Styling */
@@ -49,23 +150,19 @@ body {
     color: var(--text-normal);
 }
 
-/* Cursor Visibility Fix */
-.cm-content {
-    caret-color: var(--text-normal);
-}
-
 .cm-scroller {
     overflow: auto;
-    padding: 20px 0;
+    padding: 0;
 }
 
 .cm-content {
     max-width: var(--line-width);
     margin: 0 auto;
-    padding-bottom: 30vh;
-    /* Overscroll */
-    color: var(--text-muted);
+    padding: 20px 0 30vh 0;
+    caret-color: var(--text-normal);
 }
+
+/* --- Markdown Elements --- */
 
 .cm-checkbox {
     margin-right: 0.5em;
@@ -110,397 +207,42 @@ body {
     font-weight: 600;
 }
 
-/* Syntax Highlighting Overrides (Hidden/Faint syntax) */
-/* Most styling is now handled by theme.js via HighlightStyle */
 .cm-formatting {
     color: var(--text-faint);
 }
 
-/* Faint Syntax (for code fences etc) */
 .cm-faint-syntax {
     color: var(--text-faint);
     opacity: 0.7;
 }
 
-
-/* Blockquote Line Decoration */
 .cm-blockquote-line {
     border-left: 4px solid var(--blockquote-border);
     padding-left: 1.5em;
     margin-left: 0;
-    /* Ensure no vertical gaps */
     margin-top: 0;
     margin-bottom: 0;
     display: block;
 }
 
-/* Highlights */
 .cm-highlight {
     background-color: rgba(255, 255, 0, 0.2);
     border-radius: 2px;
     padding: 0 2px;
 }
 
-/* Code Blocks */
 .cm-code-block {
     background-color: var(--background-secondary);
     font-family: var(--font-monospace);
     border-radius: 4px;
 }
 
-/* Inline Code */
-.cm-inline-code {
-    background-color: var(--background-secondary);
-    font-family: var(--font-monospace);
-
-    :root {
-        /* Obsidian Minimal Theme Dark Palette */
-        --background-primary: #202020;
-        --background-secondary: #262626;
-        --text-normal: #dcddde;
-        --text-muted: #999999;
-        --text-faint: #666666;
-        --text-accent: #7b6cd9;
-        /* Minimal Purple Accent */
-        --text-accent-hover: #8e7ce6;
-        --text-selection: rgba(123, 108, 217, 0.2);
-        --interactive-accent: #7b6cd9;
-        --background-modifier-border: #333333;
-        --background-modifier-form-field: #2a2a2a;
-        --blockquote-border: #7b6cd9;
-
-        /* Fonts */
-        --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        --font-monospace: 'JetBrains Mono', 'Fira Code', monospace;
-
-        /* Editor Dimensions */
-        --line-width: 700px;
-        --line-height: 1.5;
-    }
-
-    body {
-        margin: 0;
-        padding: 0;
-        background-color: var(--background-primary);
-        color: var(--text-normal);
-        font-family: var(--font-text);
-        overflow: hidden;
-        /* Editor handles scrolling */
-    }
-
-    .app-container {
-        height: 100vh;
-        display: flex;
-        flex-direction: column;
-    }
-
-    /* CodeMirror Base Styling */
-    .cm-editor {
-        height: 100%;
-        font-family: var(--font-text);
-        font-size: 16px;
-        line-height: var(--line-height);
-        background-color: var(--background-primary);
-        color: var(--text-normal);
-    }
-
-    /* Cursor Visibility Fix */
-    .cm-content {
-        caret-color: var(--text-normal);
-    }
-
-    .cm-scroller {
-        overflow: auto;
-        padding: 20px 0;
-    }
-
-    .cm-content {
-        max-width: var(--line-width);
-        margin: 0 auto;
-        padding-bottom: 30vh;
-        /* Overscroll */
-        color: var(--text-muted);
-    }
-
-    .cm-checkbox {
-        margin-right: 0.5em;
-        cursor: pointer;
-    }
-
-    .cm-hr {
-        border: none;
-        border-top: 2px solid var(--interactive-accent);
-        margin: 1em 0;
-        opacity: 0.5;
-    }
-
-    .cm-image {
-        display: block;
-        max-width: 100%;
-        height: auto;
-        border-radius: 4px;
-        margin: 0.5em 0;
-    }
-
-    .cm-table-widget {
-        display: block;
-        margin: 1em 0;
-        overflow-x: auto;
-    }
-
-    .cm-table-widget table {
-        border-collapse: collapse;
-        width: 100%;
-    }
-
-    .cm-table-widget th,
-    .cm-table-widget td {
-        border: 1px solid var(--background-modifier-border);
-        padding: 8px;
-        text-align: left;
-    }
-
-    .cm-table-widget th {
-        background-color: var(--background-secondary);
-        font-weight: 600;
-    }
-
-    /* Syntax Highlighting Overrides (Hidden/Faint syntax) */
-    /* Most styling is now handled by theme.js via HighlightStyle */
-    .cm-formatting {
-        color: var(--text-faint);
-    }
-
-    /* Faint Syntax (for code fences etc) */
-    .cm-faint-syntax {
-        color: var(--text-faint);
-        opacity: 0.7;
-    }
-
-
-    /* Blockquote Line Decoration */
-    .cm-blockquote-line {
-        border-left: 4px solid var(--blockquote-border);
-        padding-left: 1.5em;
-        margin-left: 0;
-        /* Ensure no vertical gaps */
-        margin-top: 0;
-        margin-bottom: 0;
-        display: block;
-    }
-
-    /* Highlights */
-    .cm-highlight {
-        background-color: rgba(255, 255, 0, 0.2);
-        border-radius: 2px;
-        padding: 0 2px;
-    }
-
-    /* Code Blocks */
-    .cm-code-block {
-        background-color: var(--background-secondary);
-        font-family: var(--font-monospace);
-        border-radius: 4px;
-    }
-
-    /* Inline Code */
-    .cm-inline-code {
-        background-color: var(--background-secondary);
-        font-family: var(--font-monospace);
-        border-radius: 4px;
-        padding: 0.2em 0.4em;
-        color: var(--text-accent);
-    }
-
-
-    /* Broken Image Styling */
-    .cm-image-container {
-        display: block;
-    }
-
-    .cm-image-broken {
-        display: flex;
-        width: fit-content;
-        align-items: center;
-        gap: 6px;
-        padding: 4px 8px;
-        background-color: var(--background-secondary);
-        border: 1px solid var(--background-modifier-border);
-        border-radius: 4px;
-        color: var(--text-muted);
-        font-size: 0.9em;
-        margin: 0.5em 0;
-        max-width: 100%;
-    }
-
-    padding: 0 2px;
-}
-
-/* Code Blocks */
-.cm-code-block {
-    background-color: var(--background-secondary);
-    font-family: var(--font-monospace);
-    border-radius: 4px;
-}
-
-/* Inline Code */
 .cm-inline-code {
     background-color: var(--background-secondary);
     font-family: var(--font-monospace);
     border-radius: 4px;
     padding: 0.2em 0.4em;
     color: var(--text-accent);
-}
-
-
-:root {
-    /* Obsidian Minimal Theme Dark Palette */
-    --background-primary: #202020;
-    --background-secondary: #262626;
-    --text-normal: #dcddde;
-    --text-muted: #999999;
-    --text-faint: #666666;
-    --text-accent: #7b6cd9;
-    /* Minimal Purple Accent */
-    --text-accent-hover: #8e7ce6;
-    --text-selection: rgba(123, 108, 217, 0.2);
-    --interactive-accent: #7b6cd9;
-    --background-modifier-border: #333333;
-    --background-modifier-form-field: #2a2a2a;
-    --blockquote-border: #7b6cd9;
-
-    /* Fonts */
-    --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-monospace: 'JetBrains Mono', 'Fira Code', monospace;
-
-    /* Editor Dimensions */
-    --line-width: 700px;
-    --line-height: 1.5;
-}
-
-body {
-    margin: 0;
-    padding: 0;
-    background-color: var(--background-primary);
-    color: var(--text-normal);
-    font-family: var(--font-text);
-    overflow: hidden;
-    /* Editor handles scrolling */
-}
-
-.app-container {
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-}
-
-/* CodeMirror Base Styling */
-.cm-editor {
-    height: 100%;
-    font-family: var(--font-text);
-    font-size: 16px;
-    line-height: var(--line-height);
-    background-color: var(--background-primary);
-    color: var(--text-normal);
-}
-
-/* Cursor Visibility Fix */
-.cm-content {
-    caret-color: var(--text-normal);
-}
-
-.cm-scroller {
-    overflow: auto;
-    padding: 20px 0;
-}
-
-.cm-content {
-    max-width: var(--line-width);
-    margin: 0 auto;
-    padding-bottom: 30vh;
-    /* Overscroll */
-    color: var(--text-muted);
-}
-
-.cm-checkbox {
-    margin-right: 0.5em;
-    cursor: pointer;
-}
-
-.cm-hr {
-    border: none;
-    border-top: 2px solid var(--interactive-accent);
-    margin: 1em 0;
-    opacity: 0.5;
-}
-
-.cm-image {
-    display: block;
-    max-width: 100%;
-    height: auto;
-    border-radius: 4px;
-    margin: 0.5em 0;
-}
-
-.cm-table-widget {
-    display: block;
-    margin: 1em 0;
-    overflow-x: auto;
-}
-
-.cm-table-widget table {
-    border-collapse: collapse;
-    width: 100%;
-}
-
-.cm-table-widget th,
-.cm-table-widget td {
-    border: 1px solid var(--background-modifier-border);
-    padding: 8px;
-    text-align: left;
-}
-
-.cm-table-widget th {
-    background-color: var(--background-secondary);
-    font-weight: 600;
-}
-
-/* Syntax Highlighting Overrides (Hidden/Faint syntax) */
-/* Most styling is now handled by theme.js via HighlightStyle */
-.cm-formatting {
-    color: var(--text-faint);
-}
-
-/* Faint Syntax (for code fences etc) */
-.cm-faint-syntax {
-    color: var(--text-faint);
-    opacity: 0.7;
-}
-
-
-/* Blockquote Line Decoration */
-.cm-blockquote-line {
-    border-left: 4px solid var(--blockquote-border);
-    padding-left: 1.5em;
-    margin-left: 0;
-    /* Ensure no vertical gaps */
-    margin-top: 0;
-    margin-bottom: 0;
-    display: block;
-}
-
-/* Highlights */
-.cm-highlight {
-    background-color: rgba(255, 255, 0, 0.2);
-    border-radius: 2px;
-    padding: 0 2px;
-}
-
-/* Code Blocks */
-.cm-code-block {
-    background-color: var(--background-secondary);
-    font-family: var(--font-monospace);
-    border-radius: 4px;
 }
 
 /* Broken Image Styling */

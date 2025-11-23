@@ -9,15 +9,34 @@ import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
 import { obsidianTheme } from '../theme';
 
-const Editor = () => {
-    const editorRef = useRef(null);
-    const viewRef = useRef(null);
+const Editor = ({ onStatsUpdate }) => {
+  const editorRef = useRef(null);
+  const viewRef = useRef(null);
 
-    useEffect(() => {
-        if (!editorRef.current) return;
+  useEffect(() => {
+    if (!editorRef.current) return;
 
-        const startState = EditorState.create({
-            doc: `# Markdown Test Document
+    const updateStats = (view) => {
+      if (!onStatsUpdate) return;
+
+      const state = view.state;
+      const doc = state.doc;
+      const selection = state.selection.main;
+      const pos = selection.head;
+
+      const lineObj = doc.lineAt(pos);
+      const line = lineObj.number;
+      const col = pos - lineObj.from + 1;
+
+      const text = doc.toString();
+      const charCount = text.length;
+      const wordCount = text.trim() === '' ? 0 : text.trim().split(/\s+/).length;
+
+      onStatsUpdate({ line, col, charCount, wordCount });
+    };
+
+    const startState = EditorState.create({
+      doc: `# Markdown Test Document
 
 ## 1. Basic Markdown Behaviors
 
@@ -278,31 +297,39 @@ C:\\Users\\Path\\To\\File.txt
 7. Check that wrapped lines display correctly
 8. Verify all emphasis styles work (bold, italic, highlight, strikethrough)
 `,
-            extensions: [
-                keymap.of([...defaultKeymap, ...historyKeymap]),
-                history(),
-                EditorView.lineWrapping,
-                markdown({ base: markdownLanguage, codeLanguages: languages }),
-                livePreview, // Our custom extension
-                imagePreview,
-                linkPreview,
-                obsidianTheme
-            ]
-        });
+      extensions: [
+        keymap.of([...defaultKeymap, ...historyKeymap]),
+        history(),
+        EditorView.lineWrapping,
+        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        livePreview, // Our custom extension
+        imagePreview,
+        linkPreview,
+        obsidianTheme,
+        EditorView.updateListener.of((update) => {
+          if (update.docChanged || update.selectionSet) {
+            updateStats(update.view);
+          }
+        })
+      ]
+    });
 
-        const view = new EditorView({
-            state: startState,
-            parent: editorRef.current
-        });
+    const view = new EditorView({
+      state: startState,
+      parent: editorRef.current
+    });
 
-        viewRef.current = view;
+    viewRef.current = view;
 
-        return () => {
-            view.destroy();
-        };
-    }, []);
+    // Initial stats
+    updateStats(view);
 
-    return <div ref={editorRef} className="cm-editor-container" style={{ height: '100%' }} />;
+    return () => {
+      view.destroy();
+    };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return <div ref={editorRef} className="cm-editor-container" style={{ height: '100%' }} />;
 };
 
 export default Editor;
