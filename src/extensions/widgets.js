@@ -104,3 +104,23 @@ export class TableWidget extends WidgetType {
 
     ignoreEvent() { return true; }
 }
+
+export class CodeBlockWidget extends WidgetType {
+    constructor(content) {
+        super();
+        this.content = content;
+    }
+
+    toDOM() {
+        const pre = document.createElement("pre");
+        pre.className = "cm-code-block-widget";
+        const code = document.createElement("code");
+        code.textContent = this.content;
+        pre.appendChild(code);
+        return pre;
+    }
+
+    eq(other) { return other.content === this.content; }
+
+    ignoreEvent() { return false; }
+}

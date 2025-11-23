@@ -1,7 +1,7 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField } from "@codemirror/state";
-import { BulletWidget, CheckboxWidget, TableWidget, HRWidget } from "./widgets";
+import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, CodeBlockWidget } from "./widgets";
 
 // Helper: Check if cursor touches the range [from, to]
 const isCursorTouching = (selection, from, to) => {
@@ -218,63 +218,54 @@ const buildDecorations = (state) => {
 
             // 10. Code Blocks (Fenced)
             if (name === "FencedCode") {
-                // Style the code block content with Decoration.mark instead of line
-                // This allows the background to wrap the text content only
-                // We need to iterate lines to apply it per line content
-                for (let i = nodeFrom; i < nodeTo;) {
-                    const line = doc.lineAt(i);
-                    // Apply mark to the text content of the line
-                    // If line is empty, we might want to apply to a widget or just leave it?
-                    // Decoration.mark requires non-empty range usually, or at least doesn't show on empty line without css hacks.
-                    // But for code blocks, we usually want the block to extend at least a bit.
-                    // Let's use Decoration.line but with a class that has width: fit-content?
-                    // No, Decoration.line wraps the whole line div.
-                    // Let's use Decoration.mark.
-
-                    if (line.length > 0) {
-                        decorations.push({
-                            from: line.from, to: line.to, value: Decoration.mark({
-                                class: "cm-code-block"
-                            })
-                        });
-                    } else {
-                        // Empty line in code block - maybe add a widget or just style the line?
-                        // If we want the "block" look on empty lines, we might need Decoration.line for those,
-                        // or a special widget.
-                        // Let's stick to Decoration.line for empty lines to keep the block structure visible?
-                        // Or just ignore empty lines for "wrapping content" look.
-                        // User said "only wrap their inner content".
-                        // So empty lines might not need background? Or maybe a small height?
-                        // Let's try applying to line.from to line.to (which is empty range) - mark won't show.
-                        // Let's use Decoration.line for empty lines to maintain continuity?
-                        // Or better: use Decoration.line but set display: inline-block on the line?
-                        // No, line is a block.
-
-                        // Let's try Decoration.mark for content.
-                    }
-                    i = line.to + 1;
-                }
+                const isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
 
                 let startMark = node.node.getChild("CodeMark");
                 let info = node.node.getChild("CodeInfo");
                 let lastMark = node.node.lastChild;
 
-                const isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
-
                 if (!isTouching) {
-                    // Hide fences if not active
-                    if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: Decoration.replace({}) });
-                    if (info) decorations.push({ from: info.from, to: info.to, value: Decoration.replace({}) });
+                    // When not active, replace entire code block with widget
+                    // Extract the code content (excluding fence markers)
+                    let contentStart = nodeFrom;
+                    let contentEnd = nodeTo;
+
+                    if (startMark) {
+                        const startLine = doc.lineAt(startMark.from);
+                        contentStart = startLine.to + 1; // Start after the opening fence line
+                    }
+
                     if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
-                        decorations.push({ from: lastMark.from, to: lastMark.to, value: Decoration.replace({}) });
+                        const endLine = doc.lineAt(lastMark.from);
+                        contentEnd = endLine.from; // End before the closing fence line
+                    }
+
+                    if (contentStart < contentEnd) {
+                        const codeContent = doc.sliceString(contentStart, contentEnd);
+                        decorations.push({
+                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                widget: new CodeBlockWidget(codeContent)
+                            })
+                        });
                     }
                 } else {
-                    // Make faint if active
+                    // When active, show faint fences and apply line styling
                     const faintMark = Decoration.mark({ class: "cm-faint-syntax" });
                     if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: faintMark });
                     if (info) decorations.push({ from: info.from, to: info.to, value: faintMark });
                     if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
                         decorations.push({ from: lastMark.from, to: lastMark.to, value: faintMark });
+                    }
+
+                    // Apply line decoration for active editing
+                    for (let i = nodeFrom; i < nodeTo;) {
+                        const line = doc.lineAt(i);
+                        decorations.push({
+                            from: line.from, to: line.from, value: Decoration.line({
+                                class: "cm-code-block-active"
+                            })
+                        });
+                        i = line.to + 1;
                     }
                 }
             }

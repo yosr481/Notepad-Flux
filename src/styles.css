@@ -323,9 +323,46 @@ body {
     white-space: nowrap;
 }
 
+
 /* Highlighted Text (==text==) */
 .cm-highlight {
+    background-color: var(--text-highlight-bg);
     padding: 2px 4px;
     border-radius: 4px;
     color: var(--text-normal);
+}
+
+/* Code Blocks */
+.cm-line.cm-code-block {
+    background-color: var(--background-secondary);
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    line-height: 1.6;
+    width: fit-content;
+    min-width: 100%;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.cm-line.cm-code-block:first-of-type {
+    padding-top: 0.75em;
+    border-radius: 4px 4px 0 0;
+}
+
+.cm-line.cm-code-block:last-of-type {
+    padding-bottom: 0.75em;
+    border-radius: 0 0 4px 4px;
+}
+
+.cm-line.cm-code-block:first-of-type:last-of-type {
+    border-radius: 4px;
+}
+
+/* Inline Code */
+.cm-inline-code {
+    background-color: var(--background-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
 }
