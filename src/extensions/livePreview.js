@@ -30,7 +30,20 @@ const buildDecorations = (state) => {
             if (name === "EmphasisMark") {
                 const parent = node.node.parent;
                 if (parent && (parent.name === "Emphasis" || parent.name === "StrongEmphasis" || parent.name === "Strikethrough")) {
-                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                    let isTouching = isCursorTouching(selection, parent.from, parent.to);
+
+                    // Check grandparent for nested emphasis (e.g. ***bold italic***)
+                    // If the cursor touches the outer emphasis, we should also reveal the inner markers
+                    if (!isTouching) {
+                        const grandParent = parent.parent;
+                        if (grandParent && (grandParent.name === "Emphasis" || grandParent.name === "StrongEmphasis")) {
+                            if (isCursorTouching(selection, grandParent.from, grandParent.to)) {
+                                isTouching = true;
+                            }
+                        }
+                    }
+
+                    if (!isTouching) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
                 }
@@ -62,7 +75,18 @@ const buildDecorations = (state) => {
                     const taskChild = parent.getChild("Task");
                     if (taskChild) {
                         // Task List: Hide the dash if not touching
-                        if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                        // Check if touching dash OR task marker
+                        let isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
+                        if (!isTouching) {
+                            const taskMarker = taskChild.getChild("TaskMarker");
+                            if (taskMarker) {
+                                if (isCursorTouching(selection, taskMarker.from, taskMarker.to)) {
+                                    isTouching = true;
+                                }
+                            }
+                        }
+
+                        if (!isTouching) {
                             decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                         }
                     } else {
@@ -80,7 +104,25 @@ const buildDecorations = (state) => {
 
             // 4. Tasks (Checkboxes)
             if (name === "TaskMarker") {
-                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                let isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
+
+                // Also check if touching the ListMark (dash)
+                if (!isTouching) {
+                    const taskNode = node.node.parent; // Task
+                    if (taskNode && taskNode.name === "Task") {
+                        const listItem = taskNode.parent; // ListItem
+                        if (listItem && listItem.name === "ListItem") {
+                            const listMark = listItem.getChild("ListMark");
+                            if (listMark) {
+                                if (isCursorTouching(selection, listMark.from, listMark.to)) {
+                                    isTouching = true;
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (!isTouching) {
                     const isChecked = doc.sliceString(nodeFrom, nodeTo).includes("x");
                     decorations.push({
                         from: nodeFrom, to: nodeTo, value: Decoration.replace({
@@ -144,17 +186,6 @@ const buildDecorations = (state) => {
             // 8. Strikethrough (~~text~~)
             if (name === "Strikethrough") {
                 if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
-                    // Hide markers
-                    // We need to find the markers inside.
-                    // Or we can just iterate children?
-                    // The iterate function we are in is for the tree.
-                    // We can't easily find children here without iterating or using node object.
-                    // But we are IN the enter callback.
-
-                    // Actually, let's rely on the child "StrikethroughMark" trigger I added before?
-                    // No, I added it as a separate block.
-                    // Let's consolidate.
-
                     // Apply styling to the whole thing
                     decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.mark({ class: "cm-strikethrough" }) });
                 }
@@ -198,26 +229,24 @@ const buildDecorations = (state) => {
                     i = line.to + 1;
                 }
 
-                // Only hide markers when cursor is not touching
-                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
-                    let startMark = node.node.getChild("CodeMark");
-                    let info = node.node.getChild("CodeInfo");
-                    let lastMark = node.node.lastChild;
+                // STOP HIDING FENCES to prevent jitter
+                // Instead, we can style them faintly if needed, but for now let's just leave them visible
+                // or apply a class to make them faint.
 
-                    // Hide opening ```
-                    if (startMark) {
-                        decorations.push({ from: startMark.from, to: startMark.to, value: Decoration.replace({}) });
-                    }
+                let startMark = node.node.getChild("CodeMark");
+                let info = node.node.getChild("CodeInfo");
+                let lastMark = node.node.lastChild;
 
-                    // Hide language info (e.g. "javascript")
-                    if (info) {
-                        decorations.push({ from: info.from, to: info.to, value: Decoration.replace({}) });
-                    }
+                const faintMark = Decoration.mark({ class: "cm-faint-syntax" });
 
-                    // Hide closing ```
-                    if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
-                        decorations.push({ from: lastMark.from, to: lastMark.to, value: Decoration.replace({}) });
-                    }
+                if (startMark) {
+                    decorations.push({ from: startMark.from, to: startMark.to, value: faintMark });
+                }
+                if (info) {
+                    decorations.push({ from: info.from, to: info.to, value: faintMark });
+                }
+                if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
+                    decorations.push({ from: lastMark.from, to: lastMark.to, value: faintMark });
                 }
             }
 
