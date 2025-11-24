@@ -218,54 +218,37 @@ const buildDecorations = (state) => {
 
             // 10. Code Blocks (Fenced)
             if (name === "FencedCode") {
-                const isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
+                // Always style the code block lines, even when active
+                for (let i = nodeFrom; i < nodeTo;) {
+                    const line = doc.lineAt(i);
+                    decorations.push({
+                        from: line.from, to: line.from, value: Decoration.line({
+                            class: "cm-code-block"
+                        })
+                    });
+                    i = line.to + 1;
+                }
 
                 let startMark = node.node.getChild("CodeMark");
                 let info = node.node.getChild("CodeInfo");
                 let lastMark = node.node.lastChild;
 
+                const isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
+
                 if (!isTouching) {
-                    // When not active, replace entire code block with widget
-                    // Extract the code content (excluding fence markers)
-                    let contentStart = nodeFrom;
-                    let contentEnd = nodeTo;
-
-                    if (startMark) {
-                        const startLine = doc.lineAt(startMark.from);
-                        contentStart = startLine.to + 1; // Start after the opening fence line
-                    }
-
+                    // Hide fences if not active
+                    if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: Decoration.replace({}) });
+                    if (info) decorations.push({ from: info.from, to: info.to, value: Decoration.replace({}) });
                     if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
-                        const endLine = doc.lineAt(lastMark.from);
-                        contentEnd = endLine.from; // End before the closing fence line
-                    }
-
-                    if (contentStart < contentEnd) {
-                        const codeContent = doc.sliceString(contentStart, contentEnd);
-                        decorations.push({
-                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
-                                widget: new CodeBlockWidget(codeContent)
-                            })
-                        });
+                        decorations.push({ from: lastMark.from, to: lastMark.to, value: Decoration.replace({}) });
                     }
                 } else {
-                    // When active, show faint fences and apply line styling
+                    // Make faint if active
                     const faintMark = Decoration.mark({ class: "cm-faint-syntax" });
                     if (startMark) decorations.push({ from: startMark.from, to: startMark.to, value: faintMark });
                     if (info) decorations.push({ from: info.from, to: info.to, value: faintMark });
                     if (lastMark && lastMark.name === "CodeMark" && startMark && lastMark.from !== startMark.from) {
                         decorations.push({ from: lastMark.from, to: lastMark.to, value: faintMark });
-                    }
-
-                    // Apply line decoration for active editing
-                    for (let i = nodeFrom; i < nodeTo;) {
-                        const line = doc.lineAt(i);
-                        decorations.push({
-                            from: line.from, to: line.from, value: Decoration.line({
-                                class: "cm-code-block-active"
-                            })
-                        });
-                        i = line.to + 1;
                     }
                 }
             }
