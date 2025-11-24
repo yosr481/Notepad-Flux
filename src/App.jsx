@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import Editor from './components/Editor';
 import MenuBar from './components/Layout/MenuBar';
 import StatusBar from './components/Layout/StatusBar';
+import styles from './App.module.css';
 
 function App() {
     const [theme, setTheme] = useState('dark');
@@ -22,10 +23,10 @@ function App() {
     }, [theme]);
 
     return (
-        <div className="app-container" data-theme={theme}>
+        <div className={styles.appContainer} data-theme={theme}>
             <MenuBar theme={theme} toggleTheme={toggleTheme} />
 
-            <div className="editor-wrapper">
+            <div className={styles.editorWrapper}>
                 <Editor onStatsUpdate={setStats} />
             </div>
 

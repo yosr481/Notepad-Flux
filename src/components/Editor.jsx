@@ -10,6 +10,7 @@ import { linkPreview } from '../extensions/linkPreview';
 import { linkHandler } from '../extensions/linkHandler';
 import { listKeymap } from '../extensions/listKeymap';
 import { obsidianTheme } from '../theme';
+import styles from './Editor.module.css';
 
 const Editor = ({ onStatsUpdate }) => {
   const editorRef = useRef(null);
@@ -32,10 +33,10 @@ const Editor = ({ onStatsUpdate }) => {
       const col = pos - lineObj.from + 1;
 
       let charCount, wordCount;
-      
+
       if (statsCache.current.docVersion !== doc.length) {
         charCount = doc.length;
-        
+
         let words = 0;
         for (let i = 1; i <= doc.lines; i++) {
           const lineText = doc.line(i).text;
@@ -44,7 +45,7 @@ const Editor = ({ onStatsUpdate }) => {
           }
         }
         wordCount = words;
-        
+
         statsCache.current = { charCount, wordCount, docVersion: doc.length };
       } else {
         charCount = statsCache.current.charCount;
@@ -76,6 +77,26 @@ const Editor = ({ onStatsUpdate }) => {
           linkHandler,
           listKeymap,
           obsidianTheme,
+          EditorView.theme({
+            "&": {
+              height: "100%",
+              fontFamily: "var(--font-text)",
+              fontSize: "16px",
+              lineHeight: "var(--line-height)",
+              backgroundColor: "var(--background-primary)",
+              color: "var(--text-normal)"
+            },
+            ".cm-scroller": {
+              overflow: "auto",
+              padding: "0"
+            },
+            ".cm-content": {
+              maxWidth: "var(--line-width)",
+              margin: "0 auto",
+              padding: "20px 0 30vh 0",
+              caretColor: "var(--text-normal)"
+            }
+          }),
           EditorView.updateListener.of((update) => {
             if (update.selectionSet) {
               updateStats(update.view);
@@ -103,7 +124,7 @@ const Editor = ({ onStatsUpdate }) => {
     };
   }, []);
 
-  return <div ref={editorRef} className="cm-editor-container" style={{ height: '100%' }} />;
+  return <div ref={editorRef} className={styles.editorContainer} style={{ height: '100%' }} />;
 };
 
 export default Editor;

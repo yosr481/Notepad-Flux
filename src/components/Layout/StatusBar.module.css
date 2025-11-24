@@ -1,0 +1,27 @@
+.statusBar {
+    height: 24px;
+    background-color: var(--background-secondary);
+    border-top: 1px solid var(--background-modifier-border);
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    font-size: 12px;
+    color: var(--text-normal);
+    flex-shrink: 0;
+    justify-content: flex-end;
+    gap: 20px;
+}
+
+.statusItem {
+    padding: 0 10px;
+    border-left: 1px solid var(--background-modifier-border);
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.statusItem:first-child {
+    border-left: none;
+    margin-right: auto;
+    /* Push others to right */
+}

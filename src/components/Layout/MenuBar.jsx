@@ -1,14 +1,15 @@
 import React from 'react';
 import { Sun, Moon } from 'lucide-react';
+import styles from './MenuBar.module.css';
 
 const MenuBar = ({ theme, toggleTheme }) => {
     return (
-        <div className="menu-bar">
-            <div className="menu-items">
-                <div className="menu-item">File</div>
-                <div className="menu-item">Edit</div>
+        <div className={styles.menuBar}>
+            <div className={styles.menuItems}>
+                <div className={styles.menuItem}>File</div>
+                <div className={styles.menuItem}>Edit</div>
             </div>
-            <button className="theme-toggle" onClick={toggleTheme} title="Toggle Theme">
+            <button className={styles.themeToggle} onClick={toggleTheme} title="Toggle Theme">
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
             </button>
         </div>

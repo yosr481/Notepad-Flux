@@ -1,0 +1,13 @@
+.appContainer {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.editorWrapper {
+    flex-grow: 1;
+    overflow: hidden;
+    position: relative;
+}

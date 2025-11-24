@@ -1,0 +1,25 @@
+/* CodeMirror Base Styling */
+.cmEditor {
+    height: 100%;
+    font-family: var(--font-text);
+    font-size: 16px;
+    line-height: var(--line-height);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+}
+
+.cmScroller {
+    overflow: auto;
+    padding: 0;
+}
+
+.cmContent {
+    max-width: var(--line-width);
+    margin: 0 auto;
+    padding: 20px 0 30vh 0;
+    caret-color: var(--text-normal);
+}
+
+.editorContainer {
+    height: 100%;
+}

@@ -1,0 +1,129 @@
+/* --- Markdown Elements (CodeMirror) --- */
+
+.cm-checkbox {
+    margin-right: 0.5em;
+    cursor: pointer;
+}
+
+.cm-hr {
+    border: none;
+    border-top: 2px solid var(--interactive-accent);
+    margin: 1em 0;
+    opacity: 0.5;
+}
+
+.cm-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 4px;
+    margin: 0.5em 0;
+}
+
+.cm-table-widget {
+    display: block;
+    margin: 1em 0;
+    overflow-x: auto;
+}
+
+.cm-table-widget table {
+    border-collapse: collapse;
+    width: auto;
+    max-width: 100%;
+}
+
+.cm-table-widget th,
+.cm-table-widget td {
+    border: 1px solid var(--background-modifier-border);
+    padding: 8px;
+    text-align: left;
+}
+
+.cm-table-widget th {
+    background-color: var(--background-secondary);
+    font-weight: 600;
+}
+
+.cm-formatting {
+    color: var(--text-faint);
+}
+
+.cm-faint-syntax {
+    color: var(--text-faint);
+    opacity: 0.7;
+}
+
+.cm-blockquote-line {
+    border-left: 4px solid var(--blockquote-border);
+    padding-left: 1.5em;
+    margin-left: 0;
+}
+
+.cm-image-broken {
+    display: flex;
+    width: fit-content;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 8px;
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    color: var(--text-muted);
+    font-size: 0.9em;
+    margin: 0.5em 0;
+    max-width: 100%;
+}
+
+.cm-broken-icon {
+    color: var(--text-faint);
+    flex-shrink: 0;
+}
+
+.cm-broken-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Highlighted Text (==text==) */
+.cm-highlight {
+    background-color: var(--text-highlight-bg);
+    padding: 2px 4px;
+    border-radius: 4px;
+    color: var(--text-normal);
+}
+
+/* Code Blocks */
+.cm-line.cm-code-block {
+    background-color: var(--background-secondary);
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    line-height: 1.6;
+    width: fit-content;
+    min-width: 100%;
+    padding-left: 1em;
+    padding-right: 1em;
+}
+
+.cm-line.cm-code-block:first-of-type {
+    padding-top: 0.75em;
+    border-radius: 4px 4px 0 0;
+}
+
+.cm-line.cm-code-block:last-of-type {
+    padding-bottom: 0.75em;
+    border-radius: 0 0 4px 4px;
+}
+
+.cm-line.cm-code-block:first-of-type:last-of-type {
+    border-radius: 4px;
+}
+
+/* Inline Code */
+.cm-inline-code {
+    background-color: var(--background-secondary);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+}
