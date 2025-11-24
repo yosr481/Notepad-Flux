@@ -1,9 +1,44 @@
 import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 
-// --- 1. Global Cache & Templates ---
+// --- 1. LRU Cache Implementation ---
+// This ensures we don't crash the browser with infinite images in a long session.
+class LRUCache {
+    constructor(limit = 100) {
+        this.limit = limit;
+        this.cache = new Map();
+    }
 
-// Cache the broken image template
+    get(key) {
+        if (!this.cache.has(key)) return null;
+        // Refresh item: delete and re-add to make it the "most recently used"
+        const value = this.cache.get(key);
+        this.cache.delete(key);
+        this.cache.set(key, value);
+        return value;
+    }
+
+    set(key, value) {
+        if (this.cache.has(key)) {
+            this.cache.delete(key);
+        } else if (this.cache.size >= this.limit) {
+            // Evict the oldest item (first key in Map)
+            this.cache.delete(this.cache.keys().next().value);
+        }
+        this.cache.set(key, value);
+    }
+
+    has(key) {
+        return this.cache.has(key);
+    }
+}
+
+// --- 2. Global State ---
+
+// Limit to 100 active images in memory (adjust based on your needs)
+const globalImageCache = new LRUCache(100);
+const pendingRequests = new Map();
+
 const brokenImageTemplate = (() => {
     const template = document.createElement("template");
     template.innerHTML = `
@@ -13,33 +48,32 @@ const brokenImageTemplate = (() => {
     return template;
 })();
 
-// Global cache to store image status and data
-// Key: URL string
-// Value: { status: 'loaded' | 'error', element: HTMLImageElement | null }
-const imageCache = new Map();
-
-// Track active promises to prevent duplicate network requests for the same URL
-const pendingRequests = new Map();
-
-// Helper to load an image once and share the result
 function loadImage(url) {
-    if (imageCache.has(url)) return Promise.resolve(imageCache.get(url));
+    // 1. Check LRU Cache
+    const cached = globalImageCache.get(url);
+    if (cached) return Promise.resolve(cached);
+
+    // 2. Check Pending Requests (Deduplication)
     if (pendingRequests.has(url)) return pendingRequests.get(url);
 
+    // 3. Fetch
     const promise = new Promise((resolve) => {
         const img = new Image();
-        img.onload = () => {
+
+        // Important: Decode image before resolving to prevent UI freeze on large images
+        img.decode().then(() => {
             const data = { status: 'loaded', element: img };
-            imageCache.set(url, data);
+            globalImageCache.set(url, data);
             pendingRequests.delete(url);
             resolve(data);
-        };
-        img.onerror = () => {
+        }).catch(() => {
+            // Decode failed or load failed
             const data = { status: 'error', element: null };
-            imageCache.set(url, data);
+            globalImageCache.set(url, data);
             pendingRequests.delete(url);
-            resolve(data); // Resolve even on error so we can render the broken icon
-        };
+            resolve(data);
+        });
+
         img.src = url;
     });
 
@@ -47,7 +81,7 @@ function loadImage(url) {
     return promise;
 }
 
-// --- 2. Optimized Widget ---
+// --- 3. Widget ---
 
 class ImageWidget extends WidgetType {
     constructor(url, alt) {
@@ -58,48 +92,39 @@ class ImageWidget extends WidgetType {
 
     toDOM(view) {
         const container = document.createElement("span");
-        container.className = "cm-image-container"; // Default container class
+        container.className = "cm-image-container";
 
-        // Check cache synchronously first
-        const cached = imageCache.get(this.url);
+        // Synchronous check
+        const cached = globalImageCache.get(this.url);
 
         if (cached) {
-            // CASE A: We already know the result (Success or Fail)
             this.renderState(container, cached);
         } else {
-            // CASE B: First time seeing this URL.
-            // 1. Do NOT show broken icon yet. Show loading state (empty or spinner).
+            // Loading state
             container.classList.add("cm-image-loading");
 
-            // 2. Start load (or hook into existing pending request)
             loadImage(this.url).then((data) => {
-                // Ensure the container is still in the DOM before updating
                 if (container.isConnected) {
                     container.classList.remove("cm-image-loading");
                     this.renderState(container, data);
                 }
             });
         }
-
         return container;
     }
 
     renderState(container, data) {
-        container.textContent = ""; // Clear loading state
-
+        container.textContent = "";
         if (data.status === 'loaded') {
-            // Clone the cached image node so we don't move the original DOM element
+            // cloneNode(true) is very fast and lightweight
             const img = data.element.cloneNode(true);
             img.className = "cm-image";
             img.alt = this.alt;
-            img.title = this.alt;
             container.appendChild(img);
             container.className = "cm-image-container";
         } else {
-            // Render broken placeholder
             const content = brokenImageTemplate.content.cloneNode(true);
-            const textSpan = content.querySelector(".cm-broken-text");
-            textSpan.textContent = this.alt || "Image not found";
+            content.querySelector(".cm-broken-text").textContent = this.alt || "Image not found";
             container.appendChild(content);
             container.className = "cm-image-broken";
         }
@@ -108,13 +133,9 @@ class ImageWidget extends WidgetType {
     eq(other) {
         return other.url === this.url && other.alt === this.alt;
     }
-
-    ignoreEvent() {
-        return false;
-    }
 }
 
-// --- 3. View Plugin (Unchanged logic, just context) ---
+// --- 4. View Plugin (Standard) ---
 
 const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;
 
@@ -125,42 +146,9 @@ export const imagePreview = ViewPlugin.fromClass(class {
     }
 
     update(update) {
-        if (update.docChanged || update.viewportChanged) {
+        if (update.docChanged || update.viewportChanged || update.selectionSet) {
             this.decorations = this.computeDecorations(update.view);
-            this.lastCursorImageRange = this.findImageRangeAtCursor(update.view);
-            return;
         }
-
-        if (update.selectionSet) {
-            const currentImageRange = this.findImageRangeAtCursor(update.view);
-            const rangeChanged =
-                (this.lastCursorImageRange === null) !== (currentImageRange === null) ||
-                (this.lastCursorImageRange && currentImageRange &&
-                    (this.lastCursorImageRange.start !== currentImageRange.start ||
-                        this.lastCursorImageRange.end !== currentImageRange.end));
-
-            if (rangeChanged) {
-                this.decorations = this.computeDecorations(update.view);
-                this.lastCursorImageRange = currentImageRange;
-            }
-        }
-    }
-
-    findImageRangeAtCursor(view) {
-        const { from, to } = view.viewport;
-        const text = view.state.doc.sliceString(from, to);
-        const { from: selFrom, to: selTo } = view.state.selection.main;
-
-        imageMatcher.lastIndex = 0;
-        let match;
-        while ((match = imageMatcher.exec(text))) {
-            const start = from + match.index;
-            const end = start + match[0].length;
-            if ((selFrom <= end) && (selTo >= start)) {
-                return { start, end };
-            }
-        }
-        return null;
     }
 
     computeDecorations(view) {
