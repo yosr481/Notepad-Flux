@@ -155,10 +155,10 @@ class Editor {
 ### 2.5 Complex Table
 | Feature | Status | Priority | Notes |
 |---------|--------|----------|-------|
--| Bold | ✅ | High | Working |
--| Italic | ✅ | High | Working |
--| Tables | 🔧 | Medium | Testing |
--| Code | ✅ | High | Working |
+| Bold | ✅ | High | Working |
+| Italic | ✅ | High | Working |
+| Tables | 🔧 | Medium | Testing |
+| Code | ✅ | High | Working |
 
 ## 3. Nested Markdown
 
