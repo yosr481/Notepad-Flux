@@ -70,15 +70,15 @@ export const linkPreview = ViewPlugin.fromClass(class {
         const builder = new RangeSetBuilder();
         const { from, to } = view.viewport;
         const text = view.state.doc.sliceString(from, to);
-        const cursor = view.state.selection.main.head;
 
         let match;
+        const { from: selFrom, to: selTo } = view.state.selection.main;
+
         while ((match = linkMatcher.exec(text))) {
             const start = from + match.index;
             const end = start + match[0].length;
 
             // Check if cursor is inside the match or selection overlaps
-            const { from: selFrom, to: selTo } = view.state.selection.main;
             const isCursorInside = (selFrom <= end) && (selTo >= start);
 
             // Avoid overlapping with images (images start with !)
