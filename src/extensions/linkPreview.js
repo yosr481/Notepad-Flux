@@ -10,11 +10,26 @@ class LinkWidget extends WidgetType {
 
     toDOM(view) {
         const link = document.createElement("a");
-        link.textContent = this.text;
-        link.href = this.url;
         link.className = "cm-link";
-        link.target = "_blank"; // Open in new tab
+        link.href = this.url;
+        link.target = "_blank";
         link.rel = "noopener noreferrer";
+
+        // Text content
+        const textSpan = document.createElement("span");
+        textSpan.textContent = this.text;
+        link.appendChild(textSpan);
+
+        // External link icon
+        const icon = document.createElement("span");
+        icon.className = "cm-link-icon";
+        icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
+        icon.style.marginLeft = "4px";
+        icon.style.opacity = "0.7";
+        icon.style.display = "inline-flex";
+        icon.style.verticalAlign = "middle";
+        link.appendChild(icon);
+
         return link;
     }
 
@@ -22,12 +37,19 @@ class LinkWidget extends WidgetType {
         return other.text === this.text && other.url === this.url;
     }
 
-    ignoreEvent() {
+    ignoreEvent(event) {
+        // If Ctrl+Click (or Cmd+Click on Mac), let the browser handle it (open link)
+        // and return true so CodeMirror ignores it (doesn't move cursor/reveal syntax)
+        if (event.type === "mousedown" || event.type === "click") {
+            if (event.ctrlKey || event.metaKey) {
+                return true;
+            }
+        }
         return false;
     }
 }
 
-const linkMatcher = /\[(.*?)\]\((.*?)\)/g;
+const linkMatcher = /\[(.*?)\]\(([^"\s]+)(?:\s+"(.*?)")?\)/g;
 
 export const linkPreview = ViewPlugin.fromClass(class {
     constructor(view) {
