@@ -15,6 +15,10 @@ class LinkWidget extends WidgetType {
         link.target = "_blank";
         link.rel = "noopener noreferrer";
 
+        // Prevent visited links from changing color
+        link.style.color = "var(--text-accent)";
+        link.style.textDecoration = "underline";
+
         // Text content
         const textSpan = document.createElement("span");
         textSpan.textContent = this.text;
