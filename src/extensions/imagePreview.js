@@ -71,15 +71,23 @@ function loadImage(url) {
 }
 
 class ImageWidget extends WidgetType {
-    constructor(url, alt) {
+    constructor(url, alt, active) {
         super();
         this.url = url;
         this.alt = alt;
+        this.active = active;
     }
 
     toDOM(view) {
         const container = document.createElement("span");
         container.className = "cm-image-container";
+
+        // Initial style setup
+        if (this.active) {
+            container.style.display = "block";
+        } else {
+            container.style.display = "inline";
+        }
 
         const cached = globalImageCache.get(this.url);
 
@@ -104,6 +112,17 @@ class ImageWidget extends WidgetType {
             const img = data.element.cloneNode(true);
             img.className = "cm-image";
             img.alt = this.alt;
+
+            // Apply inline styles to override CSS
+            if (this.active) {
+                img.style.display = "block";
+                container.style.display = "block";
+            } else {
+                img.style.display = "inline-block";
+                img.style.verticalAlign = "middle";
+                container.style.display = "inline";
+            }
+
             container.appendChild(img);
             container.className = "cm-image-container";
         } else {
@@ -111,11 +130,19 @@ class ImageWidget extends WidgetType {
             content.querySelector(".cm-broken-text").textContent = this.alt || "Image not found";
             container.appendChild(content);
             container.className = "cm-image-broken";
+
+            // Apply inline styles for broken image
+            if (this.active) {
+                container.style.display = "flex";
+            } else {
+                container.style.display = "inline-flex";
+                container.style.verticalAlign = "middle";
+            }
         }
     }
 
     eq(other) {
-        return other.url === this.url && other.alt === this.alt;
+        return other.url === this.url && other.alt === this.alt && other.active === this.active;
     }
 }
 
@@ -169,12 +196,12 @@ export const imagePreview = ViewPlugin.fromClass(class {
 
                 if (!isCursorInside) {
                     builder.add(start, end, Decoration.replace({
-                        widget: new ImageWidget(match[2], match[1]),
+                        widget: new ImageWidget(match[2], match[1], false),
                         inclusive: false
                     }));
                 } else {
                     builder.add(end, end, Decoration.widget({
-                        widget: new ImageWidget(match[2], match[1]),
+                        widget: new ImageWidget(match[2], match[1], true),
                         side: 1
                     }));
                 }
