@@ -7,7 +7,6 @@ const MenuBar = ({ theme, toggleTheme }) => {
             <div className="menu-items">
                 <div className="menu-item">File</div>
                 <div className="menu-item">Edit</div>
-                <div className="menu-item">View</div>
             </div>
             <button className="theme-toggle" onClick={toggleTheme} title="Toggle Theme">
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}

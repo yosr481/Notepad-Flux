@@ -64,7 +64,8 @@ export class HRWidget extends WidgetType {
     toDOM() {
         const hr = document.createElement("hr");
         hr.className = "cm-hr";
-        hr.style.margin = "0.2em 0 0.05em 0";
+        hr.style.margin = "0";
+        hr.style.height = "1px";
         return hr;
     }
 
