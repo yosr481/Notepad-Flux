@@ -83,27 +83,29 @@ export const linkPreview = ViewPlugin.fromClass(class {
 
     computeDecorations(view) {
         const builder = new RangeSetBuilder();
-        const { from, to } = view.viewport;
-        const text = view.state.doc.sliceString(from, to);
-
-        let match;
         const { from: selFrom, to: selTo } = view.state.selection.main;
 
-        while ((match = linkMatcher.exec(text))) {
-            const start = from + match.index;
-            const end = start + match[0].length;
+        for (const { from, to } of view.visibleRanges) {
+            const text = view.state.doc.sliceString(from, to);
+            linkMatcher.lastIndex = 0;
+            let match;
 
-            const isCursorInside = (selFrom <= end) && (selTo >= start);
+            while ((match = linkMatcher.exec(text))) {
+                const start = from + match.index;
+                const end = start + match[0].length;
 
-            const isImage = start > 0 && view.state.doc.sliceString(start - 1, start) === '!';
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
 
-            if (!isCursorInside && !isImage) {
-                const textContent = match[1];
-                const url = match[2];
-                builder.add(start, end, Decoration.replace({
-                    widget: new LinkWidget(textContent, url),
-                    inclusive: false
-                }));
+                const isImage = start > 0 && view.state.doc.sliceString(start - 1, start) === '!';
+
+                if (!isCursorInside && !isImage) {
+                    const textContent = match[1];
+                    const url = match[2];
+                    builder.add(start, end, Decoration.replace({
+                        widget: new LinkWidget(textContent, url),
+                        inclusive: false
+                    }));
+                }
             }
         }
 

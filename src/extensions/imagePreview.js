@@ -155,27 +155,29 @@ export const imagePreview = ViewPlugin.fromClass(class {
 
     computeDecorations(view) {
         const builder = new RangeSetBuilder();
-        const { from, to } = view.viewport;
-        const text = view.state.doc.sliceString(from, to);
         const { from: selFrom, to: selTo } = view.state.selection.main;
 
-        imageMatcher.lastIndex = 0;
-        let match;
-        while ((match = imageMatcher.exec(text))) {
-            const start = from + match.index;
-            const end = start + match[0].length;
-            const isCursorInside = (selFrom <= end) && (selTo >= start);
+        for (const { from, to } of view.visibleRanges) {
+            const text = view.state.doc.sliceString(from, to);
+            imageMatcher.lastIndex = 0;
+            let match;
 
-            if (!isCursorInside) {
-                builder.add(start, end, Decoration.replace({
-                    widget: new ImageWidget(match[2], match[1]),
-                    inclusive: false
-                }));
-            } else {
-                builder.add(end, end, Decoration.widget({
-                    widget: new ImageWidget(match[2], match[1]),
-                    side: 1
-                }));
+            while ((match = imageMatcher.exec(text))) {
+                const start = from + match.index;
+                const end = start + match[0].length;
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
+
+                if (!isCursorInside) {
+                    builder.add(start, end, Decoration.replace({
+                        widget: new ImageWidget(match[2], match[1]),
+                        inclusive: false
+                    }));
+                } else {
+                    builder.add(end, end, Decoration.widget({
+                        widget: new ImageWidget(match[2], match[1]),
+                        side: 1
+                    }));
+                }
             }
         }
         return builder.finish();
