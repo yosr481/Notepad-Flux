@@ -15,16 +15,13 @@ class LinkWidget extends WidgetType {
         link.target = "_blank";
         link.rel = "noopener noreferrer";
 
-        // Prevent visited links from changing color
         link.style.color = "var(--text-accent)";
         link.style.textDecoration = "underline";
 
-        // Text content
         const textSpan = document.createElement("span");
         textSpan.textContent = this.text;
         link.appendChild(textSpan);
 
-        // External link icon
         const icon = document.createElement("span");
         icon.className = "cm-link-icon";
         icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
@@ -42,8 +39,6 @@ class LinkWidget extends WidgetType {
     }
 
     ignoreEvent(event) {
-        // If Ctrl+Click (or Cmd+Click on Mac), let the browser handle it (open link)
-        // and return true so CodeMirror ignores it (doesn't move cursor/reveal syntax)
         if (event.type === "mousedown" || event.type === "click") {
             if (event.ctrlKey || event.metaKey) {
                 return true;
@@ -58,12 +53,32 @@ const linkMatcher = /\[(.*?)\]\(([^"\s]+)(?:\s+"(.*?)")?\)/g;
 export const linkPreview = ViewPlugin.fromClass(class {
     constructor(view) {
         this.decorations = this.computeDecorations(view);
+        this.debounceTimer = null;
+        this.pendingView = null;
     }
 
     update(update) {
+        const docSize = update.state.doc.lines;
+        const isLargeDoc = docSize > 1000;
+
         if (update.docChanged || update.viewportChanged || update.selectionSet) {
-            this.decorations = this.computeDecorations(update.view);
+            if (isLargeDoc && update.docChanged) {
+                clearTimeout(this.debounceTimer);
+                this.pendingView = update.view;
+                this.debounceTimer = setTimeout(() => {
+                    if (this.pendingView) {
+                        this.decorations = this.computeDecorations(this.pendingView);
+                        this.pendingView.requestMeasure();
+                    }
+                }, 300);
+            } else {
+                this.decorations = this.computeDecorations(update.view);
+            }
         }
+    }
+
+    destroy() {
+        clearTimeout(this.debounceTimer);
     }
 
     computeDecorations(view) {
@@ -78,10 +93,8 @@ export const linkPreview = ViewPlugin.fromClass(class {
             const start = from + match.index;
             const end = start + match[0].length;
 
-            // Check if cursor is inside the match or selection overlaps
             const isCursorInside = (selFrom <= end) && (selTo >= start);
 
-            // Avoid overlapping with images (images start with !)
             const isImage = start > 0 && view.state.doc.sliceString(start - 1, start) === '!';
 
             if (!isCursorInside && !isImage) {

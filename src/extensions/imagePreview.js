@@ -1,8 +1,6 @@
 import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 
-// --- 1. LRU Cache Implementation ---
-// This ensures we don't crash the browser with infinite images in a long session.
 class LRUCache {
     constructor(limit = 100) {
         this.limit = limit;
@@ -11,7 +9,6 @@ class LRUCache {
 
     get(key) {
         if (!this.cache.has(key)) return null;
-        // Refresh item: delete and re-add to make it the "most recently used"
         const value = this.cache.get(key);
         this.cache.delete(key);
         this.cache.set(key, value);
@@ -22,7 +19,6 @@ class LRUCache {
         if (this.cache.has(key)) {
             this.cache.delete(key);
         } else if (this.cache.size >= this.limit) {
-            // Evict the oldest item (first key in Map)
             this.cache.delete(this.cache.keys().next().value);
         }
         this.cache.set(key, value);
@@ -33,9 +29,6 @@ class LRUCache {
     }
 }
 
-// --- 2. Global State ---
-
-// Limit to 100 active images in memory (adjust based on your needs)
 const globalImageCache = new LRUCache(100);
 const pendingRequests = new Map();
 
@@ -77,8 +70,6 @@ function loadImage(url) {
     return promise;
 }
 
-// --- 3. Widget ---
-
 class ImageWidget extends WidgetType {
     constructor(url, alt) {
         super();
@@ -90,13 +81,11 @@ class ImageWidget extends WidgetType {
         const container = document.createElement("span");
         container.className = "cm-image-container";
 
-        // Synchronous check
         const cached = globalImageCache.get(this.url);
 
         if (cached) {
             this.renderState(container, cached);
         } else {
-            // Loading state
             container.classList.add("cm-image-loading");
 
             loadImage(this.url).then((data) => {
@@ -112,7 +101,6 @@ class ImageWidget extends WidgetType {
     renderState(container, data) {
         container.textContent = "";
         if (data.status === 'loaded') {
-            // cloneNode(true) is very fast and lightweight
             const img = data.element.cloneNode(true);
             img.className = "cm-image";
             img.alt = this.alt;
@@ -131,20 +119,38 @@ class ImageWidget extends WidgetType {
     }
 }
 
-// --- 4. View Plugin (Standard) ---
-
 const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;
 
 export const imagePreview = ViewPlugin.fromClass(class {
     constructor(view) {
         this.decorations = this.computeDecorations(view);
         this.lastCursorImageRange = null;
+        this.debounceTimer = null;
+        this.pendingView = null;
     }
 
     update(update) {
+        const docSize = update.state.doc.lines;
+        const isLargeDoc = docSize > 1000;
+
         if (update.docChanged || update.viewportChanged || update.selectionSet) {
-            this.decorations = this.computeDecorations(update.view);
+            if (isLargeDoc && update.docChanged) {
+                clearTimeout(this.debounceTimer);
+                this.pendingView = update.view;
+                this.debounceTimer = setTimeout(() => {
+                    if (this.pendingView) {
+                        this.decorations = this.computeDecorations(this.pendingView);
+                        this.pendingView.requestMeasure();
+                    }
+                }, 300);
+            } else {
+                this.decorations = this.computeDecorations(update.view);
+            }
         }
+    }
+
+    destroy() {
+        clearTimeout(this.debounceTimer);
     }
 
     computeDecorations(view) {
