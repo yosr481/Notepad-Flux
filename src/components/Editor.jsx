@@ -253,8 +253,8 @@ Multiple empty lines above
 ### 4.7 Table Edge Cases
 | Left | Center | Right |
 |:-----|:------:|------:|
--| L1   | C1     | R1    |
--|Very long cell content that should wrap|C2|R2|
+| L1   | C1     | R1    |
+|Very long cell content that should wrap|C2|R2|
 
 ### 4.8 Blockquote Edge Cases
 >No space after marker
