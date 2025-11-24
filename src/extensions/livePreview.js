@@ -161,7 +161,6 @@ const buildDecorations = (state) => {
             }
 
             // 7. Blockquotes
-            // 7. Blockquotes
             if (name === "Blockquote") {
                 // Iterate over lines in the blockquote to apply decoration to each line
                 // This ensures continuous border even if it's multiple lines
