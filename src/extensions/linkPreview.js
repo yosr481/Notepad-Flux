@@ -19,7 +19,8 @@ class LinkWidget extends WidgetType {
         link.style.textDecoration = "underline";
 
         const textSpan = document.createElement("span");
-        textSpan.textContent = this.text;
+        // Parse markdown formatting in link text
+        textSpan.innerHTML = this.parseMarkdown(this.text);
         link.appendChild(textSpan);
 
         const icon = document.createElement("span");
@@ -32,6 +33,35 @@ class LinkWidget extends WidgetType {
         link.appendChild(icon);
 
         return link;
+    }
+
+    parseMarkdown(text) {
+        // Escape HTML to prevent XSS
+        let html = text
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        // Parse bold and italic (order matters to handle combined formatting)
+        // Bold and italic: ***text*** or ___text___
+        html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
+        html = html.replace(/\_\_\_(.*?)\_\_\_/g, "<strong><em>$1</em></strong>");
+
+        // Bold: **text** or __text__
+        html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+        html = html.replace(/\_\_(.*?)\_\_/g, "<strong>$1</strong>");
+
+        // Italic: *text* or _text_
+        html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
+        html = html.replace(/\_(.*?)\_/g, "<em>$1</em>");
+
+        // Strikethrough: ~~text~~
+        html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
+
+        // Inline code: `text`
+        html = html.replace(/`(.*?)`/g, "<code>$1</code>");
+
+        return html;
     }
 
     eq(other) {
