@@ -49,31 +49,27 @@ const brokenImageTemplate = (() => {
 })();
 
 function loadImage(url) {
-    // 1. Check LRU Cache
     const cached = globalImageCache.get(url);
     if (cached) return Promise.resolve(cached);
 
-    // 2. Check Pending Requests (Deduplication)
     if (pendingRequests.has(url)) return pendingRequests.get(url);
 
-    // 3. Fetch
     const promise = new Promise((resolve) => {
         const img = new Image();
-
-        // Important: Decode image before resolving to prevent UI freeze on large images
-        img.decode().then(() => {
-            const data = { status: 'loaded', element: img };
-            globalImageCache.set(url, data);
-            pendingRequests.delete(url);
-            resolve(data);
-        }).catch(() => {
-            // Decode failed or load failed
+        img.onload = () => {
+            img.decode?.().catch(() => { }).finally(() => {
+                const data = { status: 'loaded', element: img };
+                globalImageCache.set(url, data);
+                pendingRequests.delete(url);
+                resolve(data);
+            });
+        };
+        img.onerror = () => {
             const data = { status: 'error', element: null };
             globalImageCache.set(url, data);
             pendingRequests.delete(url);
             resolve(data);
-        });
-
+        };
         img.src = url;
     });
 
