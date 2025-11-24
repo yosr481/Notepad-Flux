@@ -8,6 +8,8 @@
     flex-shrink: 0;
     justify-content: space-between;
     user-select: none;
+    position: relative;
+    z-index: 50;
 }
 
 .menuItems {
@@ -24,6 +26,62 @@
 
 .menuItem:hover {
     background-color: var(--background-modifier-border);
+}
+
+.menuItemWrapper {
+    position: relative;
+}
+
+.active {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 10px var(--background-modifier-box-shadow);
+    padding: 4px 0;
+    z-index: 1000;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+}
+
+.dropdownItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--text-normal);
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.dropdownItem:hover {
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent);
+}
+
+.dropdownItem:hover .shortcut {
+    color: var(--text-on-accent);
+}
+
+.separator {
+    height: 1px;
+    background-color: var(--background-modifier-border);
+    margin: 4px 0;
+}
+
+.shortcut {
+    color: var(--text-muted);
+    font-size: 11px;
+    margin-left: 20px;
 }
 
 .themeToggle {
