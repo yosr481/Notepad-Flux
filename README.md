@@ -1,16 +1,24 @@
-# React + Vite
+# Markdown Editor Project
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A minimal, lightweight markdown writing application inspired by the simplicity of Windows Notepad, but with powerful modern features.
 
-Currently, two official plugins are available:
+## Core Philosophy
+The app is designed to be fast and distraction-free. It combines the simplicity of a plain text editor with the power of a WYSIWYG interface.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Key Features
+- **Live Preview Experience**: The core writing experience is built on **CodeMirror 6**, offering a "Live Preview" mode. Markdown syntax is hidden by default and revealed only when the cursor is active on the element, providing a clean, WYSIWYG-style reading and writing environment.
+- **Minimalist UI**: Heavily inspired by Windows Notepad.
+  - **Menus**: Classic File and Edit menus.
+  - **Status Bar**: Simple information display.
+  - **Tabs**: Support for multiple open files via a tabbed interface.
+- **Theming**: Built-in support for both Dark and Light modes.
 
-## React Compiler
+## Technology Stack
+- **Frontend**: React + Vite
+- **Editor Engine**: CodeMirror 6
+- **Current Status**: Currently under development and testing in Firefox.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+## Roadmap
+The ultimate goal is to wrap the application in **Electron** to distribute it as a native desktop application for:
+- Windows
+- Linux

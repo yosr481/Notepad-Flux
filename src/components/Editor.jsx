@@ -12,7 +12,7 @@ import { listKeymap } from '../extensions/listKeymap';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
 
-const Editor = ({ onStatsUpdate }) => {
+const Editor = ({ onStatsUpdate, initialContent = '', onContentChange }) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
@@ -56,10 +56,17 @@ const Editor = ({ onStatsUpdate }) => {
     };
 
     const getInitialDoc = async () => {
+      // Check for undefined/null, not falsy (empty string '' is valid content)
+      if (initialContent !== undefined && initialContent !== null) {
+        return initialContent;
+      }
+
+      // Load mock data only in DEV mode and only if no initialContent was provided
       if (import.meta.env.DEV) {
         const { mockMarkdown } = await import('../mockData.js');
         return mockMarkdown;
       }
+
       return '';
     };
 
@@ -102,6 +109,9 @@ const Editor = ({ onStatsUpdate }) => {
               updateStats(update.view);
             } else if (update.docChanged) {
               updateStats(update.view);
+              if (onContentChange) {
+                onContentChange(update.state.doc.toString(), true);
+              }
             }
           })
         ]
@@ -123,6 +133,22 @@ const Editor = ({ onStatsUpdate }) => {
       }
     };
   }, []);
+
+  // Sync editor content when initialContent prop changes (e.g., when switching tabs)
+  useEffect(() => {
+    if (viewRef.current && initialContent !== undefined && initialContent !== null) {
+      const currentContent = viewRef.current.state.doc.toString();
+      if (currentContent !== initialContent) {
+        viewRef.current.dispatch({
+          changes: {
+            from: 0,
+            to: currentContent.length,
+            insert: initialContent
+          }
+        });
+      }
+    }
+  }, [initialContent]);
 
   return <div ref={editorRef} className={styles.editorContainer} style={{ height: '100%' }} />;
 };
