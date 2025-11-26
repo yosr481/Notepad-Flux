@@ -10,7 +10,9 @@ export const useCommands = () => {
         closeTab: closeTabInContext,
         updateTab,
         switchTab,
-        setTabs
+        setTabs,
+        recentFiles,
+        addRecentFile
     } = useSession();
 
     const newTab = () => {
@@ -169,6 +171,8 @@ export const useCommands = () => {
                     fileHandle: file.handle,
                     isDirty: false
                 });
+                // Add to recent files with handle
+                addRecentFile(file.name, file.name, file.handle);
             }
         } catch (error) {
             console.error("Failed to open file", error);
@@ -223,15 +227,57 @@ export const useCommands = () => {
                     content: content,
                     isDirty: false
                 });
+                // Add to recent files with handle
+                addRecentFile(result.name, result.name, result.handle);
             }
         } catch (error) {
             console.error("Failed to save file as", error);
         }
     };
 
+    const openRecentFile = async (filePath, fileName, fileHandle) => {
+        try {
+            // Try to open from file handle first
+            let file = null;
+            if (fileHandle && fileSystem.isSupported()) {
+                try {
+                    file = await fileSystem.openFileFromHandle(fileHandle);
+                } catch (err) {
+                    console.warn(`Could not open from handle, fallback to picker:`, err);
+                    file = null;
+                }
+            }
+
+            // Fallback: open file picker if handle doesn't work
+            if (!file) {
+                file = await fileSystem.openFile();
+                if (!file) {
+                    window.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+                    return;
+                }
+            }
+
+            if (file) {
+                createTab({
+                    title: file.name,
+                    content: file.content,
+                    filePath: file.name,
+                    fileHandle: file.handle,
+                    isDirty: false
+                });
+                // Add to recent files with updated handle
+                addRecentFile(file.name, file.name, file.handle);
+            }
+        } catch (error) {
+            console.error(`Failed to open recent file: ${fileName}`, error);
+            window.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+        }
+    };
+
     return {
         newTab,
         openFile,
+        openRecentFile,
         saveFile,
         saveFileAs,
         closeTab,
@@ -241,6 +287,7 @@ export const useCommands = () => {
         updateTab,
         setActiveTabId,
         activeTabId,
-        tabs
+        tabs,
+        recentFiles
     };
 };

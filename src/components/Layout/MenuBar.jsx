@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
+const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit, recentFiles = [] }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -46,6 +46,29 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, o
                             <div className={styles.dropdownItem} onClick={() => { onOpen(); handleMenuClick('file'); }}>
                                 <span>Open...</span>
                                 <span className={styles.shortcut}>Ctrl+O</span>
+                            </div>
+                            <div className={styles.submenuWrapper}>
+                                <div className={styles.dropdownItem}>
+                                    <span>Recent</span>
+                                    <span className={styles.arrow}>›</span>
+                                </div>
+                                <div className={styles.submenu}>
+                                    {recentFiles.length > 0 ? (
+                                        recentFiles.map((file, index) => (
+                                            <div
+                                                key={index}
+                                                className={styles.dropdownItem}
+                                                onClick={() => { onOpenRecent(file.filePath, file.fileName, file.fileHandle); handleMenuClick('file'); }}
+                                            >
+                                                <span>{file.fileName}</span>
+                                            </div>
+                                        ))
+                                    ) : (
+                                        <div className={styles.dropdownItem} style={{ opacity: 0.5, pointerEvents: 'none' }}>
+                                            <span>Empty</span>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                             <div className={styles.separator}></div>
                             <div className={styles.dropdownItem} onClick={() => { onSave(); handleMenuClick('file'); }}>

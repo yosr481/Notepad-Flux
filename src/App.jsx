@@ -24,13 +24,15 @@ function App() {
         setActiveTabId,
         newTab,
         openFile,
+        openRecentFile,
         saveFile,
         saveFileAs,
         closeTab,
         closeOtherTabs,
         closeTabsToRight,
         switchTab,
-        updateTab
+        updateTab,
+        recentFiles
     } = useCommands();
 
     const [contextMenu, setContextMenu] = useState(null);
@@ -167,11 +169,13 @@ function App() {
                 onNewTab={newTab}
                 onNewWindow={() => window.open(window.location.href, '_blank')}
                 onOpen={openFile}
+                onOpenRecent={openRecentFile}
                 onSave={() => saveFile(editorRef)}
                 onSaveAs={() => saveFileAs(editorRef)}
                 onCloseTab={() => closeTab(activeTabId)}
                 onCloseWindow={() => window.close()}
                 onExit={() => window.close()}
+                recentFiles={recentFiles}
             />
 
             <div className={styles.editorWrapper}>

@@ -15,6 +15,7 @@ export const SessionProvider = ({ children }) => {
         { id: 'tab-1', title: 'Untitled', isDirty: false, content: '', filePath: null, fileHandle: null }
     ]);
     const [activeTabId, setActiveTabId] = useState('tab-1');
+    const [recentFiles, setRecentFiles] = useState([]);
     const nextTabId = useRef(2);
 
     // Helper to generate title from content
@@ -79,6 +80,15 @@ export const SessionProvider = ({ children }) => {
         }));
     }, []);
 
+    const addRecentFile = useCallback((filePath, fileName, fileHandle = null) => {
+        setRecentFiles(prev => {
+            // Remove if already exists to avoid duplicates
+            const filtered = prev.filter(f => f.filePath !== filePath);
+            // Add to front of list
+            return [{ filePath, fileName, fileHandle }, ...filtered].slice(0, 20); // Keep max 20 recent files
+        });
+    }, []);
+
     const switchTab = useCallback((direction) => {
         setTabs(currentTabs => {
             const currentIndex = currentTabs.findIndex(t => t.id === activeTabId);
@@ -103,7 +113,9 @@ export const SessionProvider = ({ children }) => {
         closeTab,
         updateTab,
         switchTab,
-        setTabs // Expose for complex operations like bulk close
+        setTabs, // Expose for complex operations like bulk close
+        recentFiles,
+        addRecentFile
     };
 
     return (

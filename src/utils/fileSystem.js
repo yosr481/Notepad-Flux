@@ -170,5 +170,27 @@ export const fileSystem = {
     /**
      * Check if File System Access API is supported
      */
-    isSupported: () => supportsFileSystemAccess
+    isSupported: () => supportsFileSystemAccess,
+
+    /**
+     * Open a file from a stored file handle
+     * @param {FileSystemFileHandle} handle 
+     * @returns {Promise<{handle: FileSystemFileHandle, content: string, name: string}|null>}
+     */
+    openFileFromHandle: async (handle) => {
+        if (!handle) return null;
+        
+        try {
+            const file = await handle.getFile();
+            const content = await file.text();
+            return {
+                handle,
+                content,
+                name: file.name
+            };
+        } catch (err) {
+            console.error('Error opening file from handle:', err);
+            throw err;
+        }
+    }
 };

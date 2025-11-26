@@ -84,6 +84,43 @@
     margin-left: 20px;
 }
 
+.submenuWrapper {
+    position: relative;
+}
+
+.submenuWrapper .dropdownItem {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 12px;
+}
+
+.submenuWrapper:hover .submenu {
+    display: flex;
+}
+
+.arrow {
+    margin-left: auto;
+    font-size: 12px;
+    margin-left: 10px;
+}
+
+.submenu {
+    display: none;
+    position: absolute;
+    top: -4px;
+    left: 100%;
+    background-color: var(--background-primary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 10px var(--background-modifier-box-shadow);
+    padding: 4px 0;
+    z-index: 1001;
+    min-width: 200px;
+    flex-direction: column;
+    margin-left: 4px;
+}
+
 .themeToggle {
     background: none;
     border: none;
