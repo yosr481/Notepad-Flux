@@ -16,7 +16,7 @@ Each **session** for the first window stores:
 - `ActiveTabIndex`.
 
 On app start:
-- If a session exists: **fully restore** tabs + active tab.
+- If a session exists: **restore** tabs + active tab (using progressive loading, see §10).
 - Else: create a single blank `Untitled` tab.
 
 ---
@@ -229,3 +229,20 @@ All Edit actions operate **only on the active tab**; no cross‑tab or cross‑w
 # 9. Window Instances
 ## 9.1 Dimensions
 - **Minimum Width and Height**: Values are dynamically determined based on display settings (e.g., screen resolution and scaling) to ensure usability on different screens.
+
+---
+# 10. Large Session Handling
+## 10.1 Scenario Model
+- **Scale**: [N] tabs or above, or more than [X] MB total.
+- **Risks**: Slow startup, GC pressure, UI jank if fully loaded/parsed at once.
+
+## 10.2 Mitigation Strategy
+1. **Light Domain State**:
+   - Store only raw text + small metadata globally.
+   - Do not keep derived structures (AST, render caches) in global state.
+   - Individual editor instances recompute on demand.
+
+2. **Progressive Session Load**:
+   - **Startup**: Load the active tab’s content immediately.
+   - **Background Hydration**: Defer loading other tabs until idle (using `requestIdleCallback` or timer).
+   - **UI Priority**: If >N tabs, show main UI quickly; let the rest "hydrate" in the background.
