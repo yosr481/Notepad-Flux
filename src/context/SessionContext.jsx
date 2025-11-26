@@ -20,7 +20,7 @@ export const SessionProvider = ({ children }) => {
     // Helper to generate title from content
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
-        return firstLine ? firstLine.slice(0, 20) : 'Untitled';
+        return firstLine ? firstLine.slice(0, 35) : 'Untitled';
     };
 
     const createTab = useCallback((initialData = {}) => {
@@ -70,8 +70,8 @@ export const SessionProvider = ({ children }) => {
 
             let newTab = { ...tab, ...updates };
 
-            // Auto-update title if not saved (no filePath) and content changed
-            if (updates.content !== undefined && !newTab.filePath) {
+            // Auto-update title if not saved (no fileHandle) and content changed
+            if (updates.content !== undefined && !newTab.fileHandle) {
                 newTab.title = generateTitle(updates.content);
             }
 

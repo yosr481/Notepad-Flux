@@ -136,7 +136,8 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
         EditorView.updateListener.of((update) => {
           if (update.selectionSet) {
             updateStats(update.view);
-          } else if (update.docChanged) {
+          }
+          if (update.docChanged) {
             updateStats(update.view);
             if (onContentChange) {
               onContentChange(update.state.doc.toString(), true);
