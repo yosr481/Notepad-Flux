@@ -16,11 +16,14 @@ const Tab = ({ id, title, isActive, isDirty, onClick, onClose, onContextMenu }) 
         >
             <div className={styles.tabContent}>
                 <span className={styles.tabTitle}>
-                    {isDirty ? '*' : ''} {title}
+                    {title}
                 </span>
-                <button className={styles.closeButton} onClick={handleClose}>
-                    ×
-                </button>
+                <div className={styles.tabIndicator}>
+                    {isDirty && <div className={styles.dirtyIndicator}></div>}
+                    <button className={styles.closeButton} onClick={handleClose}>
+                        ×
+                    </button>
+                </div>
             </div>
         </div>
     );

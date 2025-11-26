@@ -114,6 +114,28 @@
     margin-right: 8px;
 }
 
+.tabIndicator {
+    position: relative;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+.dirtyIndicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--text-muted);
+}
+
+.tab:hover .dirtyIndicator {
+    display: none;
+}
+
 .unsavedIndicator {
     margin-left: 4px;
     font-weight: bold;
@@ -124,6 +146,9 @@
 }
 
 .closeButton {
+    position: absolute;
+    top: 0;
+    left: 0;
     opacity: 0;
     border: none;
     background: none;
@@ -137,11 +162,9 @@
     font-size: 14px;
     width: 18px;
     height: 18px;
-    flex-shrink: 0;
 }
 
-.tab:hover .closeButton,
-.activeTab .closeButton {
+.tab:hover .closeButton {
     opacity: 1;
 }
 
