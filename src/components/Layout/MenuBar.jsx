@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme }) => {
+const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -36,9 +36,13 @@ const MenuBar = ({ theme, toggleTheme }) => {
                     </div>
                     {activeMenu === 'edit' && (
                         <div className={styles.dropdown}>
-                            <div className={styles.dropdownItem}>
+                            <div className={styles.dropdownItem} onClick={() => { onUndo(); handleMenuClick('edit'); }}>
                                 <span>Undo</span>
                                 <span className={styles.shortcut}>Ctrl+Z</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onRedo(); handleMenuClick('edit'); }}>
+                                <span>Redo</span>
+                                <span className={styles.shortcut}>Ctrl+Y</span>
                             </div>
                             <div className={styles.separator}></div>
                             <div className={styles.dropdownItem}>
@@ -56,6 +60,11 @@ const MenuBar = ({ theme, toggleTheme }) => {
                             <div className={styles.dropdownItem}>
                                 <span>Delete</span>
                                 <span className={styles.shortcut}>Del</span>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onSelectAll(); handleMenuClick('edit'); }}>
+                                <span>Select All</span>
+                                <span className={styles.shortcut}>Ctrl+A</span>
                             </div>
                         </div>
                     )}
