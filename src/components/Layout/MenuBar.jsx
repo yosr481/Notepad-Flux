@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll }) => {
+const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -26,7 +26,51 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll }) => {
     return (
         <div className={styles.menuBar} ref={menuRef}>
             <div className={styles.menuItems}>
-                <div className={styles.menuItem}>File</div>
+                <div className={styles.menuItemWrapper}>
+                    <div
+                        className={`${styles.menuItem} ${activeMenu === 'file' ? styles.active : ''}`}
+                        onClick={() => handleMenuClick('file')}
+                    >
+                        File
+                    </div>
+                    {activeMenu === 'file' && (
+                        <div className={styles.dropdown}>
+                            <div className={styles.dropdownItem} onClick={() => { onNewTab(); handleMenuClick('file'); }}>
+                                <span>New Tab</span>
+                                <span className={styles.shortcut}>Ctrl+N</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onNewWindow(); handleMenuClick('file'); }}>
+                                <span>New Window</span>
+                                <span className={styles.shortcut}>Ctrl+Shift+N</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onOpen(); handleMenuClick('file'); }}>
+                                <span>Open...</span>
+                                <span className={styles.shortcut}>Ctrl+O</span>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onSave(); handleMenuClick('file'); }}>
+                                <span>Save</span>
+                                <span className={styles.shortcut}>Ctrl+S</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onSaveAs(); handleMenuClick('file'); }}>
+                                <span>Save As...</span>
+                                <span className={styles.shortcut}>Ctrl+Shift+S</span>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onCloseTab(); handleMenuClick('file'); }}>
+                                <span>Close Tab</span>
+                                <span className={styles.shortcut}>Ctrl+W</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onCloseWindow(); handleMenuClick('file'); }}>
+                                <span>Close Window</span>
+                                <span className={styles.shortcut}>Alt+F4</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onExit(); handleMenuClick('file'); }}>
+                                <span>Exit</span>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 <div className={styles.menuItemWrapper}>
                     <div
                         className={`${styles.menuItem} ${activeMenu === 'edit' ? styles.active : ''}`}

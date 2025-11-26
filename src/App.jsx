@@ -21,6 +21,9 @@ function App() {
         activeTabId,
         setActiveTabId,
         newTab,
+        openFile,
+        saveFile,
+        saveFileAs,
         closeTab,
         closeOtherTabs,
         closeTabsToRight,
@@ -54,6 +57,18 @@ function App() {
             if (e.ctrlKey && e.key === 'n') {
                 e.preventDefault();
                 newTab();
+            } else if (e.ctrlKey && e.key === 'o') {
+                e.preventDefault();
+                openFile();
+            } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
+                e.preventDefault();
+                saveFileAs();
+            } else if (e.ctrlKey && e.key === 's') {
+                e.preventDefault();
+                saveFile();
+            } else if (e.ctrlKey && e.key === 'w') {
+                e.preventDefault();
+                closeTab(activeTabId);
             } else if (e.ctrlKey && e.key === 'Tab') {
                 e.preventDefault();
                 switchTab(e.shiftKey ? 'prev' : 'next');
@@ -62,7 +77,7 @@ function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [newTab, switchTab]);
+    }, [newTab, openFile, saveFile, saveFileAs, closeTab, activeTabId, switchTab]);
 
     const toggleTheme = () => {
         setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -100,6 +115,14 @@ function App() {
                 onUndo={handleUndo}
                 onRedo={handleRedo}
                 onSelectAll={handleSelectAll}
+                onNewTab={newTab}
+                onNewWindow={() => window.open(window.location.href, '_blank')}
+                onOpen={openFile}
+                onSave={saveFile}
+                onSaveAs={saveFileAs}
+                onCloseTab={() => closeTab(activeTabId)}
+                onCloseWindow={() => window.close()}
+                onExit={() => window.close()}
             />
 
             <div className={styles.editorWrapper}>

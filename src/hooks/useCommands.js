@@ -1,4 +1,5 @@
 import { useSession } from '../context/SessionContext';
+import { fileSystem } from '../utils/fileSystem';
 
 export const useCommands = () => {
     const {
@@ -84,8 +85,63 @@ export const useCommands = () => {
         }
     };
 
+    const openFile = async () => {
+        try {
+            const file = await fileSystem.openFile();
+            if (file) {
+                createTab({
+                    title: file.name,
+                    content: file.content,
+                    filePath: file.name,
+                    fileHandle: file.handle,
+                    isDirty: false
+                });
+            }
+        } catch (error) {
+            console.error("Failed to open file", error);
+        }
+    };
+
+    const saveFile = async () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (!tab) return;
+
+        if (tab.fileHandle) {
+            try {
+                await fileSystem.saveFile(tab.fileHandle, tab.content);
+                updateTab(activeTabId, { isDirty: false });
+            } catch (error) {
+                console.error("Failed to save file", error);
+            }
+        } else {
+            saveFileAs();
+        }
+    };
+
+    const saveFileAs = async () => {
+        const tab = tabs.find(t => t.id === activeTabId);
+        if (!tab) return;
+
+        try {
+            const result = await fileSystem.saveFileAs(tab.content, tab.title);
+            if (result) {
+                updateTab(activeTabId, {
+                    title: result.name,
+                    filePath: result.name,
+                    fileHandle: result.handle,
+                    isDirty: false
+                });
+            }
+        } catch (error) {
+            console.error("Failed to save file as", error);
+        }
+    };
+
     return {
         newTab,
+        openFile,
+        saveFile,
+        saveFileAs,
         closeTab,
         closeOtherTabs,
         closeTabsToRight,

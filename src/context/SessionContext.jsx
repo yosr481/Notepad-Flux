@@ -23,10 +23,18 @@ export const SessionProvider = ({ children }) => {
         return firstLine ? firstLine.slice(0, 20) : 'Untitled';
     };
 
-    const createTab = useCallback(() => {
+    const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
         nextTabId.current += 1;
-        const newTab = { id: newId, title: 'Untitled', isDirty: false, content: '', filePath: null };
+        const newTab = {
+            id: newId,
+            title: 'Untitled',
+            isDirty: false,
+            content: '',
+            filePath: null,
+            fileHandle: null,
+            ...initialData
+        };
         setTabs(curr => [...curr, newTab]);
         setActiveTabId(newId);
     }, []);
