@@ -102,33 +102,52 @@ export const useCommands = () => {
         }
     };
 
-    const saveFile = async () => {
+    const saveFile = async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
+        // Get current content from editor
+        const content = editorRef?.current?.getCurrentContent() || tab.content;
+
         if (tab.fileHandle) {
+            // We have a handle - use it to save directly (Chrome/Edge)
             try {
-                await fileSystem.saveFile(tab.fileHandle, tab.content);
-                updateTab(activeTabId, { isDirty: false });
+                await fileSystem.saveFile(tab.fileHandle, content);
+                updateTab(activeTabId, { content, isDirty: false });
+            } catch (error) {
+                console.error("Failed to save file", error);
+            }
+        } else if (!fileSystem.isSupported() && tab.filePath) {
+            // In fallback mode (Firefox) with an existing file, just download again with same name
+            try {
+                const result = await fileSystem.saveFileAs(content, tab.filePath);
+                if (result) {
+                    updateTab(activeTabId, { content, isDirty: false });
+                }
             } catch (error) {
                 console.error("Failed to save file", error);
             }
         } else {
-            saveFileAs();
+            // No handle and no existing file, or first save - open Save As dialog
+            saveFileAs(editorRef);
         }
     };
 
-    const saveFileAs = async () => {
+    const saveFileAs = async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
+        // Get current content from editor
+        const content = editorRef?.current?.getCurrentContent() || tab.content;
+
         try {
-            const result = await fileSystem.saveFileAs(tab.content, tab.title);
+            const result = await fileSystem.saveFileAs(content, tab.title);
             if (result) {
                 updateTab(activeTabId, {
                     title: result.name,
                     filePath: result.name,
                     fileHandle: result.handle,
+                    content: content,
                     isDirty: false
                 });
             }

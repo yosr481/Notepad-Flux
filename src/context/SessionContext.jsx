@@ -12,7 +12,7 @@ export const useSession = () => {
 
 export const SessionProvider = ({ children }) => {
     const [tabs, setTabs] = useState([
-        { id: 'tab-1', title: 'Untitled', isDirty: false, content: '', filePath: null }
+        { id: 'tab-1', title: 'Untitled', isDirty: false, content: '', filePath: null, fileHandle: null }
     ]);
     const [activeTabId, setActiveTabId] = useState('tab-1');
     const nextTabId = useRef(2);

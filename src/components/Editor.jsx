@@ -37,6 +37,12 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
         selectAll(viewRef.current);
         viewRef.current.focus();
       }
+    },
+    getCurrentContent: () => {
+      if (viewRef.current) {
+        return viewRef.current.state.doc.toString();
+      }
+      return '';
     }
   }));
 
@@ -151,7 +157,8 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
     if (activeTabId !== currentTabIdRef.current) {
       // Save previous state
       const prevId = currentTabIdRef.current;
-      stateCache.current.set(prevId, view.state);
+      const prevState = view.state;
+      stateCache.current.set(prevId, prevState);
 
       // Restore or Create new state
       if (stateCache.current.has(activeTabId)) {

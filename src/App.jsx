@@ -62,10 +62,10 @@ function App() {
                 openFile();
             } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
                 e.preventDefault();
-                saveFileAs();
+                saveFileAs(editorRef);
             } else if (e.ctrlKey && e.key === 's') {
                 e.preventDefault();
-                saveFile();
+                saveFile(editorRef);
             } else if (e.ctrlKey && e.key === 'w') {
                 e.preventDefault();
                 closeTab(activeTabId);
@@ -118,8 +118,8 @@ function App() {
                 onNewTab={newTab}
                 onNewWindow={() => window.open(window.location.href, '_blank')}
                 onOpen={openFile}
-                onSave={saveFile}
-                onSaveAs={saveFileAs}
+                onSave={() => saveFile(editorRef)}
+                onSaveAs={() => saveFileAs(editorRef)}
                 onCloseTab={() => closeTab(activeTabId)}
                 onCloseWindow={() => window.close()}
                 onExit={() => window.close()}
