@@ -17,15 +17,39 @@ export const useCommands = () => {
         createTab();
     };
 
-    const closeTab = (id) => {
+    const closeTab = async (id, editorRef) => {
         const tab = tabs.find(t => t.id === id);
         if (!tab) return;
 
         if (tab.isDirty) {
-            if (!window.confirm(`Save changes to ${tab.title}?`)) {
-                return;
+            const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+            if (shouldSave) {
+                const content = editorRef?.current?.getCurrentContent() || tab.content;
+
+                try {
+                    if (tab.fileHandle) {
+                        await fileSystem.saveFile(tab.fileHandle, content);
+                        updateTab(id, { content, isDirty: false });
+                    } else if (!fileSystem.isSupported() && tab.filePath) {
+                        const result = await fileSystem.saveFileAs(content, tab.filePath);
+                        if (!result) return;
+                        updateTab(id, { content, isDirty: false });
+                    } else {
+                        const result = await fileSystem.saveFileAs(content, tab.title);
+                        if (!result) return;
+                        updateTab(id, {
+                            title: result.name,
+                            filePath: result.name,
+                            fileHandle: result.handle,
+                            content: content,
+                            isDirty: false
+                        });
+                    }
+                } catch (error) {
+                    console.error("Failed to save file on close", error);
+                    return;
+                }
             }
-            // TODO: Implement Save logic
         }
 
         // Logic to determine next active tab
@@ -46,14 +70,38 @@ export const useCommands = () => {
         }
     };
 
-    const closeOtherTabs = (id) => {
+    const closeOtherTabs = async (id, editorRef) => {
         const tabsToClose = tabs.filter(t => t.id !== id);
 
-        // Check for dirty tabs
         for (const tab of tabsToClose) {
             if (tab.isDirty) {
-                if (!window.confirm(`Save changes to ${tab.title}?`)) {
-                    return; // Cancel entire operation
+                const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+                if (shouldSave) {
+                    const content = tab.content;
+
+                    try {
+                        if (tab.fileHandle) {
+                            await fileSystem.saveFile(tab.fileHandle, content);
+                            updateTab(tab.id, { content, isDirty: false });
+                        } else if (!fileSystem.isSupported() && tab.filePath) {
+                            const result = await fileSystem.saveFileAs(content, tab.filePath);
+                            if (!result) return;
+                            updateTab(tab.id, { content, isDirty: false });
+                        } else {
+                            const result = await fileSystem.saveFileAs(content, tab.title);
+                            if (!result) return;
+                            updateTab(tab.id, {
+                                title: result.name,
+                                filePath: result.name,
+                                fileHandle: result.handle,
+                                content: content,
+                                isDirty: false
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Failed to save file on close", error);
+                        return;
+                    }
                 }
             }
         }
@@ -62,7 +110,7 @@ export const useCommands = () => {
         setActiveTabId(id);
     };
 
-    const closeTabsToRight = (id) => {
+    const closeTabsToRight = async (id, editorRef) => {
         const index = tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
@@ -70,8 +118,33 @@ export const useCommands = () => {
 
         for (const tab of tabsToClose) {
             if (tab.isDirty) {
-                if (!window.confirm(`Save changes to ${tab.title}?`)) {
-                    return;
+                const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+                if (shouldSave) {
+                    const content = tab.content;
+
+                    try {
+                        if (tab.fileHandle) {
+                            await fileSystem.saveFile(tab.fileHandle, content);
+                            updateTab(tab.id, { content, isDirty: false });
+                        } else if (!fileSystem.isSupported() && tab.filePath) {
+                            const result = await fileSystem.saveFileAs(content, tab.filePath);
+                            if (!result) return;
+                            updateTab(tab.id, { content, isDirty: false });
+                        } else {
+                            const result = await fileSystem.saveFileAs(content, tab.title);
+                            if (!result) return;
+                            updateTab(tab.id, {
+                                title: result.name,
+                                filePath: result.name,
+                                fileHandle: result.handle,
+                                content: content,
+                                isDirty: false
+                            });
+                        }
+                    } catch (error) {
+                        console.error("Failed to save file on close", error);
+                        return;
+                    }
                 }
             }
         }
