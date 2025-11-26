@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
+const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -89,19 +89,19 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onSelectAll, onNewTab, on
                                 <span className={styles.shortcut}>Ctrl+Y</span>
                             </div>
                             <div className={styles.separator}></div>
-                            <div className={styles.dropdownItem}>
+                            <div className={styles.dropdownItem} onClick={() => { onCut(); handleMenuClick('edit'); }}>
                                 <span>Cut</span>
                                 <span className={styles.shortcut}>Ctrl+X</span>
                             </div>
-                            <div className={styles.dropdownItem}>
+                            <div className={styles.dropdownItem} onClick={() => { onCopy(); handleMenuClick('edit'); }}>
                                 <span>Copy</span>
                                 <span className={styles.shortcut}>Ctrl+C</span>
                             </div>
-                            <div className={styles.dropdownItem}>
+                            <div className={styles.dropdownItem} onClick={() => { onPaste(); handleMenuClick('edit'); }}>
                                 <span>Paste</span>
                                 <span className={styles.shortcut}>Ctrl+V</span>
                             </div>
-                            <div className={styles.dropdownItem}>
+                            <div className={styles.dropdownItem} onClick={() => { onDelete(); handleMenuClick('edit'); }}>
                                 <span>Delete</span>
                                 <span className={styles.shortcut}>Del</span>
                             </div>

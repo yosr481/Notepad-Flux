@@ -38,6 +38,58 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
         viewRef.current.focus();
       }
     },
+    cut: () => {
+      if (viewRef.current) {
+        const state = viewRef.current.state;
+        const selection = state.selection.main;
+        if (!selection.empty) {
+          const selectedText = state.sliceDoc(selection.from, selection.to);
+          navigator.clipboard.writeText(selectedText);
+          viewRef.current.dispatch({
+            changes: { from: selection.from, to: selection.to }
+          });
+        }
+        viewRef.current.focus();
+      }
+    },
+    copy: () => {
+      if (viewRef.current) {
+        const state = viewRef.current.state;
+        const selection = state.selection.main;
+        if (!selection.empty) {
+          const selectedText = state.sliceDoc(selection.from, selection.to);
+          navigator.clipboard.writeText(selectedText);
+        }
+        viewRef.current.focus();
+      }
+    },
+    paste: async () => {
+      if (viewRef.current) {
+        try {
+          const text = await navigator.clipboard.readText();
+          const state = viewRef.current.state;
+          const selection = state.selection.main;
+          viewRef.current.dispatch({
+            changes: { from: selection.from, to: selection.to, insert: text }
+          });
+        } catch (err) {
+          console.error('Failed to read clipboard:', err);
+        }
+        viewRef.current.focus();
+      }
+    },
+    delete: () => {
+      if (viewRef.current) {
+        const state = viewRef.current.state;
+        const selection = state.selection.main;
+        if (!selection.empty) {
+          viewRef.current.dispatch({
+            changes: { from: selection.from, to: selection.to }
+          });
+        }
+        viewRef.current.focus();
+      }
+    },
     getCurrentContent: () => {
       if (viewRef.current) {
         return viewRef.current.state.doc.toString();

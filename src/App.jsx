@@ -98,6 +98,10 @@ function App() {
     const handleUndo = () => editorRef.current?.undo();
     const handleRedo = () => editorRef.current?.redo();
     const handleSelectAll = () => editorRef.current?.selectAll();
+    const handleCut = () => editorRef.current?.cut();
+    const handleCopy = () => editorRef.current?.copy();
+    const handlePaste = () => editorRef.current?.paste();
+    const handleDelete = () => editorRef.current?.delete();
 
     return (
         <div className={styles.appContainer} data-theme={theme} onClick={() => setContextMenu(null)}>
@@ -114,6 +118,10 @@ function App() {
                 toggleTheme={toggleTheme}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
+                onCut={handleCut}
+                onCopy={handleCopy}
+                onPaste={handlePaste}
+                onDelete={handleDelete}
                 onSelectAll={handleSelectAll}
                 onNewTab={newTab}
                 onNewWindow={() => window.open(window.location.href, '_blank')}
