@@ -4,6 +4,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, undo, redo, selectAll } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
+import { SearchQuery, setSearchQuery, findNext, findPrevious, getSearchQuery, search } from '@codemirror/search';
 import { livePreview } from '../extensions/livePreview';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -95,6 +96,124 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
         return viewRef.current.state.doc.toString();
       }
       return '';
+    },
+    find: (searchText, options = {}) => {
+      if (!viewRef.current || !searchText) return { current: 0, total: 0 };
+
+      const view = viewRef.current;
+      const query = new SearchQuery({
+        search: searchText,
+        caseSensitive: options.caseSensitive || false,
+        regexp: options.useRegex || false
+      });
+
+      view.dispatch({ effects: setSearchQuery.of(query) });
+
+      if (options.direction === 'next') {
+        findNext(view);
+      } else if (options.direction === 'previous') {
+        findPrevious(view);
+      }
+
+      // Count matches
+      const state = view.state;
+      const cursor = query.getCursor(state.doc);
+      let total = 0;
+      let current = 0;
+      let currentPos = state.selection.main.from;
+
+      while (!cursor.next().done) {
+        total++;
+        if (cursor.value.from <= currentPos) {
+          current = total;
+        }
+      }
+
+      return { current, total };
+    },
+    replace: (replaceText) => {
+      if (!viewRef.current) return;
+
+      const view = viewRef.current;
+      const state = view.state;
+      const selection = state.selection.main;
+
+      if (!selection.empty) {
+        view.dispatch({
+          changes: { from: selection.from, to: selection.to, insert: replaceText }
+        });
+        findNext(view);
+      }
+    },
+    replaceAll: (searchText, replaceText, options = {}) => {
+      if (!viewRef.current || !searchText) return 0;
+
+      const view = viewRef.current;
+      const state = view.state;
+      const query = new SearchQuery({
+        search: searchText,
+        caseSensitive: options.caseSensitive || false,
+        regexp: options.useRegex || false
+      });
+
+      const cursor = query.getCursor(state.doc);
+      const changes = [];
+      let count = 0;
+
+      while (!cursor.next().done) {
+        changes.push({ from: cursor.value.from, to: cursor.value.to, insert: replaceText });
+        count++;
+      }
+
+      if (changes.length > 0) {
+        view.dispatch({ changes });
+      }
+
+      return count;
+    },
+    goToLine: (lineNumber) => {
+      if (!viewRef.current) return;
+
+      const view = viewRef.current;
+      const state = view.state;
+      const line = state.doc.line(Math.min(lineNumber, state.doc.lines));
+
+      view.dispatch({
+        selection: { anchor: line.from },
+        scrollIntoView: true
+      });
+
+      view.focus();
+    },
+    getTotalLines: () => {
+      if (viewRef.current) {
+        return viewRef.current.state.doc.lines;
+      }
+      return 0;
+    },
+    insertDateTime: () => {
+      if (!viewRef.current) return;
+
+      const view = viewRef.current;
+      const state = view.state;
+      const selection = state.selection.main;
+
+      const now = new Date();
+      const dateTimeString = now.toLocaleString('en-US', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: true
+      });
+
+      view.dispatch({
+        changes: { from: selection.from, to: selection.to, insert: dateTimeString }
+      });
+
+      view.focus();
     }
   }));
 
@@ -105,6 +224,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
       extensions: [
         keymap.of([...defaultKeymap, ...historyKeymap]),
         history(),
+        search(),
         EditorView.lineWrapping,
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         livePreview,

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Sun, Moon } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
+const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -106,9 +106,26 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, o
                                 <span className={styles.shortcut}>Del</span>
                             </div>
                             <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onFind(); handleMenuClick('edit'); }}>
+                                <span>Find</span>
+                                <span className={styles.shortcut}>Ctrl+F</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onReplace(); handleMenuClick('edit'); }}>
+                                <span>Replace</span>
+                                <span className={styles.shortcut}>Ctrl+H</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onGoToLine(); handleMenuClick('edit'); }}>
+                                <span>Go to</span>
+                                <span className={styles.shortcut}>Ctrl+G</span>
+                            </div>
+                            <div className={styles.separator}></div>
                             <div className={styles.dropdownItem} onClick={() => { onSelectAll(); handleMenuClick('edit'); }}>
                                 <span>Select All</span>
                                 <span className={styles.shortcut}>Ctrl+A</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onInsertDateTime(); handleMenuClick('edit'); }}>
+                                <span>Insert date/time</span>
+                                <span className={styles.shortcut}>F5</span>
                             </div>
                         </div>
                     )}

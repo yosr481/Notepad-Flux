@@ -4,6 +4,8 @@ import MenuBar from './components/Layout/MenuBar';
 import Tabs from './components/Layout/Tabs';
 import StatusBar from './components/Layout/StatusBar';
 import ContextMenu from './components/Layout/ContextMenu';
+import FindReplacePanel from './components/Layout/FindReplacePanel';
+import GoToLineDialog from './components/Layout/GoToLineDialog';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 
@@ -32,6 +34,9 @@ function App() {
     } = useCommands();
 
     const [contextMenu, setContextMenu] = useState(null);
+    const [showFindReplace, setShowFindReplace] = useState(false);
+    const [findReplaceMode, setFindReplaceMode] = useState('find');
+    const [showGoToLine, setShowGoToLine] = useState(false);
 
     const handleContextMenu = (e, id) => {
         e.preventDefault();
@@ -72,6 +77,20 @@ function App() {
             } else if (e.ctrlKey && e.key === 'Tab') {
                 e.preventDefault();
                 switchTab(e.shiftKey ? 'prev' : 'next');
+            } else if (e.ctrlKey && e.key === 'f') {
+                e.preventDefault();
+                setFindReplaceMode('find');
+                setShowFindReplace(true);
+            } else if (e.ctrlKey && e.key === 'h') {
+                e.preventDefault();
+                setFindReplaceMode('replace');
+                setShowFindReplace(true);
+            } else if (e.ctrlKey && e.key === 'g') {
+                e.preventDefault();
+                setShowGoToLine(true);
+            } else if (e.key === 'F5') {
+                e.preventDefault();
+                editorRef.current?.insertDateTime();
             }
         };
 
@@ -103,6 +122,24 @@ function App() {
     const handlePaste = () => editorRef.current?.paste();
     const handleDelete = () => editorRef.current?.delete();
 
+    const handleFind = () => {
+        setFindReplaceMode('find');
+        setShowFindReplace(true);
+    };
+
+    const handleReplace = () => {
+        setFindReplaceMode('replace');
+        setShowFindReplace(true);
+    };
+
+    const handleGoToLine = () => {
+        setShowGoToLine(true);
+    };
+
+    const handleInsertDateTime = () => {
+        editorRef.current?.insertDateTime();
+    };
+
     return (
         <div className={styles.appContainer} data-theme={theme} onClick={() => setContextMenu(null)}>
             <Tabs
@@ -123,6 +160,10 @@ function App() {
                 onPaste={handlePaste}
                 onDelete={handleDelete}
                 onSelectAll={handleSelectAll}
+                onFind={handleFind}
+                onReplace={handleReplace}
+                onGoToLine={handleGoToLine}
+                onInsertDateTime={handleInsertDateTime}
                 onNewTab={newTab}
                 onNewWindow={() => window.open(window.location.href, '_blank')}
                 onOpen={openFile}
@@ -151,6 +192,24 @@ function App() {
                     y={contextMenu.y}
                     options={contextMenu.options}
                     onClose={() => setContextMenu(null)}
+                />
+            )}
+
+            {showFindReplace && (
+                <FindReplacePanel
+                    initialMode={findReplaceMode}
+                    onClose={() => setShowFindReplace(false)}
+                    onFind={(text, options) => editorRef.current?.find(text, options) || { current: 0, total: 0 }}
+                    onReplace={(text) => editorRef.current?.replace(text)}
+                    onReplaceAll={(searchText, replaceText, options) => editorRef.current?.replaceAll(searchText, replaceText, options) || 0}
+                />
+            )}
+
+            {showGoToLine && (
+                <GoToLineDialog
+                    totalLines={editorRef.current?.getTotalLines() || 0}
+                    onGoToLine={(line) => editorRef.current?.goToLine(line)}
+                    onClose={() => setShowGoToLine(false)}
                 />
             )}
         </div>
