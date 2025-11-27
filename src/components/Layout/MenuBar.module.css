@@ -72,6 +72,11 @@
     color: var(--text-on-accent);
 }
 
+.dropdownItem.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+}
+
 .separator {
     height: 1px;
     background-color: var(--background-modifier-border);

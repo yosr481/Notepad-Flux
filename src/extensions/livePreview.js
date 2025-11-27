@@ -324,7 +324,7 @@ function convertTableToHTML(text) {
     });
     html += "</table>";
 
-    return hasContent ? html : "<div style='color: gray; padding: 1em;'>Empty Table</div>";
+    return hasContent ? html : "<div class='cm-table-empty'>Empty Table</div>";
 }
 
 // --- Highlights (==text==) ---

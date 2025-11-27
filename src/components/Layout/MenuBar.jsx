@@ -64,7 +64,7 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, o
                                             </div>
                                         ))
                                     ) : (
-                                        <div className={styles.dropdownItem} style={{ opacity: 0.5, pointerEvents: 'none' }}>
+                                        <div className={`${styles.dropdownItem} ${styles.disabled}`}>
                                             <span>Empty</span>
                                         </div>
                                     )}

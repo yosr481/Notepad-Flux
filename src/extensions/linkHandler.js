@@ -32,13 +32,6 @@ export const linkTooltip = hoverTooltip((view, pos, side) => {
             const dom = document.createElement("div");
             dom.className = "cm-tooltip-cursor";
             dom.textContent = "Ctrl + Click to open link";
-            dom.style.padding = "4px 8px";
-            dom.style.backgroundColor = "var(--background-secondary)";
-            dom.style.border = "1px solid var(--background-modifier-border)";
-            dom.style.borderRadius = "4px";
-            dom.style.fontSize = "12px";
-            dom.style.color = "var(--text-normal)";
-            dom.style.zIndex = "100";
             return { dom };
         }
     };

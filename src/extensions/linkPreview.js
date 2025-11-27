@@ -15,9 +15,6 @@ class LinkWidget extends WidgetType {
         link.target = "_blank";
         link.rel = "noopener noreferrer";
 
-        link.style.color = "var(--text-accent)";
-        link.style.textDecoration = "underline";
-
         const textSpan = document.createElement("span");
         // Parse markdown formatting in link text
         textSpan.innerHTML = this.parseMarkdown(this.text);
@@ -26,10 +23,6 @@ class LinkWidget extends WidgetType {
         const icon = document.createElement("span");
         icon.className = "cm-link-icon";
         icon.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>`;
-        icon.style.marginLeft = "4px";
-        icon.style.opacity = "0.7";
-        icon.style.display = "inline-flex";
-        icon.style.verticalAlign = "middle";
         link.appendChild(icon);
 
         return link;

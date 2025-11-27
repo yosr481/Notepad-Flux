@@ -80,14 +80,7 @@ class ImageWidget extends WidgetType {
 
     toDOM(view) {
         const container = document.createElement("span");
-        container.className = "cm-image-container";
-
-        // Initial style setup
-        if (this.active) {
-            container.style.display = "block";
-        } else {
-            container.style.display = "inline";
-        }
+        container.className = this.active ? "cm-image-container cm-active" : "cm-image-container cm-inactive";
 
         const cached = globalImageCache.get(this.url);
 
@@ -113,31 +106,15 @@ class ImageWidget extends WidgetType {
             img.className = "cm-image";
             img.alt = this.alt;
 
-            // Apply inline styles to override CSS
-            if (this.active) {
-                img.style.display = "block";
-                container.style.display = "block";
-            } else {
-                img.style.display = "inline-block";
-                img.style.verticalAlign = "middle";
-                container.style.display = "inline";
-            }
-
             container.appendChild(img);
-            container.className = "cm-image-container";
+            // Update container class to maintain active/inactive state
+            container.className = this.active ? "cm-image-container cm-active" : "cm-image-container cm-inactive";
         } else {
             const content = brokenImageTemplate.content.cloneNode(true);
             content.querySelector(".cm-broken-text").textContent = this.alt || "Image not found";
             container.appendChild(content);
-            container.className = "cm-image-broken";
-
-            // Apply inline styles for broken image
-            if (this.active) {
-                container.style.display = "flex";
-            } else {
-                container.style.display = "inline-flex";
-                container.style.verticalAlign = "middle";
-            }
+            // Update container class for broken image
+            container.className = this.active ? "cm-image-broken cm-active" : "cm-image-broken cm-inactive";
         }
     }
 
