@@ -152,7 +152,7 @@
     animation: fadeIn var(--transition-fast);
 }
 
-.themeToggle {
+.settingsButton {
     background: none;
     border: none;
     cursor: pointer;
@@ -164,6 +164,6 @@
     transition: background-color var(--transition-fast);
 }
 
-.themeToggle:hover {
+.settingsButton:hover {
     background-color: var(--background-modifier-border);
 }

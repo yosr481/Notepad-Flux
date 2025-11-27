@@ -9,8 +9,11 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 
+import Settings from './components/Settings/Settings';
+
 function App() {
     const [theme, setTheme] = useState('dark');
+    const [showSettings, setShowSettings] = useState(false);
     const [stats, setStats] = useState({
         line: 1,
         col: 1,
@@ -100,10 +103,6 @@ function App() {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [newTab, openFile, saveFile, saveFileAs, closeTab, activeTabId, switchTab]);
 
-    const toggleTheme = () => {
-        setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-    };
-
     // Apply theme to body
     useEffect(() => {
         document.body.setAttribute('data-theme', theme);
@@ -154,8 +153,6 @@ function App() {
                     onContextMenu={handleContextMenu}
                 />
                 <MenuBar
-                    theme={theme}
-                    toggleTheme={toggleTheme}
                     onUndo={handleUndo}
                     onRedo={handleRedo}
                     onCut={handleCut}
@@ -176,6 +173,7 @@ function App() {
                     onCloseTab={() => closeTab(activeTabId)}
                     onCloseWindow={() => window.close()}
                     onExit={() => window.close()}
+                    onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />
             </div>
@@ -218,6 +216,13 @@ function App() {
                     onClose={() => setShowGoToLine(false)}
                 />
             )}
+
+            <Settings
+                isOpen={showSettings}
+                onClose={() => setShowSettings(false)}
+                theme={theme}
+                setTheme={setTheme}
+            />
         </div>
     );
 }

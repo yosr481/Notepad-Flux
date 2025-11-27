@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Sun, Moon } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit, recentFiles = [] }) => {
+const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit, onOpenSettings, recentFiles = [] }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -154,8 +154,8 @@ const MenuBar = ({ theme, toggleTheme, onUndo, onRedo, onCut, onCopy, onPaste, o
                     )}
                 </div>
             </div>
-            <button className={styles.themeToggle} onClick={toggleTheme} title="Toggle Theme">
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+            <button className={styles.settingsButton} onClick={onOpenSettings} title="Settings">
+                <Settings size={18} />
             </button>
         </div>
     );

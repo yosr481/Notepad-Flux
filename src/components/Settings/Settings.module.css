@@ -1,0 +1,154 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: var(--background-primary);
+    z-index: 2000;
+    /* Above everything else */
+    display: flex;
+    flex-direction: column;
+    animation: fadeIn var(--transition-normal) ease-out;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    padding: var(--space-l) var(--space-xl);
+    border-bottom: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+}
+
+.backButton {
+    display: flex;
+    align-items: center;
+    gap: var(--space-s);
+    background: none;
+    border: none;
+    color: var(--text-normal);
+    font-size: 1rem;
+    cursor: pointer;
+    padding: var(--space-s);
+    border-radius: var(--radius-m);
+    transition: background-color var(--transition-fast);
+}
+
+.backButton:hover {
+    background-color: var(--interactive-hover);
+    transform: scale(1.05);
+}
+
+.title {
+    margin-left: var(--space-xl);
+    font-size: 1.2rem;
+    font-weight: 600;
+    color: var(--text-normal);
+}
+
+.content {
+    flex: 1;
+    padding: var(--space-xl);
+    overflow-y: auto;
+    max-width: 800px;
+    margin: 0 auto;
+    width: 100%;
+}
+
+.section {
+    margin-bottom: var(--space-xl);
+    padding-bottom: var(--space-xl);
+    border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.section:last-child {
+    border-bottom: none;
+}
+
+.sectionTitle {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin-bottom: var(--space-m);
+    color: var(--text-normal);
+}
+
+.row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-m);
+}
+
+.label {
+    color: var(--text-normal);
+    font-size: 0.95rem;
+}
+
+.description {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    margin-top: var(--space-xs);
+}
+
+.controlGroup {
+    display: flex;
+    gap: var(--space-m);
+}
+
+/* Form Controls */
+.select {
+    padding: var(--space-s) var(--space-m);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-family: inherit;
+    min-width: 150px;
+}
+
+.input {
+    padding: var(--space-s) var(--space-m);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-primary);
+    color: var(--text-normal);
+    font-family: inherit;
+    width: 80px;
+}
+
+.button {
+    padding: var(--space-s) var(--space-m);
+    border-radius: var(--radius-s);
+    border: 1px solid var(--background-modifier-border);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.button:hover {
+    background-color: var(--background-modifier-hover);
+    border-color: var(--interactive-accent);
+}
+
+.button.danger {
+    color: var(--text-error);
+    border-color: var(--text-error);
+}
+
+.button.danger:hover {
+    background-color: var(--text-error);
+    color: white;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
