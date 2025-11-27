@@ -132,3 +132,23 @@ src/
 - **Electron Integration**: The current architecture is "Electron-ready". The `fileSystem.js` module can be extended to use Node.js `fs` module when running in an Electron context, allowing for deeper OS integration.
 - **Large File Handling**: CodeMirror 6 is performant, but the `livePreview` regex parsing might need optimization (e.g., using a proper Lezer parser instead of regex) for very large documents.
 - **Plugin System**: The architecture allows for easy addition of new features by simply adding new CodeMirror extensions to the `extensions/` array in `Editor.jsx`.
+
+## 8. Large Session Handling Strategy
+
+### 8.1. Scenario Model
+**Scale**: High number of tabs (N > 50) or large total session size (> 100MB).
+**Risks**: Slow application startup, high memory usage (GC pressure), and UI responsiveness issues if all tabs are fully initialized at once.
+
+### 8.2. Mitigation Architecture
+
+#### Light Domain State
+The global `SessionContext` is designed to be lightweight:
+- **Storage**: Stores only raw text and minimal metadata (file path, dirty status).
+- **Avoidance**: Derived structures like ASTs, render caches, or editor view states are excluded from the global state.
+- **On-Demand Computation**: Individual editor instances recompute these derived states only when they are initialized or become active.
+
+#### Progressive Session Loading
+To optimize startup performance:
+1.  **Active Tab Priority**: The content of the active tab is loaded and rendered immediately upon startup.
+2.  **Background Hydration**: Inactive tabs are loaded lazily or "hydrated" in the background using `requestIdleCallback` or low-priority timers.
+3.  **UI Responsiveness**: The UI shell renders first, ensuring the application feels responsive even if the full session data is still loading in the background.

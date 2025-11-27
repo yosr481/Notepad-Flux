@@ -109,6 +109,20 @@ export const SessionProvider = ({ children }) => {
         });
     }, [activeTabId]);
 
+    const reorderTabs = useCallback((activeId, overId) => {
+        setTabs((items) => {
+            const oldIndex = items.findIndex((item) => item.id === activeId);
+            const newIndex = items.findIndex((item) => item.id === overId);
+
+            if (oldIndex === -1 || newIndex === -1) return items;
+
+            const newItems = [...items];
+            const [movedItem] = newItems.splice(oldIndex, 1);
+            newItems.splice(newIndex, 0, movedItem);
+            return newItems;
+        });
+    }, []);
+
     const value = {
         tabs,
         activeTabId,
@@ -118,6 +132,7 @@ export const SessionProvider = ({ children }) => {
         updateTab,
         switchTab,
         setTabs, // Expose for complex operations like bulk close
+        reorderTabs,
         recentFiles,
         addRecentFile
     };

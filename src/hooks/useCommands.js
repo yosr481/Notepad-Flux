@@ -17,6 +17,7 @@ export const useCommands = () => {
         closeTab: closeTabInContext,
         updateTab,
         switchTab,
+        reorderTabs,
         setTabs,
         recentFiles,
         addRecentFile
@@ -382,6 +383,7 @@ export const useCommands = () => {
         setActiveTabId,
         activeTabId,
         tabs,
+        reorderTabs,
         recentFiles
     };
 };

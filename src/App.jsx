@@ -38,6 +38,7 @@ function App() {
         closeTabsToRight,
         switchTab,
         updateTab,
+        reorderTabs,
         recentFiles
     } = useCommands();
 
@@ -157,6 +158,7 @@ function App() {
                     onTabClose={closeTab}
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
+                    onReorder={reorderTabs}
                 />
                 <MenuBar
                     onUndo={handleUndo}

@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './Tabs.module.css';
 
-const Tab = ({ id, title, isActive, isDirty, onClick, onClose, onContextMenu }) => {
+const Tab = React.forwardRef(({ id, title, isActive, isDirty, onClick, onClose, onContextMenu, style, attributes, listeners }, ref) => {
     const handleClose = (e) => {
         e.stopPropagation();
         onClose(id);
@@ -9,6 +9,10 @@ const Tab = ({ id, title, isActive, isDirty, onClick, onClose, onContextMenu }) 
 
     return (
         <div
+            ref={ref}
+            style={style}
+            {...attributes}
+            {...listeners}
             className={`${styles.tab} ${isActive ? styles.activeTab : ''} ${isDirty ? styles.unsavedTab : ''}`}
             onClick={() => onClick(id)}
             onContextMenu={(e) => onContextMenu(e, id)}
@@ -20,13 +24,15 @@ const Tab = ({ id, title, isActive, isDirty, onClick, onClose, onContextMenu }) 
                 </span>
                 <div className={styles.tabIndicator}>
                     {isDirty && <div className={styles.dirtyIndicator}></div>}
-                    <button className={styles.closeButton} onClick={handleClose}>
+                    <button className={styles.closeButton} onClick={handleClose} onPointerDown={(e) => e.stopPropagation()}>
                         ×
                     </button>
                 </div>
             </div>
         </div>
     );
-};
+});
+
+Tab.displayName = 'Tab';
 
 export default Tab;
