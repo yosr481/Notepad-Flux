@@ -1,8 +1,11 @@
 .statusBar {
     height: 24px;
-    background-color: var(--background-secondary);
-    /* Fallback */
-    background-color: var(--mica-background);
+    /* Wavy gradient background - Dark theme */
+    background: linear-gradient(90deg,
+            rgba(72, 54, 153, 0.35) 0%,
+            rgba(127, 109, 242, 0.08) 33%,
+            rgba(100, 80, 200, 0.28) 66%,
+            rgba(72, 54, 153, 0.35) 100%);
     backdrop-filter: blur(var(--mica-blur));
     border-top: 1px solid var(--background-modifier-border);
     display: flex;
@@ -14,6 +17,17 @@
     justify-content: flex-end;
     gap: 20px;
     z-index: var(--z-base);
+    /* Prevent overflow */
+    overflow: hidden;
+}
+
+/* Light theme variation */
+[data-theme="light"] .statusBar {
+    background: linear-gradient(90deg,
+            rgba(112, 93, 207, 0.18) 0%,
+            rgba(123, 106, 217, 0.06) 33%,
+            rgba(130, 115, 230, 0.14) 66%,
+            rgba(112, 93, 207, 0.18) 100%);
 }
 
 .statusItem {
@@ -22,6 +36,12 @@
     height: 100%;
     display: flex;
     align-items: center;
+    /* Prevent text wrapping and overflow */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .statusItem:first-child {
