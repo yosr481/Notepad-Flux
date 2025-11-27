@@ -1,7 +1,7 @@
-# Project: Notepad Obsidian
+# Project: Notepad Flux
 
 ## Project Overview
-Notepad Obsidian is a minimal, lightweight markdown writing application designed to offer a fast and distraction-free experience. It combines the simplicity of a plain text editor with powerful modern features, primarily focusing on a WYSIWYG "Live Preview" experience.
+Notepad Flux is a minimal, lightweight markdown writing application designed to offer a fast and distraction-free experience. It combines the simplicity of a plain text editor with powerful modern features, primarily focusing on a WYSIWYG "Live Preview" experience.
 
 ### Key Features
 *   **Live Preview Experience**: Built on CodeMirror 6, it provides a "Live Preview" mode where Markdown syntax is hidden by default and revealed only when the cursor is active on the element.

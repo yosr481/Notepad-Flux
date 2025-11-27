@@ -1,7 +1,7 @@
-# Architecture Design Document (ADD) - Notepad Obsidian
+# Architecture Design Document (ADD) - Notepad Flux
 
 ## 1. Introduction
-This document outlines the architectural design of **Notepad Obsidian**, a lightweight, markdown-focused text editor inspired by Windows Notepad but enhanced with modern "Live Preview" capabilities similar to Obsidian.md.
+This document outlines the architectural design of **Notepad Flux**, a lightweight, markdown-focused text editor inspired by Windows Notepad but enhanced with modern "Live Preview" capabilities similar to Obsidian.md.
 
 ## 2. System Overview
 The application is a Single Page Application (SPA) built with **React** and **Vite**, utilizing **CodeMirror 6** as the core text editing engine. It is designed to run in modern web browsers with planned support for desktop packaging via Electron.

@@ -1,7 +1,7 @@
-# Notepad Obsidian UI/UX Guidelines
+# Notepad Flux UI/UX Guidelines
 
 ## 1. Design Philosophy
-Notepad Obsidian combines the simplicity of Windows Notepad with the modern aesthetics of Obsidian and the Fluent Design System. The goal is to create a distraction-free, premium writing experience that feels native to modern operating systems.
+Notepad Flux combines the simplicity of Windows Notepad with the modern aesthetics of Obsidian and the Fluent Design System. The goal is to create a distraction-free, premium writing experience that feels native to modern operating systems.
 
 ### Core Principles
 - **Minimalism**: The interface should be clean and uncluttered. Controls should appear only when needed.

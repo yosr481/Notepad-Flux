@@ -25,7 +25,7 @@ The ultimate goal is to wrap the application in **Electron** to distribute it as
 
 # Project Setup Instructions
 
-Welcome to the **Notepad Obsidian** project! Since you are setting this up on a new machine, follow these steps to get up and running.
+Welcome to the **Notepad Flux** project! Since you are setting this up on a new machine, follow these steps to get up and running.
 
 ## Prerequisites
 
@@ -60,3 +60,6 @@ To run the linter:
 ```bash
 npm run lint
 ```
+
+## License
+This project is licensed under the [MIT License](LICENSE).
