@@ -1,4 +1,4 @@
-# Markdown Editor Project
+# Notepad Flux
 
 A minimal, lightweight markdown writing application inspired by the simplicity of Windows Notepad, but with powerful modern features.
 
