@@ -46,9 +46,6 @@
     top: 100%;
     left: 0;
     background-color: var(--background-primary);
-    /* Fallback */
-    background-color: var(--mica-background-alt);
-    backdrop-filter: blur(var(--mica-blur));
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     box-shadow: var(--shadow-m);
@@ -138,9 +135,6 @@
     top: -4px;
     left: 100%;
     background-color: var(--background-primary);
-    /* Fallback */
-    background-color: var(--mica-background-alt);
-    backdrop-filter: blur(var(--mica-blur));
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     box-shadow: var(--shadow-m);
