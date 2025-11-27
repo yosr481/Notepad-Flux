@@ -1,6 +1,9 @@
 .statusBar {
     height: 24px;
     background-color: var(--background-secondary);
+    /* Fallback */
+    background-color: var(--mica-background);
+    backdrop-filter: blur(var(--mica-blur));
     border-top: 1px solid var(--background-modifier-border);
     display: flex;
     align-items: center;
@@ -10,6 +13,7 @@
     flex-shrink: 0;
     justify-content: flex-end;
     gap: 20px;
+    z-index: var(--z-base);
 }
 
 .statusItem {

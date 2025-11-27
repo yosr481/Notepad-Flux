@@ -6,6 +6,14 @@
     color: var(--text-normal);
 }
 
+.topBar {
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+    position: relative;
+    box-shadow: var(--shadow-s);
+}
+
 .editorWrapper {
     flex-grow: 1;
     overflow: hidden;

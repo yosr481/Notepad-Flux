@@ -144,39 +144,41 @@ function App() {
 
     return (
         <div className={styles.appContainer} data-theme={theme} onClick={() => setContextMenu(null)}>
-            <Tabs
-                tabs={tabs}
-                activeTabId={activeTabId}
-                onTabClick={setActiveTabId}
-                onTabClose={closeTab}
-                onNewTab={newTab}
-                onContextMenu={handleContextMenu}
-            />
-            <MenuBar
-                theme={theme}
-                toggleTheme={toggleTheme}
-                onUndo={handleUndo}
-                onRedo={handleRedo}
-                onCut={handleCut}
-                onCopy={handleCopy}
-                onPaste={handlePaste}
-                onDelete={handleDelete}
-                onSelectAll={handleSelectAll}
-                onFind={handleFind}
-                onReplace={handleReplace}
-                onGoToLine={handleGoToLine}
-                onInsertDateTime={handleInsertDateTime}
-                onNewTab={newTab}
-                onNewWindow={() => window.open(window.location.href, '_blank')}
-                onOpen={openFile}
-                onOpenRecent={openRecentFile}
-                onSave={() => saveFile(editorRef)}
-                onSaveAs={() => saveFileAs(editorRef)}
-                onCloseTab={() => closeTab(activeTabId)}
-                onCloseWindow={() => window.close()}
-                onExit={() => window.close()}
-                recentFiles={recentFiles}
-            />
+            <div className={styles.topBar}>
+                <Tabs
+                    tabs={tabs}
+                    activeTabId={activeTabId}
+                    onTabClick={setActiveTabId}
+                    onTabClose={closeTab}
+                    onNewTab={newTab}
+                    onContextMenu={handleContextMenu}
+                />
+                <MenuBar
+                    theme={theme}
+                    toggleTheme={toggleTheme}
+                    onUndo={handleUndo}
+                    onRedo={handleRedo}
+                    onCut={handleCut}
+                    onCopy={handleCopy}
+                    onPaste={handlePaste}
+                    onDelete={handleDelete}
+                    onSelectAll={handleSelectAll}
+                    onFind={handleFind}
+                    onReplace={handleReplace}
+                    onGoToLine={handleGoToLine}
+                    onInsertDateTime={handleInsertDateTime}
+                    onNewTab={newTab}
+                    onNewWindow={() => window.open(window.location.href, '_blank')}
+                    onOpen={openFile}
+                    onOpenRecent={openRecentFile}
+                    onSave={() => saveFile(editorRef)}
+                    onSaveAs={() => saveFileAs(editorRef)}
+                    onCloseTab={() => closeTab(activeTabId)}
+                    onCloseWindow={() => window.close()}
+                    onExit={() => window.close()}
+                    recentFiles={recentFiles}
+                />
+            </div>
 
             <div className={styles.editorWrapper}>
                 <Editor

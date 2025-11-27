@@ -1,12 +1,28 @@
 .contextMenu {
     position: fixed;
     background-color: var(--background-primary);
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-    z-index: 1000;
-    min-width: 150px;
-    padding: 4px 0;
+    /* Fallback */
+    background-color: var(--mica-background-alt);
+    backdrop-filter: blur(var(--mica-blur));
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    box-shadow: var(--shadow-m);
+    z-index: var(--z-dropdown);
+    min-width: 160px;
+    padding: 4px;
+    animation: fadeIn var(--transition-fast);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .menuItem {
@@ -14,6 +30,8 @@
     cursor: pointer;
     font-size: 14px;
     color: var(--text-normal);
+    border-radius: var(--radius-s);
+    transition: background-color var(--transition-fast);
 }
 
 .menuItem:hover {

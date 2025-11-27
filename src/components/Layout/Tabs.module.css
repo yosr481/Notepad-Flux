@@ -1,13 +1,16 @@
 .tabsContainer {
     display: flex;
     align-items: center;
-    background-color: var(--background-secondary);
-    border-bottom: 1px solid var(--border-color);
-    height: 35px;
+    background-color: var(--background-primary);
+    /* Fallback */
+    background-color: var(--mica-background-alt);
+    backdrop-filter: blur(var(--mica-blur));
+    height: 40px;
     user-select: none;
     position: relative;
-    padding: 0;
+    padding: 4px 10px 0 10px;
     overflow: hidden;
+    z-index: 90;
 }
 
 .scrollButton {
@@ -18,16 +21,16 @@
     width: 28px;
     height: 28px;
     border: none;
-    background: var(--background-secondary);
+    background: transparent;
     color: var(--text-normal);
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     flex-shrink: 0;
     z-index: 2;
     font-size: 20px;
     font-weight: bold;
     margin: 0 2px;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
 }
 
 .scrollButton:hover {
@@ -60,20 +63,20 @@
     display: flex;
     align-items: center;
     padding: 0 10px;
-    height: 30px;
+    height: 36px;
     min-width: 80px;
     /* Reduced min width for better shrinking */
     max-width: 180px;
     flex: 0 1 140px;
     /* Allow shrinking from 140px base */
-    border-right: 1px solid var(--border-color);
-    background-color: var(--background-secondary);
+    border-right: 1px solid transparent;
+    background-color: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 0.85rem;
+    font-size: var(--font-size-s);
     position: relative;
-    transition: background-color 0.2s;
-    border-radius: 4px 4px 0 0;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
     margin-right: 2px;
 }
 
@@ -82,21 +85,27 @@
 }
 
 .activeTab {
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary);
     color: var(--text-normal);
-    border-bottom: none;
     position: relative;
+    box-shadow: none;
 }
 
+/* Remove the bottom line covering pseudo-element */
 .activeTab::after {
+    display: none;
+}
+
+/* Remove the top accent line if desired, or keep it */
+.activeTab::before {
     content: '';
     position: absolute;
-    bottom: -1px;
+    top: 0;
     left: 0;
     right: 0;
-    height: 1px;
-    background-color: var(--background-primary);
-    z-index: 1;
+    height: 2px;
+    background-color: var(--interactive-accent);
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
 }
 
 .tabContent {
@@ -162,6 +171,7 @@
     font-size: 14px;
     width: 18px;
     height: 18px;
+    transition: opacity var(--transition-fast), background-color var(--transition-fast);
 }
 
 .tab:hover .closeButton {
@@ -185,10 +195,10 @@
     color: var(--text-muted);
     cursor: pointer;
     font-size: 18px;
-    border-radius: 4px 4px 0 0;
+    border-radius: var(--radius-s);
     flex-shrink: 0;
     margin: 0 4px 0 2px;
-    transition: all 0.2s;
+    transition: all var(--transition-fast);
 }
 
 .newTabButton:hover {
