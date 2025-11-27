@@ -1,24 +1,86 @@
-# Logs
-logs
-*.log
+########################
+# Node / Package Manager
+########################
+node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
+package-lock.json.*
+yarn.lock.*
+pnpm-lock.yaml.*
 
-node_modules
-dist
-dist-ssr
+#############
+# Build Artifacts
+#############
+dist/
+build/
+out/
+release/
+*.asar
+
+# Vite cache
+.vite/
+
+################
+# Environment / Secrets
+################
+# Never commit real env or secret files
+.env
+.env.*
+!.env.example
+
+# Local config overrides
 *.local
 
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+#################
+# Logs & Diagnostics
+#################
+*.log
+logs/
+debug.log
+
+#############
+# Test / Coverage
+#############
+coverage/
+.nyc_output/
+.jest/
+.vscode-test/
+
+############
+# OS Files
+############
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+ehthumbs.db
+Icon?
+.Spotlight-V100
+.Trashes
+
+################
+# Editor / IDE
+################
+# VS Code
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# JetBrains / Rider / WebStorm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Other editors
+*.swp
+*.swo
+*~
+
+#############
+# Misc
+#############
+*.tgz
+*.orig
