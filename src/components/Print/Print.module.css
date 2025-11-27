@@ -1,0 +1,96 @@
+/* General Print Styles */
+.printContainer {
+    display: block;
+    background-color: white;
+    color: black;
+    font-family: sans-serif;
+    line-height: 1.6;
+    padding: 2rem;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.printContainer h1,
+.printContainer h2,
+.printContainer h3,
+.printContainer h4,
+.printContainer h5,
+.printContainer h6 {
+    font-weight: 600;
+}
+
+.printContainer code {
+    background-color: #eee;
+    padding: 2px 4px;
+    border-radius: 4px;
+}
+
+.printContainer pre {
+    background-color: #eee;
+    padding: 1rem;
+    border-radius: 4px;
+    overflow-x: auto;
+}
+
+.printContainer blockquote {
+    border-left: 4px solid #ddd;
+    padding-left: 1rem;
+    color: #666;
+}
+
+.header,
+.footer {
+    display: none;
+}
+
+@media print {
+    body * {
+        visibility: hidden;
+    }
+
+    .printContainer,
+    .printContainer * {
+        visibility: visible;
+    }
+
+    .printContainer {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+
+    .header,
+    .footer {
+        display: block;
+        position: fixed;
+        width: 100%;
+        padding: 1rem;
+    }
+
+    .header {
+        top: 0;
+        text-align: center;
+    }
+
+    .footer {
+        bottom: 0;
+        text-align: right;
+    }
+
+    .content {
+        margin: 4rem 2rem;
+    }
+
+    .pageNumber::after {
+        counter-increment: page;
+        content: "Page " counter(page);
+    }
+
+    @page {
+        margin: 1in;
+        margin-top: 2in;
+        margin-bottom: 2in;
+        counter-reset: page 1;
+    }
+}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Settings } from 'lucide-react';
 import styles from './MenuBar.module.css';
 
-const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onCloseTab, onCloseWindow, onExit, onOpenSettings, recentFiles = [] }) => {
+const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onExportToPDF, onExportToHTML, onPrint, onCloseTab, onCloseWindow, onExit, onOpenSettings, recentFiles = [] }) => {
     const [activeMenu, setActiveMenu] = useState(null);
     const menuRef = useRef(null);
 
@@ -78,6 +78,18 @@ const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll
                             <div className={styles.dropdownItem} onClick={() => { onSaveAs(); handleMenuClick('file'); }}>
                                 <span>Save As...</span>
                                 <span className={styles.shortcut}>Ctrl+Shift+S</span>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onExportToPDF(); handleMenuClick('file'); }}>
+                                <span>Export to PDF</span>
+                            </div>
+                            <div className={styles.dropdownItem} onClick={() => { onExportToHTML(); handleMenuClick('file'); }}>
+                                <span>Export to HTML</span>
+                            </div>
+                            <div className={styles.separator}></div>
+                            <div className={styles.dropdownItem} onClick={() => { onPrint(); handleMenuClick('file'); }}>
+                                <span>Print</span>
+                                <span className={styles.shortcut}>Ctrl+P</span>
                             </div>
                             <div className={styles.separator}></div>
                             <div className={styles.dropdownItem} onClick={() => { onCloseTab(); handleMenuClick('file'); }}>

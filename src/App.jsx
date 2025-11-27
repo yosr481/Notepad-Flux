@@ -30,6 +30,9 @@ function App() {
         openRecentFile,
         saveFile,
         saveFileAs,
+        exportToPDF,
+        exportToHTML,
+        print,
         closeTab,
         closeOtherTabs,
         closeTabsToRight,
@@ -93,6 +96,9 @@ function App() {
             } else if (e.ctrlKey && e.key === 'g') {
                 e.preventDefault();
                 setShowGoToLine(true);
+            } else if (e.ctrlKey && e.key === 'p') {
+                e.preventDefault();
+                print();
             } else if (e.key === 'F5') {
                 e.preventDefault();
                 editorRef.current?.insertDateTime();
@@ -170,6 +176,9 @@ function App() {
                     onOpenRecent={openRecentFile}
                     onSave={() => saveFile(editorRef)}
                     onSaveAs={() => saveFileAs(editorRef)}
+                    onExportToPDF={exportToPDF}
+                    onExportToHTML={exportToHTML}
+                    onPrint={print}
                     onCloseTab={() => closeTab(activeTabId)}
                     onCloseWindow={() => window.close()}
                     onExit={() => window.close()}

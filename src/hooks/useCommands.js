@@ -1,5 +1,12 @@
+import React from 'react';
 import { useSession } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
+import { marked } from 'marked';
+import { exportToHtml } from '../utils/export';
+import { createRoot } from 'react-dom/client';
+import PrintDocument from '../components/Print/PrintDocument';
+import jsPDF from 'jspdf';
+import html2canvas from 'html2canvas';
 
 export const useCommands = () => {
     const {
@@ -274,12 +281,99 @@ export const useCommands = () => {
         }
     };
 
+    const exportToPDF = (
+    ) => {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (!activeTab) return;
+
+        const printContainer = document.createElement('div');
+        printContainer.id = 'print-container';
+        document.body.appendChild(printContainer);
+
+        const root = createRoot(printContainer);
+        const content = React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content });
+        root.render(content);
+
+        requestIdleCallback(async () => {
+            const canvas = await html2canvas(printContainer, {
+                scale: 2, // Higher resolution
+            });
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: 'a4',
+            });
+
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = pdf.internal.pageSize.getHeight();
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
+            const ratio = canvasWidth / canvasHeight;
+            const imgWidth = pdfWidth;
+            const imgHeight = imgWidth / ratio;
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pdfHeight;
+
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pdfHeight;
+            }
+
+            const pdfBlob = pdf.output('blob');
+            await fileSystem.exportFile(pdfBlob, `${activeTab.title.replace(/\s/g, '_')}.pdf`, [
+                {
+                    description: 'PDF Document',
+                    accept: { 'application/pdf': ['.pdf'] },
+                },
+            ]);
+
+            root.unmount();
+            document.body.removeChild(printContainer);
+        });
+    };
+
+    const exportToHTML = () => {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (!activeTab) return;
+        exportToHtml(activeTab.title, activeTab.content);
+    };
+
+    const print = () => {
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (!activeTab) return;
+
+        const printContainer = document.createElement('div');
+        printContainer.id = 'print-container';
+        document.body.appendChild(printContainer);
+
+        const root = createRoot(printContainer);
+        root.render(
+            React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content })
+        );
+
+        requestIdleCallback(() => {
+            window.print();
+            root.unmount();
+            document.body.removeChild(printContainer);
+        });
+    };
+
     return {
         newTab,
         openFile,
         openRecentFile,
         saveFile,
         saveFileAs,
+        exportToPDF,
+        exportToHTML,
+        print,
         closeTab,
         closeOtherTabs,
         closeTabsToRight,

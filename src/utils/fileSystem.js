@@ -167,6 +167,39 @@ export const fileSystem = {
         }
     },
 
+    exportFile: async (content, suggestedName, types) => {
+        if (supportsFileSystemAccess) {
+            try {
+                const handle = await window.showSaveFilePicker({
+                    suggestedName,
+                    types,
+                });
+
+                const writable = await handle.createWritable();
+                await writable.write(content);
+                await writable.close();
+
+                return {
+                    handle,
+                    name: handle.name
+                };
+            } catch (err) {
+                if (err.name === 'AbortError') {
+                    return null; // User cancelled
+                }
+                console.error('Error saving file as:', err);
+                throw err;
+            }
+        } else {
+            // Fallback: Download the file
+            downloadFile(content, suggestedName);
+            return {
+                handle: null, // No handle in fallback mode
+                name: suggestedName
+            };
+        }
+    },
+
     /**
      * Check if File System Access API is supported
      */
