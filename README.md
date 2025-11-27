@@ -61,5 +61,5 @@ To run the linter:
 npm run lint
 ```
 
-## License
+# License
 This project is licensed under the [MIT License](LICENSE).
