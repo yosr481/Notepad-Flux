@@ -74,6 +74,10 @@ export const SessionProvider = ({ children }) => {
             // Auto-update title if not saved (no fileHandle) and content changed
             if (updates.content !== undefined && !newTab.fileHandle) {
                 newTab.title = generateTitle(updates.content);
+                // If content is cleared and it's an untitled tab, it's no longer dirty
+                if (updates.content === '') {
+                    newTab.isDirty = false;
+                }
             }
 
             return newTab;
