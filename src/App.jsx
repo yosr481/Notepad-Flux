@@ -194,7 +194,10 @@ function App() {
                     ref={editorRef}
                     activeTabId={activeTabId}
                     initialContent={activeTab.content}
+                    initialCursor={activeTab.cursor || 0}
+                    initialScroll={activeTab.scroll || 0}
                     onContentChange={(content, isDirty) => updateTab(activeTabId, { content, isDirty })}
+                    onStateChange={(state) => updateTab(activeTabId, state)}
                     onStatsUpdate={setStats}
                 />
             </div>

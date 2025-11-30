@@ -13,12 +13,14 @@ import { listKeymap } from '../extensions/listKeymap';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
 
-const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', onContentChange }, ref) => {
+const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const stateCache = useRef(new Map()); // Map<string, EditorState>
+  const scrollCache = useRef(new Map()); // Map<string, number>
   const currentTabIdRef = useRef(activeTabId);
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
+  const stateUpdateTimer = useRef(null);
 
   useImperativeHandle(ref, () => ({
     undo: () => {
@@ -218,9 +220,10 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
   }));
 
   // Helper to create the EditorState with all extensions
-  const createEditorState = (docContent) => {
+  const createEditorState = (docContent, cursorAnchor = 0) => {
     return EditorState.create({
       doc: docContent,
+      selection: { anchor: Math.min(cursorAnchor, docContent.length) },
       extensions: [
         keymap.of([...defaultKeymap, ...historyKeymap]),
         history(),
@@ -261,6 +264,30 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
             updateStats(update.view);
             if (onContentChange) {
               onContentChange(update.state.doc.toString(), true);
+            }
+          }
+
+          // Debounced state update (cursor & scroll)
+          if (onStateChange && (update.selectionSet || update.docChanged || update.viewportChanged)) {
+            if (stateUpdateTimer.current) clearTimeout(stateUpdateTimer.current);
+            stateUpdateTimer.current = setTimeout(() => {
+              onStateChange({
+                cursor: update.view.state.selection.main.head,
+                scroll: update.view.scrollDOM.scrollTop
+              });
+            }, 500);
+          }
+        }),
+        EditorView.domEventHandlers({
+          scroll: (event, view) => {
+            if (onStateChange) {
+              if (stateUpdateTimer.current) clearTimeout(stateUpdateTimer.current);
+              stateUpdateTimer.current = setTimeout(() => {
+                onStateChange({
+                  cursor: view.state.selection.main.head,
+                  scroll: view.scrollDOM.scrollTop
+                });
+              }, 500);
             }
           }
         })
@@ -307,13 +334,21 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
   useEffect(() => {
     if (!editorRef.current) return;
 
-    const startState = createEditorState(initialContent);
+    const startState = createEditorState(initialContent, initialCursor);
     const view = new EditorView({
       state: startState,
       parent: editorRef.current
     });
 
     viewRef.current = view;
+
+    // Restore initial scroll
+    if (initialScroll > 0) {
+      requestAnimationFrame(() => {
+        view.scrollDOM.scrollTop = initialScroll;
+      });
+    }
+
     updateStats(view);
 
     return () => {
@@ -332,15 +367,28 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
       const prevId = currentTabIdRef.current;
       const prevState = view.state;
       stateCache.current.set(prevId, prevState);
+      scrollCache.current.set(prevId, view.scrollDOM.scrollTop);
 
       // Restore or Create new state
       if (stateCache.current.has(activeTabId)) {
         view.setState(stateCache.current.get(activeTabId));
+        // Restore scroll from cache
+        if (scrollCache.current.has(activeTabId)) {
+          requestAnimationFrame(() => {
+            view.scrollDOM.scrollTop = scrollCache.current.get(activeTabId);
+          });
+        }
       } else {
         // Create new state with current initialContent
         // (Note: initialContent here is the content of the NEW tab because parent passed it)
-        const newState = createEditorState(initialContent);
+        const newState = createEditorState(initialContent, initialCursor);
         view.setState(newState);
+        // Restore scroll from props
+        if (initialScroll > 0) {
+          requestAnimationFrame(() => {
+            view.scrollDOM.scrollTop = initialScroll;
+          });
+        }
       }
 
       currentTabIdRef.current = activeTabId;
@@ -373,7 +421,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', on
       });
     }
 
-  }, [activeTabId, initialContent]);
+  }, [activeTabId, initialContent, initialCursor, initialScroll]);
 
   return <div ref={editorRef} className={styles.editorContainer} style={{ height: '100%' }} />;
 });

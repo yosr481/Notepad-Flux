@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import { storage } from '../services/storage';
 
 const SessionContext = createContext();
 
@@ -16,13 +17,114 @@ export const SessionProvider = ({ children }) => {
     ]);
     const [activeTabId, setActiveTabId] = useState('tab-1');
     const [recentFiles, setRecentFiles] = useState([]);
+    const [isPrimaryWindow, setIsPrimaryWindow] = useState(false);
+    const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+
     const nextTabId = useRef(2);
+    const saveTimers = useRef(new Map());
 
     // Helper to generate title from content
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
         return firstLine ? firstLine.slice(0, 35) : 'Untitled';
     };
+
+    // Debounced save helper
+    const saveTabDebounced = useCallback((tab) => {
+        if (!isPrimaryWindow || !isSessionLoaded) return;
+
+        if (saveTimers.current.has(tab.id)) {
+            clearTimeout(saveTimers.current.get(tab.id));
+        }
+
+        const timer = setTimeout(() => {
+            storage.saveTab(tab);
+            saveTimers.current.delete(tab.id);
+        }, 1000); // 1 second debounce
+
+        saveTimers.current.set(tab.id, timer);
+    }, [isPrimaryWindow, isSessionLoaded]);
+
+    // Initialize Session (Web Locks + IDB)
+    useEffect(() => {
+        if (!navigator.locks) {
+            console.warn('Web Locks API not supported. Session persistence disabled.');
+            setIsSessionLoaded(true);
+            return;
+        }
+
+        const abortController = new AbortController();
+        let timeoutId;
+
+        const initSession = async (lock) => {
+            if (lock) {
+                // We are the primary window
+                setIsPrimaryWindow(true);
+                try {
+                    const session = await storage.loadSession();
+                    if (session.tabs && session.tabs.length > 0) {
+                        let loadedTabs = session.tabs;
+
+                        // Restore order if available
+                        if (session.tabOrder && session.tabOrder.length > 0) {
+                            const orderMap = new Map(session.tabOrder.map((id, index) => [id, index]));
+                            loadedTabs.sort((a, b) => {
+                                const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+                                const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+                                return indexA - indexB;
+                            });
+                        }
+
+                        setTabs(loadedTabs);
+                        // Update nextTabId based on max existing id
+                        const maxId = session.tabs.reduce((max, t) => {
+                            const num = parseInt(t.id.replace('tab-', ''));
+                            return !isNaN(num) && num > max ? num : max;
+                        }, 1);
+                        nextTabId.current = maxId + 1;
+                    }
+                    if (session.activeTabId) {
+                        setActiveTabId(session.activeTabId);
+                    }
+                    if (session.recentFiles) {
+                        setRecentFiles(session.recentFiles);
+                    }
+                } catch (err) {
+                    console.error('Failed to load session:', err);
+                } finally {
+                    setIsSessionLoaded(true);
+                }
+
+                // Hold the lock until aborted
+                await new Promise((resolve) => {
+                    abortController.signal.addEventListener('abort', () => {
+                        resolve();
+                    });
+                });
+            } else {
+                // We are a secondary window
+                setIsPrimaryWindow(false);
+                setIsSessionLoaded(true);
+            }
+        };
+
+        // Add a small delay to allow cleanup of previous effect (Strict Mode) to release lock
+        timeoutId = setTimeout(() => {
+            navigator.locks.request('notepad-flux-primary', { ifAvailable: true }, initSession);
+        }, 100);
+
+        return () => {
+            clearTimeout(timeoutId);
+            abortController.abort();
+        };
+    }, []);
+
+    // Save metadata when relevant state changes
+    useEffect(() => {
+        if (isPrimaryWindow && isSessionLoaded) {
+            storage.saveMetadata({ activeTabId, recentFiles });
+        }
+    }, [activeTabId, recentFiles, isPrimaryWindow, isSessionLoaded]);
 
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
@@ -36,34 +138,34 @@ export const SessionProvider = ({ children }) => {
             fileHandle: null,
             ...initialData
         };
-        setTabs(curr => [...curr, newTab]);
+
+        setTabs(curr => {
+            const updated = [...curr, newTab];
+            return updated;
+        });
         setActiveTabId(newId);
-    }, []);
+
+        if (isPrimaryWindow && isSessionLoaded) {
+            storage.saveTab(newTab);
+        }
+    }, [isPrimaryWindow, isSessionLoaded]);
 
     const closeTab = useCallback((id) => {
-        // Note: The actual "Save?" prompt logic should probably live in the Command layer or UI layer
-        // because Context shouldn't necessarily trigger window.confirm directly if we want to be clean.
-        // But for now, we'll expose a method that just does the state update, and let the caller handle checks.
-
         setTabs(prev => {
             const newTabs = prev.filter(t => t.id !== id);
             if (newTabs.length === 0) {
-                // If closing last tab, create a new one
-                // We need to handle the ID generation carefully here or just reset
-                // For simplicity, let's just return a fresh state if empty
-                // But we can't easily access 'nextTabId' inside this setter without refs or another setter.
-                // So we'll handle the "empty list" case in the effect or the caller.
-                // Actually, let's just prevent empty list here.
+                // Prevent empty list, but if we really want to close the last one and create new...
+                // For now, keep behavior: don't allow closing last tab effectively, or handle it upstream.
+                // But if we DO close it, we should delete from storage.
                 return prev.filter(t => t.id !== id);
             }
             return newTabs;
         });
-    }, []);
 
-    // We need a separate effect or logic to handle "Active Tab" switching when one is closed
-    // This is easier to handle if closeTab is an async function or we use an effect.
-    // Let's keep it simple: The caller (useCommands) will handle the logic of "What is the next tab?"
-    // and call setActiveTabId.
+        if (isPrimaryWindow && isSessionLoaded) {
+            storage.deleteTab(id);
+        }
+    }, [isPrimaryWindow, isSessionLoaded]);
 
     const updateTab = useCallback((id, updates) => {
         setTabs(prev => prev.map(tab => {
@@ -74,22 +176,24 @@ export const SessionProvider = ({ children }) => {
             // Auto-update title if not saved (no fileHandle) and content changed
             if (updates.content !== undefined && !newTab.fileHandle) {
                 newTab.title = generateTitle(updates.content);
-                // If content is cleared and it's an untitled tab, it's no longer dirty
                 if (updates.content === '') {
                     newTab.isDirty = false;
                 }
             }
 
+            // Trigger persistence
+            if (isPrimaryWindow && isSessionLoaded) {
+                saveTabDebounced(newTab);
+            }
+
             return newTab;
         }));
-    }, []);
+    }, [isPrimaryWindow, isSessionLoaded, saveTabDebounced]);
 
     const addRecentFile = useCallback((filePath, fileName, fileHandle = null) => {
         setRecentFiles(prev => {
-            // Remove if already exists to avoid duplicates
             const filtered = prev.filter(f => f.filePath !== filePath);
-            // Add to front of list
-            return [{ filePath, fileName, fileHandle }, ...filtered].slice(0, 20); // Keep max 20 recent files
+            return [{ filePath, fileName, fileHandle }, ...filtered].slice(0, 20);
         });
     }, []);
 
@@ -119,9 +223,29 @@ export const SessionProvider = ({ children }) => {
             const newItems = [...items];
             const [movedItem] = newItems.splice(oldIndex, 1);
             newItems.splice(newIndex, 0, movedItem);
+
+            // We should probably save the new order to storage?
+            // Since we store tabs individually, the order is determined by the array.
+            // But we load them via getAll which might not preserve order unless we store an index.
+            // For now, let's assume getAll returns in insertion order or key order.
+            // If we want strict order, we should store a 'tabsOrder' in metadata or an 'order' field in tab.
+            // Let's add 'order' field to tab or just save the whole list order in metadata?
+            // Saving whole list order in metadata is safer.
+            // For now, let's just update the tabs.
+
             return newItems;
         });
     }, []);
+
+    // Effect to save tab order if needed. 
+    // Since we store tabs individually, we might lose order on reload if we rely on IDB key order.
+    // Let's save the tab IDs order in metadata.
+    useEffect(() => {
+        if (isPrimaryWindow && isSessionLoaded) {
+            const order = tabs.map(t => t.id);
+            storage.saveMetadata({ tabOrder: order });
+        }
+    }, [tabs, isPrimaryWindow, isSessionLoaded]);
 
     const value = {
         tabs,
@@ -131,10 +255,12 @@ export const SessionProvider = ({ children }) => {
         closeTab,
         updateTab,
         switchTab,
-        setTabs, // Expose for complex operations like bulk close
+        setTabs,
         reorderTabs,
         recentFiles,
-        addRecentFile
+        addRecentFile,
+        isPrimaryWindow, // Expose this if UI needs to know
+        isSessionLoaded
     };
 
     return (
