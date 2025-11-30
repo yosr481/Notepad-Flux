@@ -3,216 +3,105 @@
  * Handles file operations for the browser environment.
  */
 
-// Feature detection
-const supportsFileSystemAccess = 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
+// --- Drivers ---
 
-// Fallback: Create file input element for traditional file picking
-const createFileInput = (accept = '*') => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = accept;
-    input.style.display = 'none';
-    document.body.appendChild(input);
-    return input;
-};
+const WebNativeDriver = {
+    isSupported: () => 'showOpenFilePicker' in window && 'showSaveFilePicker' in window,
 
-// Fallback: Trigger download
-const downloadFile = (content, filename) => {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    a.style.display = 'none';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-};
-
-export const fileSystem = {
-    /**
-     * Open a file using the browser's file picker.
-     * @returns {Promise<{handle: FileSystemFileHandle|null, content: string, name: string}|null>}
-     */
     openFile: async () => {
-        if (supportsFileSystemAccess) {
-            // Modern File System Access API
-            try {
-                const [handle] = await window.showOpenFilePicker({
-                    types: [
-                        {
-                            description: 'Text Files',
-                            accept: {
-                                'text/plain': ['.txt', '.md', '.markdown', '.js', '.jsx', '.json', '.css', '.html'],
-                            },
+        try {
+            const [handle] = await window.showOpenFilePicker({
+                types: [
+                    {
+                        description: 'Text Files',
+                        accept: {
+                            'text/plain': ['.txt', '.md', '.markdown', '.js', '.jsx', '.json', '.css', '.html'],
                         },
-                    ],
-                    multiple: false,
-                });
-
-                const file = await handle.getFile();
-                const content = await file.text();
-
-                return {
-                    handle,
-                    content,
-                    name: file.name
-                };
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    return null; // User cancelled
-                }
-                console.error('Error opening file:', err);
-                throw err;
-            }
-        } else {
-            // Fallback for Firefox/Safari
-            return new Promise((resolve) => {
-                const input = createFileInput('.txt,.md,.markdown,.js,.jsx,.json,.css,.html');
-
-                input.onchange = async (e) => {
-                    const file = e.target.files[0];
-                    if (file) {
-                        const content = await file.text();
-                        resolve({
-                            handle: null, // No handle in fallback mode
-                            content,
-                            name: file.name
-                        });
-                    } else {
-                        resolve(null);
-                    }
-                    document.body.removeChild(input);
-                };
-
-                input.oncancel = () => {
-                    resolve(null);
-                    document.body.removeChild(input);
-                };
-
-                input.click();
+                    },
+                ],
+                multiple: false,
             });
-        }
-    },
 
-    /**
-     * Save content to an existing file handle.
-     * @param {FileSystemFileHandle|null} handle 
-     * @param {string} content 
-     */
-    saveFile: async (handle, content) => {
-        if (supportsFileSystemAccess && handle) {
-            try {
-                const writable = await handle.createWritable();
-                await writable.write(content);
-                await writable.close();
-            } catch (err) {
-                console.error('Error saving file:', err);
-                throw err;
-            }
-        } else {
-            // No handle or fallback mode - cannot save to existing file
-            // This should trigger a "Save As" flow
-            throw new Error('Cannot save to existing file in fallback mode');
-        }
-    },
+            const file = await handle.getFile();
+            const content = await file.text();
 
-    /**
-     * Save content to a new file using the save file picker.
-     * @param {string} content 
-     * @param {string} suggestedName 
-     * @returns {Promise<{handle: FileSystemFileHandle|null, name: string}|null>}
-     */
-    saveFileAs: async (content, suggestedName = 'Untitled.md') => {
-        if (supportsFileSystemAccess) {
-            // Modern File System Access API
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName,
-                    types: [
-                        {
-                            description: 'Markdown File',
-                            accept: { 'text/markdown': ['.md'] },
-                        },
-                        {
-                            description: 'Text File',
-                            accept: { 'text/plain': ['.txt'] },
-                        },
-                    ],
-                });
-
-                const writable = await handle.createWritable();
-                await writable.write(content);
-                await writable.close();
-
-                return {
-                    handle,
-                    name: handle.name
-                };
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    return null; // User cancelled
-                }
-                console.error('Error saving file as:', err);
-                throw err;
-            }
-        } else {
-            // Fallback: Download the file
-            downloadFile(content, suggestedName);
             return {
-                handle: null, // No handle in fallback mode
-                name: suggestedName
+                handle,
+                content,
+                name: file.name
             };
+        } catch (err) {
+            if (err.name === 'AbortError') return null;
+            console.error('Error opening file:', err);
+            throw err;
+        }
+    },
+
+    saveFile: async (handle, content) => {
+        try {
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+        } catch (err) {
+            console.error('Error saving file:', err);
+            throw err;
+        }
+    },
+
+    saveFileAs: async (content, suggestedName) => {
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName,
+                types: [
+                    {
+                        description: 'Markdown File',
+                        accept: { 'text/markdown': ['.md'] },
+                    },
+                    {
+                        description: 'Text File',
+                        accept: { 'text/plain': ['.txt'] },
+                    },
+                ],
+            });
+
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
+
+            return {
+                handle,
+                name: handle.name
+            };
+        } catch (err) {
+            if (err.name === 'AbortError') return null;
+            console.error('Error saving file as:', err);
+            throw err;
         }
     },
 
     exportFile: async (content, suggestedName, types) => {
-        if (supportsFileSystemAccess) {
-            try {
-                const handle = await window.showSaveFilePicker({
-                    suggestedName,
-                    types,
-                });
+        try {
+            const handle = await window.showSaveFilePicker({
+                suggestedName,
+                types,
+            });
 
-                const writable = await handle.createWritable();
-                await writable.write(content);
-                await writable.close();
+            const writable = await handle.createWritable();
+            await writable.write(content);
+            await writable.close();
 
-                return {
-                    handle,
-                    name: handle.name
-                };
-            } catch (err) {
-                if (err.name === 'AbortError') {
-                    return null; // User cancelled
-                }
-                console.error('Error saving file as:', err);
-                throw err;
-            }
-        } else {
-            // Fallback: Download the file
-            downloadFile(content, suggestedName);
             return {
-                handle: null, // No handle in fallback mode
-                name: suggestedName
+                handle,
+                name: handle.name
             };
+        } catch (err) {
+            if (err.name === 'AbortError') return null;
+            console.error('Error exporting file:', err);
+            throw err;
         }
     },
 
-    /**
-     * Check if File System Access API is supported
-     */
-    isSupported: () => supportsFileSystemAccess,
-
-    /**
-     * Open a file from a stored file handle
-     * @param {FileSystemFileHandle} handle 
-     * @returns {Promise<{handle: FileSystemFileHandle, content: string, name: string}|null>}
-     */
     openFileFromHandle: async (handle) => {
-        if (!handle) return null;
-        
         try {
             const file = await handle.getFile();
             const content = await file.text();
@@ -226,4 +115,110 @@ export const fileSystem = {
             throw err;
         }
     }
+};
+
+const WebFallbackDriver = {
+    // Helpers
+    createFileInput: (accept = '*') => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = accept;
+        input.style.display = 'none';
+        document.body.appendChild(input);
+        return input;
+    },
+
+    downloadFile: (content, filename) => {
+        const blob = new Blob([content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    },
+
+    // Interface Implementation
+    isSupported: () => true, // Always supported as fallback
+
+    openFile: async () => {
+        return new Promise((resolve) => {
+            const input = WebFallbackDriver.createFileInput('.txt,.md,.markdown,.js,.jsx,.json,.css,.html');
+
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const content = await file.text();
+                    resolve({
+                        handle: null,
+                        content,
+                        name: file.name
+                    });
+                } else {
+                    resolve(null);
+                }
+                document.body.removeChild(input);
+            };
+
+            input.oncancel = () => {
+                resolve(null);
+                document.body.removeChild(input);
+            };
+
+            input.click();
+        });
+    },
+
+    saveFile: async (handle, content) => {
+        throw new Error('Cannot save to existing file in fallback mode');
+    },
+
+    saveFileAs: async (content, suggestedName) => {
+        WebFallbackDriver.downloadFile(content, suggestedName);
+        return {
+            handle: null,
+            name: suggestedName
+        };
+    },
+
+    exportFile: async (content, suggestedName, types) => {
+        WebFallbackDriver.downloadFile(content, suggestedName);
+        return {
+            handle: null,
+            name: suggestedName
+        };
+    },
+
+    openFileFromHandle: async (handle) => {
+        throw new Error('Cannot open from handle in fallback mode');
+    }
+};
+
+// --- Main Export ---
+
+const getDriver = () => {
+    // In the future, we can check for Electron context here
+    // if (window.electron) return ElectronDriver;
+
+    if (WebNativeDriver.isSupported()) {
+        return WebNativeDriver;
+    }
+    return WebFallbackDriver;
+};
+
+export const fileSystem = {
+    isSupported: () => WebNativeDriver.isSupported(),
+
+    openFile: () => getDriver().openFile(),
+
+    saveFile: (handle, content) => getDriver().saveFile(handle, content),
+
+    saveFileAs: (content, suggestedName) => getDriver().saveFileAs(content, suggestedName),
+
+    exportFile: (content, suggestedName, types) => getDriver().exportFile(content, suggestedName, types),
+
+    openFileFromHandle: (handle) => getDriver().openFileFromHandle(handle)
 };

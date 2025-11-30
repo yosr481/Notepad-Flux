@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSession } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
+import { dialogs } from '../utils/dialogs';
 import { marked } from 'marked';
 import { exportToHtml } from '../utils/export';
 import { createRoot } from 'react-dom/client';
@@ -33,7 +34,7 @@ export const useCommands = () => {
         if (!tab) return;
 
         if (tab.isDirty) {
-            const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+            const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
             if (shouldSave) {
                 const content = editorRef?.current?.getCurrentContent() || tab.content;
 
@@ -86,7 +87,7 @@ export const useCommands = () => {
 
         for (const tab of tabsToClose) {
             if (tab.isDirty) {
-                const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+                const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
                 if (shouldSave) {
                     const content = tab.content;
 
@@ -129,7 +130,7 @@ export const useCommands = () => {
 
         for (const tab of tabsToClose) {
             if (tab.isDirty) {
-                const shouldSave = window.confirm(`Save changes to ${tab.title}?`);
+                const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
                 if (shouldSave) {
                     const content = tab.content;
 
@@ -261,7 +262,7 @@ export const useCommands = () => {
             if (!file) {
                 file = await fileSystem.openFile();
                 if (!file) {
-                    window.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+                    await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
                     return;
                 }
             }
@@ -279,7 +280,7 @@ export const useCommands = () => {
             }
         } catch (error) {
             console.error(`Failed to open recent file: ${fileName}`, error);
-            window.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+            await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
     };
 
@@ -382,7 +383,7 @@ export const useCommands = () => {
                 // For the menu button, we can be smarter.
 
                 // Let's assume we want to offer saving.
-                if (window.confirm('You have unsaved changes. Save them now?')) {
+                if (await dialogs.confirm('You have unsaved changes. Save them now?')) {
                     // Try to save all dirty tabs
                     for (const tab of dirtyTabs) {
                         // Logic similar to closeTab save
@@ -416,7 +417,7 @@ export const useCommands = () => {
                     // Usually "Cancel" means "Oops, I didn't mean to close".
                     // But standard confirm is binary.
                     // Let's ask: "Are you sure you want to close without saving?" if they say No to saving.
-                    if (!window.confirm('Close without saving?')) {
+                    if (!await dialogs.confirm('Close without saving?')) {
                         return;
                     }
                 }
