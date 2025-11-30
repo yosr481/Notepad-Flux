@@ -20,7 +20,8 @@ export const useCommands = () => {
         reorderTabs,
         setTabs,
         recentFiles,
-        addRecentFile
+        addRecentFile,
+        isPrimaryWindow
     } = useSession();
 
     const newTab = () => {
@@ -366,6 +367,64 @@ export const useCommands = () => {
         });
     };
 
+    const closeWindow = async (editorRef) => {
+        if (!isPrimaryWindow) {
+            const dirtyTabs = tabs.filter(t => t.isDirty);
+            if (dirtyTabs.length > 0) {
+                const confirmMsg = `You have ${dirtyTabs.length} unsaved tab${dirtyTabs.length > 1 ? 's' : ''}. Do you want to save your changes before closing?`;
+                // We can't easily use a custom dialog here without blocking, so we use confirm.
+                // A better UX might be a custom modal, but for now window.confirm is consistent with closeTab.
+                // However, standard confirm is OK/Cancel. We need Save/Don't Save/Cancel.
+                // Browser confirm doesn't support 3 options.
+                // Let's use a simple flow: "Save changes?" -> OK=Save, Cancel=Don't Save? No, Cancel usually means abort.
+                // Let's try: "Unsaved changes. Click OK to Save and Close, Cancel to Close without saving?" - No that's dangerous.
+                // Let's stick to the browser standard: "Leave site? Changes you made may not be saved." logic via beforeunload for the X button.
+                // For the menu button, we can be smarter.
+
+                // Let's assume we want to offer saving.
+                if (window.confirm('You have unsaved changes. Save them now?')) {
+                    // Try to save all dirty tabs
+                    for (const tab of dirtyTabs) {
+                        // Logic similar to closeTab save
+                        // We need to activate the tab to get editor content? 
+                        // Actually tab.content might be stale if editor has changes not yet synced?
+                        // onContentChange syncs to tab.content, so tab.content should be up to date.
+
+                        try {
+                            if (tab.fileHandle) {
+                                await fileSystem.saveFile(tab.fileHandle, tab.content);
+                            } else if (!fileSystem.isSupported() && tab.filePath) {
+                                await fileSystem.saveFileAs(tab.content, tab.filePath);
+                            } else {
+                                const result = await fileSystem.saveFileAs(tab.content, tab.title);
+                                if (result) {
+                                    // Update tab just in case, though we are closing
+                                    updateTab(tab.id, { ...result, isDirty: false });
+                                } else {
+                                    // User cancelled save dialog for a file
+                                    return; // Abort close
+                                }
+                            }
+                        } catch (err) {
+                            console.error('Failed to save', err);
+                            return; // Abort close
+                        }
+                    }
+                } else {
+                    // User said No to "Save them now?". 
+                    // Does that mean "Don't Save" or "Cancel"?
+                    // Usually "Cancel" means "Oops, I didn't mean to close".
+                    // But standard confirm is binary.
+                    // Let's ask: "Are you sure you want to close without saving?" if they say No to saving.
+                    if (!window.confirm('Close without saving?')) {
+                        return;
+                    }
+                }
+            }
+        }
+        window.close();
+    };
+
     return {
         newTab,
         openFile,
@@ -384,6 +443,8 @@ export const useCommands = () => {
         activeTabId,
         tabs,
         reorderTabs,
-        recentFiles
+        recentFiles,
+        closeWindow,
+        isPrimaryWindow
     };
 };

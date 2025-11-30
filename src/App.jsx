@@ -39,8 +39,26 @@ function App() {
         switchTab,
         updateTab,
         reorderTabs,
-        recentFiles
+        recentFiles,
+        closeWindow,
+        isPrimaryWindow
     } = useCommands();
+
+    // Handle beforeunload for secondary windows
+    useEffect(() => {
+        const handleBeforeUnload = (e) => {
+            if (!isPrimaryWindow) {
+                const hasDirtyTabs = tabs.some(t => t.isDirty);
+                if (hasDirtyTabs) {
+                    e.preventDefault();
+                    e.returnValue = ''; // Trigger browser default prompt
+                }
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [isPrimaryWindow, tabs]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
@@ -182,8 +200,8 @@ function App() {
                     onExportToHTML={exportToHTML}
                     onPrint={print}
                     onCloseTab={() => closeTab(activeTabId)}
-                    onCloseWindow={() => window.close()}
-                    onExit={() => window.close()}
+                    onCloseWindow={() => closeWindow(editorRef)}
+                    onExit={() => closeWindow(editorRef)}
                     onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />
