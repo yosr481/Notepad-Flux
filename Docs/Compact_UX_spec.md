@@ -51,6 +51,10 @@ On app start:
 
 ---
 # 4. Tabs: Creation, Closing, Overflow
+
+## 4.0 Reordering tabs
+- Tabs can be reordered via drag-and-drop.
+- The new order is persisted immediately to the session state.
 ## 4.1 Creating tabs
 - **File → New tab**
 - Tab context menu `New tab`
