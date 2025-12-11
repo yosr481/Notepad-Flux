@@ -321,8 +321,32 @@ function convertTableToHTML(text) {
 
     let html = "<table>";
     let hasContent = false;
+    let alignments = [];
+
+    // Check for delimiter row at index 1
+    if (rows.length >= 2) {
+        const potentialDelimiter = rows[1].trim();
+        // Matches | :---: | --- | formatting
+        // Must contain - or : and only valid delimiter chars
+        if (/^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-')) {
+            const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
+            alignments = cleanDelimiter.split('|').map(s => {
+                s = s.trim();
+                if (s.startsWith(':') && s.endsWith(':')) return 'center';
+                if (s.endsWith(':')) return 'right';
+                if (s.startsWith(':')) return 'left';
+                return null;
+            });
+        }
+    }
 
     rows.forEach((row, index) => {
+        // Skip delimiter row (usually index 1)
+        if (index === 1 && alignments.length > 0) return;
+
+        // Fallback for skipping if we failed to parse but it looks like one
+        if (index === 1 && /^\|?[\s\-:|]+\|?$/.test(row.trim())) return;
+
         // Remove outer pipes if they exist
         const cleanRow = row.trim().replace(/^\|/, '').replace(/\|$/, '');
         if (!cleanRow.trim()) return; // Skip empty rows
@@ -330,12 +354,15 @@ function convertTableToHTML(text) {
         const cells = cleanRow.split('|');
 
         const isHeader = index === 0;
-        if (row.includes('---')) return;
 
         html += "<tr>";
-        cells.forEach(cell => {
+        cells.forEach((cell, i) => {
             const tag = isHeader ? "th" : "td";
-            html += `<${tag}>${parseCellContent(cell.trim())}</${tag}>`;
+            let alignAttr = "";
+            if (alignments[i]) {
+                alignAttr = ` style="text-align: ${alignments[i]}"`;
+            }
+            html += `<${tag}${alignAttr}>${parseCellContent(cell.trim())}</${tag}>`;
         });
         html += "</tr>";
         hasContent = true;
