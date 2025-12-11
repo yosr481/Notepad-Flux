@@ -10,6 +10,7 @@ import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
 import { linkHandler } from '../extensions/linkHandler';
 import { listKeymap } from '../extensions/listKeymap';
+import { indentUnit } from '@codemirror/language';
 import { searchMatchHighlight } from '../extensions/searchHighlight';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
@@ -243,6 +244,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
         linkPreview,
         linkHandler,
         listKeymap,
+        indentUnit.of("    "),
         obsidianTheme,
         EditorView.theme({
           "&": {
