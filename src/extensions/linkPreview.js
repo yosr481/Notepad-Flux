@@ -1,11 +1,13 @@
 import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
+import { syntaxTree } from "@codemirror/language";
 
 class LinkWidget extends WidgetType {
-    constructor(text, url) {
+    constructor(text, url, style = {}) {
         super();
         this.text = text;
         this.url = url;
+        this.style = style; // { bold: boolean, italic: boolean }
     }
 
     toDOM(view) {
@@ -14,6 +16,10 @@ class LinkWidget extends WidgetType {
         link.href = this.url;
         link.target = "_blank";
         link.rel = "noopener noreferrer";
+
+        // Apply inherited styles
+        if (this.style.bold) link.style.fontWeight = "bold";
+        if (this.style.italic) link.style.fontStyle = "italic";
 
         const textSpan = document.createElement("span");
         // Parse markdown formatting in link text
@@ -60,7 +66,10 @@ class LinkWidget extends WidgetType {
     }
 
     eq(other) {
-        return other.text === this.text && other.url === this.url;
+        return other.text === this.text &&
+            other.url === this.url &&
+            other.style?.bold === this.style?.bold &&
+            other.style?.italic === this.style?.italic;
     }
 
     ignoreEvent(event) {
@@ -73,7 +82,10 @@ class LinkWidget extends WidgetType {
     }
 }
 
-const linkMatcher = /\[(.*?)\]\(([^"\s]+)(?:\s+"(.*?)")?\)/g;
+// Helper: Check if cursor touches the range [from, to]
+const isCursorTouching = (selection, from, to) => {
+    return selection.ranges.some(range => range.from <= to && range.to >= from);
+};
 
 export const linkPreview = ViewPlugin.fromClass(class {
     constructor(view) {
@@ -108,31 +120,68 @@ export const linkPreview = ViewPlugin.fromClass(class {
 
     computeDecorations(view) {
         const builder = new RangeSetBuilder();
-        const { from: selFrom, to: selTo } = view.state.selection.main;
+        const { state } = view;
+        const { selection, doc } = state;
 
-        for (const { from, to } of view.visibleRanges) {
-            const text = view.state.doc.sliceString(from, to);
-            linkMatcher.lastIndex = 0;
-            let match;
+        // Iterate over the syntax tree to find Links
+        syntaxTree(state).iterate({
+            enter: (node) => {
+                if (node.name !== "Link") return;
 
-            while ((match = linkMatcher.exec(text))) {
-                const start = from + match.index;
-                const end = start + match[0].length;
+                const { from, to } = node;
 
-                const isCursorInside = (selFrom <= end) && (selTo >= start);
+                // Check if cursor is active inside or touching the link
+                let shouldReveal = isCursorTouching(selection, from, to);
 
-                const isImage = start > 0 && view.state.doc.sliceString(start - 1, start) === '!';
+                // Check for surrounding emphasis (Bold/Italic)
+                let bold = false;
+                let italic = false;
+                let parent = node.node.parent;
 
-                if (!isCursorInside && !isImage) {
-                    const textContent = match[1];
-                    const url = match[2];
-                    builder.add(start, end, Decoration.replace({
-                        widget: new LinkWidget(textContent, url),
-                        inclusive: false
-                    }));
+                // Traverse up to find Emphasis/StrongEmphasis
+                // and also check if cursor is touching those outer marks to reveal everything
+                while (parent) {
+                    if (parent.name === "StrongEmphasis" || parent.name === "Emphasis") {
+                        if (parent.name === "StrongEmphasis") bold = true;
+                        if (parent.name === "Emphasis") italic = true;
+
+                        // If cursor is touching the outer emphasis, reveal the link
+                        if (isCursorTouching(selection, parent.from, parent.to)) {
+                            shouldReveal = true;
+                        }
+
+                        parent = parent.parent; // continue moving up
+                    } else {
+                        break;
+                    }
+                }
+
+                if (!shouldReveal) {
+                    let urlNode = node.node.getChild("URL");
+
+                    // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
+                    const textContentFull = doc.sliceString(from, to);
+
+                    // Ignore image links which start with !
+                    if (textContentFull.startsWith("!")) return;
+
+                    const match = textContentFull.match(/^\[(.*?)\]\(([^"\s\)]+)(?:\s+"(.*?)")?\)/);
+
+                    if (match) {
+                        // double check with urlNode if it exists to be precise? 
+                        // Actually the replacement range is [from, to] so regex matching the whole slice is correct.
+
+                        const linkText = match[1];
+                        const linkUrl = match[2];
+
+                        builder.add(from, to, Decoration.replace({
+                            widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
+                            inclusive: false
+                        }));
+                    }
                 }
             }
-        }
+        });
 
         return builder.finish();
     }

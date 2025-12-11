@@ -53,7 +53,25 @@ const buildDecorations = (state) => {
             if (name === "LinkMark" || name === "URL") {
                 const parent = node.node.parent;
                 if (parent && parent.name === "Link") {
-                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                    let isTouching = isCursorTouching(selection, parent.from, parent.to);
+
+                    // Check if cursor is touching outer emphasis (grandparents from Link)
+                    if (!isTouching) {
+                        let ancestor = parent.parent;
+                        while (ancestor) {
+                            if (ancestor.name === "StrongEmphasis" || ancestor.name === "Emphasis") {
+                                if (isCursorTouching(selection, ancestor.from, ancestor.to)) {
+                                    isTouching = true;
+                                    break;
+                                }
+                                ancestor = ancestor.parent;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!isTouching) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
                 }
