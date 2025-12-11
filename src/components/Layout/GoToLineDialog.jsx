@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X } from 'lucide-react';
+import { X } from 'phosphor-react';
 import styles from './GoToLineDialog.module.css';
 
 const GoToLineDialog = ({ onClose, onGoToLine, totalLines }) => {

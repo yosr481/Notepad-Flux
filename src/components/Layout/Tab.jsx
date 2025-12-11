@@ -1,5 +1,5 @@
 import React from 'react';
-import { X } from 'lucide-react';
+import { X } from 'phosphor-react';
 import styles from './Tabs.module.css';
 
 const Tab = React.forwardRef(({ id, title, isActive, isDirty, onClick, onClose, onContextMenu, style, attributes, listeners }, ref) => {

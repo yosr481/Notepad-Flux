@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 
 const Settings = ({ isOpen, onClose, theme, setTheme }) => {

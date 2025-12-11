@@ -1,264 +1,208 @@
 :root {
-    /* ============================================
-       OBSIDIAN DEFAULT THEME - DARK MODE
-       Based on official Obsidian color palette
+   /* ============================================
+       FLUX DESIGN SYSTEM - PRIMITIVES
        ============================================ */
-    
-    /* Base Colors - Dark Mode */
-    --color-base-00: #1e1e1e;
-    --color-base-05: #1a1a1a;
-    --color-base-10: #202020;
-    --color-base-20: #252525;
-    --color-base-25: #2a2a2a;
-    --color-base-30: #303030;
-    --color-base-35: #363636;
-    --color-base-40: #3f3f3f;
-    --color-base-50: #555555;
-    --color-base-60: #666666;
-    --color-base-70: #999999;
-    --color-base-100: #dadada;
 
-    /* Background Colors */
-    --background-primary: var(--color-base-10);
-    --background-primary-alt: var(--color-base-05);
-    --background-secondary: var(--color-base-00);
-    --background-secondary-alt: var(--color-base-00);
-    --background-modifier-border: var(--color-base-30);
-    --background-modifier-border-hover: var(--color-base-40);
-    --background-modifier-border-focus: var(--color-base-50);
-    --background-modifier-form-field: rgba(0, 0, 0, 0.3);
-    --background-modifier-form-field-highlighted: rgba(0, 0, 0, 0.22);
-    --background-modifier-box-shadow: rgba(0, 0, 0, 0.3);
-    --background-modifier-success: #197300;
-    --background-modifier-error: #3d0000;
-    --background-modifier-error-hover: #470000;
-    --background-modifier-cover: rgba(0, 0, 0, 0.8);
-    --background-hover: var(--color-base-25);
-    
-    /* Text Colors */
-    --text-normal: var(--color-base-100);
-    --text-muted: var(--color-base-70);
-    --text-faint: var(--color-base-60);
-    --text-accent: #7f6df2;
-    --text-accent-hover: #8875ff;
-    --text-selection: rgba(23, 48, 77, 0.99);
-    --text-on-accent: #dcddde;
-    --text-error: #ff3333;
-    --text-error-hover: #990000;
-    --text-highlight-bg: rgba(255, 255, 0, 0.4);
-    --text-highlight-bg-active: rgba(255, 128, 0, 0.4);
+   /* Primary Colors */
+   --color-flux-violet: #7C3AED;
+   --color-flux-violet-surface: #F5F3FF;
+   --color-editor-white: #FFFFFF;
 
-    /* Interactive Colors */
-    --interactive-normal: var(--color-base-25);
-    --interactive-hover: var(--color-base-30);
-    --interactive-accent: #483699;
-    --interactive-accent-hover: #4d3ca6;
-    --interactive-success: #197300;
+   /* Secondary Colors (Slate) */
+   --color-slate-50: #F8FAFC;
+   --color-slate-100: #F1F5F9;
+   --color-slate-200: #E2E8F0;
+   --color-slate-300: #CBD5E1;
+   --color-slate-400: #94A3B8;
+   --color-slate-500: #64748B;
+   --color-slate-600: #475569;
+   --color-slate-700: #334155;
+   --color-slate-800: #1E293B;
+   --color-slate-900: #0F172A;
 
-    /* Scrollbar Colors */
-    --scrollbar-active-thumb-bg: rgba(255, 255, 255, 0.2);
-    --scrollbar-bg: rgba(255, 255, 255, 0.05);
-    --scrollbar-thumb-bg: rgba(255, 255, 255, 0.1);
-    --scrollbar-thumb: rgba(255, 255, 255, 0.1);
-    --scrollbar-track: rgba(255, 255, 255, 0.05);
+   /* Accent Colors */
+   --color-focus-blue: #3B82F6;
+   --color-markdown-syntax: #94A3B8;
+   /* Low contrast for "Live Preview" */
 
-    /* Extended Colors - Dark Mode */
-    --color-red: #ff6b6b;
-    --color-orange: #ff9966;
-    --color-yellow: #ffd966;
-    --color-green: #7ee787;
-    --color-cyan: #79c0ff;
-    --color-blue: #7f6df2;
-    --color-purple: #d2a8ff;
-    --color-pink: #ff7eb6;
+   /* Functional Colors */
+   --color-success: #10B981;
+   --color-warning: #F59E0B;
+   --color-error: #EF4444;
 
-    /* Semantic Colors */
-    --blockquote-border: var(--text-accent);
-    --border-color: var(--background-modifier-border);
+   /* Dark Mode Variants */
+   --color-dark-canvas: #1E1E1E;
+   --color-dark-sidebar: #252526;
+   --color-dark-text-primary: #E2E8F0;
+   --color-dark-text-secondary: #94A3B8;
+   --color-dark-accent: #A78BFA;
 
-    /* Syntax Highlighting - Dark */
-    --syntax-keyword: #ff7b72;
-    --syntax-string: #a5d6ff;
-    --syntax-regexp: #7ee787;
-    --syntax-number: #79c0ff;
-    --syntax-bool: #ff7b72;
-    --syntax-function: #d2a8ff;
-    --syntax-class: #d2a8ff;
-    --syntax-property: #79c0ff;
-    --syntax-comment: var(--color-base-60);
-
-    /* ============================================
-       FLUENT DESIGN SYSTEM VARIABLES
+   /* ============================================
+       SEMANTIC MAPPINGS (Obsidian-compatible)
+       Default is LIGHT MODE for Flux
        ============================================ */
-    
-    /* Border Radius - Fluent Design */
-    --radius-s: 2px;
-    --radius-m: 4px;
-    --radius-l: 6px;
-    --radius-xl: 8px;
-    --radius-round: 50%;
 
-    /* Shadows - Fluent Depth */
-    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --shadow-m: 0 2px 8px rgba(0, 0, 0, 0.4);
-    --shadow-l: 0 4px 16px rgba(0, 0, 0, 0.5);
-    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.6);
+   /* Backgrounds */
+   --background-primary: var(--color-editor-white);
+   /* Editor canvas */
+   --background-secondary: var(--color-slate-50);
+   /* Sidebar/App bg */
+   --background-secondary-alt: var(--color-slate-100);
+   /* Slightly darker bg */
+   --background-modifier-border: var(--color-slate-200);
+   --background-modifier-border-hover: var(--color-slate-300);
+   --background-modifier-border-focus: var(--color-flux-violet);
+   --background-modifier-form-field: var(--color-editor-white);
+   --background-modifier-success: var(--color-success);
+   --background-modifier-error: var(--color-error);
+   --background-modifier-cover: rgba(15, 23, 42, 0.2);
+   /* Modal overlay */
+   --background-hover: var(--color-slate-100);
+   --background-selection: var(--color-flux-violet-surface);
 
-    /* Mica Material Effect - Dark Mode */
-    --mica-background: rgba(30, 30, 30, 0.7);
-    --mica-background-alt: rgba(26, 26, 26, 0.8);
-    --mica-blur: 40px;
-    
-    /* Acrylic Effect - Alternative to Mica */
-    --acrylic-background: rgba(32, 32, 32, 0.6);
-    --acrylic-border: rgba(255, 255, 255, 0.08);
-    --acrylic-blur: 30px;
+   /* Text */
+   --text-normal: var(--color-slate-800);
+   --text-muted: var(--color-slate-500);
+   --text-faint: var(--color-slate-400);
+   --text-on-accent: #FFFFFF;
+   --text-accent: var(--color-flux-violet);
+   --text-accent-hover: #6D28D9;
+   /* Darker violet */
+   --text-error: var(--color-error);
+   --text-selection: rgba(59, 130, 246, 0.2);
+   /* Focus Blue with opacity */
+   --text-highlight-bg: var(--color-flux-violet-surface);
+   --text-highlight-bg-active: var(--color-flux-violet-surface);
 
-    /* Transitions - Fluent Motion */
-    --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 200ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 300ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-smooth: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+   /* Interactive */
+   --interactive-normal: var(--color-slate-50);
+   --interactive-hover: var(--color-slate-100);
+   --interactive-accent: var(--color-flux-violet);
+   --interactive-accent-hover: #6D28D9;
 
-    /* Z-Index Layers */
-    --z-base: 0;
-    --z-dropdown: 1000;
-    --z-modal: 2000;
-    --z-tooltip: 3000;
-    --z-notification: 4000;
+   /* Syntax Highlighting Semantic Map */
+   --syntax-keyword: var(--color-flux-violet);
+   --syntax-string: var(--color-slate-600);
+   --syntax-variable: var(--color-slate-800);
+   --syntax-comment: var(--color-slate-400);
+   --syntax-tag: var(--color-slate-500);
+   --syntax-property: var(--color-slate-700);
 
-    /* Spacing Scale */
-    --space-xs: 4px;
-    --space-s: 8px;
-    --space-m: 12px;
-    --space-l: 16px;
-    --space-xl: 24px;
-    --space-xxl: 32px;
+   /* ============================================
+       TYPOGRAPHY
+       ============================================ */
 
-    /* Fonts */
-    --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    --font-monospace: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
-    --font-ui: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+   --font-text: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+   --font-serif: 'Merriweather', 'Newsreader', serif;
+   --font-monospace: 'JetBrains Mono', 'Fira Code', monospace;
 
-    /* Font Sizes */
-    --font-size-xs: 11px;
-    --font-size-s: 12px;
-    --font-size-m: 13px;
-    --font-size-normal: 14px;
-    --font-size-l: 16px;
-    --font-size-xl: 18px;
+   /* Font Sizes */
+   --font-size-xs: 12px;
+   --font-size-s: 13px;
+   --font-size-m: 14px;
+   /* UI Label */
+   /* Z-Index Layers */
+   --z-base: 0;
+   --z-dropdown: 2000;
+   --z-modal: 3000;
+   --z-tooltip: 4000;
+   --z-notification: 5000;
+   --font-size-normal: 16px;
+   /* Editor Body */
+   --font-size-l: 20px;
+   --font-size-xl: 24px;
+   --font-size-xxl: 32px;
 
-    /* Editor Dimensions */
-    --line-width: 100%;
-    --line-height: 1.5;
+   /* Font Weights */
+   --font-weight-regular: 400;
+   --font-weight-medium: 500;
+   --font-weight-semibold: 600;
+
+   /* Line Heights */
+   --line-height-tight: 1.25;
+   --line-height-normal: 1.5;
+   --line-height-relaxed: 1.75;
+   /* For Editor */
+
+   /* ============================================
+       SPACING & LAYOUT
+       ============================================ */
+
+   --space-2: 2px;
+   --space-4: 4px;
+   --space-8: 8px;
+   --space-12: 12px;
+   --space-16: 16px;
+   --space-24: 24px;
+   --space-32: 32px;
+
+   --max-width-editor: 100%;
+   --header-height: 40px;
+
+   /* ============================================
+       MOTION & ANIMATION
+       ============================================ */
+
+   --transition-fast: 100ms cubic-bezier(0.4, 0, 0.2, 1);
+   --transition-normal: 150ms ease-out;
+   /* Flux Reveal */
+   --transition-slow: 200ms cubic-bezier(0.2, 0, 0, 1.0);
+   /* Tab Reorder */
+
+   /* ============================================
+       BORDERS & SHADOWS
+       ============================================ */
+
+   --radius-s: 4px;
+   --radius-m: 6px;
+   --radius-l: 8px;
+   --radius-round: 50%;
+
+   --shadow-s: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+   --shadow-m: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+   --shadow-image: 0 4px 12px rgba(0, 0, 0, 0.1);
+   --shadow-focus: 0 0 0 3px rgba(124, 58, 237, 0.2);
+   /* Flux Violet glow */
+
+   /* Scrollbar */
+   --scrollbar-bg: transparent;
+   --scrollbar-thumb: var(--color-slate-300);
+   --scrollbar-thumb-hover: var(--color-slate-400);
 }
 
-[data-theme="light"] {
-    /* ============================================
-       OBSIDIAN DEFAULT THEME - LIGHT MODE
-       Based on official Obsidian color palette
-       ============================================ */
-    
-    /* Base Colors - Light Mode */
-    --color-base-00: #ffffff;
-    --color-base-05: #f9f9f9;
-    --color-base-10: #f5f6f8;
-    --color-base-20: #f2f3f5;
-    --color-base-25: #e3e5e8;
-    --color-base-30: #d3d4d6;
-    --color-base-35: #c4c5c7;
-    --color-base-40: #b5b6b8;
-    --color-base-50: #999999;
-    --color-base-60: #888888;
-    --color-base-70: #666666;
-    --color-base-100: #2e3338;
+/* ============================================
+   DARK MODE OVERRIDES
+   ============================================ */
+[data-theme="dark"] {
+   /* Backgrounds */
+   --background-primary: var(--color-dark-canvas);
+   --background-secondary: var(--color-dark-sidebar);
+   --background-secondary-alt: #2D2D2E;
+   --background-modifier-border: #3F3F46;
+   --background-modifier-border-hover: #52525B;
+   --background-modifier-form-field: #18181B;
+   /* Darker input bg */
+   --background-hover: #2E2E2E;
 
-    /* Background Colors */
-    --background-primary: var(--color-base-00);
-    --background-primary-alt: var(--color-base-10);
-    --background-secondary: var(--color-base-20);
-    --background-secondary-alt: var(--color-base-25);
-    --background-modifier-border: #ddd;
-    --background-modifier-border-hover: #ccc;
-    --background-modifier-border-focus: #aaa;
-    --background-modifier-form-field: #fff;
-    --background-modifier-form-field-highlighted: #fff;
-    --background-modifier-box-shadow: rgba(0, 0, 0, 0.1);
-    --background-modifier-success: #A4E7C3;
-    --background-modifier-error: #990000;
-    --background-modifier-error-hover: #bb0000;
-    --background-modifier-cover: rgba(0, 0, 0, 0.8);
-    --background-hover: var(--color-base-20);
+   /* Text */
+   --text-normal: var(--color-dark-text-primary);
+   --text-muted: var(--color-dark-text-secondary);
+   --text-faint: #52525B;
+   --text-accent: var(--color-dark-accent);
+   --text-accent-hover: #8B5CF6;
 
-    /* Text Colors */
-    --text-normal: var(--color-base-100);
-    --text-muted: var(--color-base-60);
-    --text-faint: var(--color-base-50);
-    --text-accent: #705dcf;
-    --text-accent-hover: #7a6ae6;
-    --text-selection: rgba(204, 230, 255, 0.99);
-    --text-on-accent: #f2f2f2;
-    --text-error: #800000;
-    --text-error-hover: #990000;
-    --text-highlight-bg: rgba(255, 255, 0, 0.4);
-    --text-highlight-bg-active: rgba(255, 128, 0, 0.4);
+   /* Interactive */
+   --interactive-normal: var(--color-dark-sidebar);
+   --interactive-hover: #2D2D2E;
+   --interactive-accent: var(--color-dark-accent);
 
-    /* Interactive Colors */
-    --interactive-normal: var(--color-base-20);
-    --interactive-hover: var(--color-base-25);
-    --interactive-accent: #7b6cd9;
-    --interactive-accent-hover: #8273e6;
-    --interactive-success: #197300;
+   /* Shadows */
+   --shadow-image: 0 4px 12px rgba(0, 0, 0, 0.5);
 
-    /* Scrollbar Colors */
-    --scrollbar-active-thumb-bg: rgba(0, 0, 0, 0.2);
-    --scrollbar-bg: rgba(0, 0, 0, 0.05);
-    --scrollbar-thumb-bg: rgba(0, 0, 0, 0.1);
-    --scrollbar-thumb: rgba(0, 0, 0, 0.1);
-    --scrollbar-track: rgba(0, 0, 0, 0.05);
-
-    /* Extended Colors - Light Mode */
-    --color-red: #e03131;
-    --color-orange: #f76707;
-    --color-yellow: #f59f00;
-    --color-green: #2f9e44;
-    --color-cyan: #1098ad;
-    --color-blue: #705dcf;
-    --color-purple: #7048e8;
-    --color-pink: #d6336c;
-
-    /* Semantic Colors */
-    --blockquote-border: var(--text-accent);
-    --border-color: var(--background-modifier-border);
-
-    /* Syntax Highlighting - Light (High Contrast) */
-    --syntax-keyword: #d73a49;
-    --syntax-string: #032f62;
-    --syntax-regexp: #22863a;
-    --syntax-number: #005cc5;
-    --syntax-bool: #d73a49;
-    --syntax-function: #6f42c1;
-    --syntax-class: #6f42c1;
-    --syntax-property: #005cc5;
-    --syntax-comment: var(--color-base-60);
-
-    /* ============================================
-       FLUENT DESIGN SYSTEM VARIABLES - LIGHT MODE
-       ============================================ */
-    
-    /* Shadows - Fluent Depth (Light Mode) */
-    --shadow-s: 0 1px 2px rgba(0, 0, 0, 0.1);
-    --shadow-m: 0 2px 8px rgba(0, 0, 0, 0.15);
-    --shadow-l: 0 4px 16px rgba(0, 0, 0, 0.2);
-    --shadow-xl: 0 8px 24px rgba(0, 0, 0, 0.25);
-
-    /* Mica Material Effect - Light Mode */
-    --mica-background: rgba(255, 255, 255, 0.7);
-    --mica-background-alt: rgba(249, 249, 249, 0.8);
-    --mica-blur: 40px;
-    
-    /* Acrylic Effect - Alternative to Mica (Light Mode) */
-    --acrylic-background: rgba(255, 255, 255, 0.6);
-    --acrylic-border: rgba(0, 0, 0, 0.08);
-    --acrylic-blur: 30px;
+   /* Syntax */
+   --syntax-keyword: var(--color-dark-accent);
+   --syntax-string: #A5B4FC;
+   /* Light Indigo */
+   --syntax-variable: var(--color-dark-text-primary);
+   --syntax-comment: #52525B;
 }

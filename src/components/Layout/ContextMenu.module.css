@@ -1,8 +1,6 @@
 .contextMenu {
     position: fixed;
     background-color: var(--background-primary);
-    /* Fallback */
-    background-color: var(--mica-background-alt);
     backdrop-filter: blur(var(--mica-blur));
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);

@@ -4,12 +4,14 @@
     right: 0;
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    box-shadow: 0 4px 12px var(--background-modifier-box-shadow);
+    border-radius: var(--radius-m);
+    /* 6px */
+    box-shadow: var(--shadow-l);
     z-index: 100;
     min-width: 400px;
     max-width: 500px;
     margin: 8px;
+    font-family: var(--font-text);
 }
 
 .header {
@@ -30,10 +32,11 @@
     border: none;
     color: var(--text-muted);
     cursor: pointer;
-    padding: 6px 12px;
+    padding: 8px 12px;
     font-size: 13px;
-    border-radius: 4px 4px 0 0;
-    transition: all 0.15s ease;
+    font-weight: var(--font-weight-medium);
+    border-radius: var(--radius-m) var(--radius-m) 0 0;
+    transition: all var(--transition-fast);
 }
 
 .tab:hover {
@@ -44,7 +47,10 @@
 .activeTab {
     background-color: var(--background-primary);
     color: var(--text-normal);
-    font-weight: 500;
+    font-weight: var(--font-weight-semibold);
+    border-bottom: 2px solid var(--color-flux-violet);
+    margin-bottom: -1px;
+    /* Overlap border-bottom */
 }
 
 .closeButton {
@@ -53,11 +59,11 @@
     color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .closeButton:hover {
@@ -66,34 +72,39 @@
 }
 
 .content {
-    padding: 12px;
+    padding: 16px;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 12px;
+    background-color: var(--background-primary);
+    /* Ensure contrast */
+    border-radius: 0 0 var(--radius-m) var(--radius-m);
 }
 
 .inputRow {
     display: flex;
-    gap: 6px;
+    gap: 8px;
     align-items: center;
 }
 
 .input {
     flex: 1;
+    height: 36px;
     background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 6px 10px;
+    border-radius: var(--radius-m);
+    /* 6px */
+    padding: 0 12px;
     color: var(--text-normal);
     font-size: 13px;
     font-family: var(--font-text);
     outline: none;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .input:focus {
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px rgba(127, 109, 242, 0.1);
+    border-color: var(--color-flux-violet);
+    box-shadow: var(--shadow-focus);
 }
 
 .input::placeholder {
@@ -108,20 +119,22 @@
 }
 
 .navButton {
-    background-color: var(--interactive-normal);
+    width: 32px;
+    height: 32px;
+    background-color: transparent;
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     color: var(--text-normal);
     cursor: pointer;
-    padding: 6px;
+    padding: 0;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .navButton:hover:not(:disabled) {
-    background-color: var(--interactive-hover);
+    background-color: var(--background-hover);
     border-color: var(--interactive-accent);
 }
 
@@ -131,25 +144,28 @@
 }
 
 .actionButton {
-    background-color: var(--interactive-accent);
+    height: 32px;
+    background-color: var(--color-flux-violet);
     border: none;
-    border-radius: 4px;
-    color: var(--text-on-accent);
+    border-radius: var(--radius-m);
+    color: white;
     cursor: pointer;
-    padding: 6px 12px;
-    font-size: 12px;
-    font-weight: 500;
-    transition: all 0.15s ease;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: var(--font-weight-medium);
+    transition: all var(--transition-fast);
     white-space: nowrap;
 }
 
 .actionButton:hover:not(:disabled) {
     background-color: var(--interactive-accent-hover);
+    transform: translateY(-1px);
 }
 
 .actionButton:disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }
 
 .options {
@@ -162,17 +178,17 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
-    color: var(--text-normal);
+    font-size: 13px;
+    color: var(--text-secondary);
     cursor: pointer;
     user-select: none;
 }
 
 .option input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
     cursor: pointer;
-    accent-color: var(--interactive-accent);
-}
-
-.option span {
-    cursor: pointer;
+    accent-color: var(--color-flux-violet);
+    border-radius: 4px;
+    /* Native checkboxes might not respect this, but custom ones would */
 }

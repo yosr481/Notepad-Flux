@@ -1,5 +1,6 @@
 .statusBar {
-    height: 24px;
+    height: 28px;
+    /* Slightly taller for better readability */
     /* Wavy gradient background - Dark theme */
     background: linear-gradient(90deg,
             rgba(72, 54, 153, 0.35) 0%,
@@ -10,12 +11,15 @@
     border-top: 1px solid var(--background-modifier-border);
     display: flex;
     align-items: center;
-    padding: 0 10px;
+    padding: 0 12px;
+    font-family: var(--font-text);
     font-size: 12px;
-    color: var(--text-normal);
+    font-weight: var(--font-weight-medium);
+    color: var(--text-muted);
+    /* Slate 500 for secondary text feel */
     flex-shrink: 0;
     justify-content: flex-end;
-    gap: 20px;
+    gap: 16px;
     z-index: var(--z-base);
     /* Prevent overflow */
     overflow: hidden;
@@ -31,9 +35,10 @@
 }
 
 .statusItem {
-    padding: 0 10px;
+    padding: 0 8px;
+    /* Use a shorter separator line style */
     border-left: 1px solid var(--background-modifier-border);
-    height: 100%;
+    height: 14px;
     display: flex;
     align-items: center;
     /* Prevent text wrapping and overflow */
@@ -42,10 +47,26 @@
     text-overflow: ellipsis;
     flex-shrink: 1;
     min-width: 0;
+    line-height: 1;
 }
 
 .statusItem:first-child {
     border-left: none;
     margin-right: auto;
+    padding-left: 0;
     /* Push others to right */
+}
+
+/* Interactive elements in status bar (if any) */
+.statusItem a,
+.statusItem button {
+    color: var(--text-normal);
+    text-decoration: none;
+    cursor: pointer;
+    transition: color var(--transition-fast);
+}
+
+.statusItem a:hover,
+.statusItem button:hover {
+    color: var(--color-flux-violet);
 }

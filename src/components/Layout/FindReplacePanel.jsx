@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, ChevronDown, ChevronUp } from 'lucide-react';
+import { X, CaretDown, CaretUp } from 'phosphor-react';
 import styles from './FindReplacePanel.module.css';
 
 const FindReplacePanel = ({ onClose, onFind, onReplace, onReplaceAll, initialMode = 'find' }) => {
@@ -106,7 +106,7 @@ const FindReplacePanel = ({ onClose, onFind, onReplace, onReplaceAll, initialMod
                         disabled={!findText || totalMatches === 0}
                         title="Previous match (Shift+Enter)"
                     >
-                        <ChevronUp size={16} />
+                        <CaretUp size={16} />
                     </button>
                     <button
                         className={styles.navButton}
@@ -114,7 +114,7 @@ const FindReplacePanel = ({ onClose, onFind, onReplace, onReplaceAll, initialMod
                         disabled={!findText || totalMatches === 0}
                         title="Next match (Enter)"
                     >
-                        <ChevronDown size={16} />
+                        <CaretDown size={16} />
                     </button>
                 </div>
 

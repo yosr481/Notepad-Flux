@@ -21,7 +21,7 @@ The application is a Single Page Application (SPA) built with **React** and **Vi
 - **Build Tool**: Vite
 - **Editor Engine**: CodeMirror 6 (@codemirror/view, @codemirror/state, @codemirror/language)
 - **Styling**: CSS Modules + Global CSS Variables
-- **Icons**: Lucide React
+- **Icons**: Phosphor Icons
 
 ---
 

@@ -303,7 +303,7 @@ Once min width is reached, further tabs trigger **horizontal scrolling**:
 
 **Location:** Far right end of the menu bar.
 
-**Layout:** Maintains a proper minimum width between the button and the menu items, based on the window's minimum width.
+**Layout:** Maintains a proper minimum width between the button and the menu items, based on the window's minimum width. Uses a **Gear icon** (Phosphor).
 
 ### 6.2 Settings Window
 

@@ -1,16 +1,20 @@
 .tabsContainer {
     display: flex;
     align-items: center;
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary);
+    /* App Background */
     /* Fallback */
     background-color: var(--mica-background-alt);
     backdrop-filter: blur(var(--mica-blur));
     height: 40px;
     user-select: none;
     position: relative;
-    padding: 4px 10px 0 10px;
+    padding: 8px 10px 0 10px;
+    /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
+    border-bottom: 1px solid var(--background-modifier-border);
+    /* Separator from editor */
 }
 
 .scrollButton {
@@ -22,7 +26,7 @@
     height: 28px;
     border: none;
     background: transparent;
-    color: var(--text-normal);
+    color: var(--text-muted);
     cursor: pointer;
     border-radius: var(--radius-s);
     flex-shrink: 0;
@@ -35,11 +39,7 @@
 
 .scrollButton:hover {
     background-color: var(--background-hover);
-    transform: scale(1.1);
-}
-
-.scrollButton:active {
-    transform: scale(0.95);
+    color: var(--text-normal);
 }
 
 .tabsList {
@@ -48,55 +48,64 @@
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
-    align-items: center;
+    align-items: flex-end;
+    /* Align tabs to bottom */
     height: 100%;
     scroll-behavior: smooth;
     min-width: 0;
-    /* Critical for flex shrinking */
 }
 
 .tabsList::-webkit-scrollbar {
     display: none;
 }
 
+/* Tab Base Style - Chrome-like */
 .tab {
     display: flex;
     align-items: center;
-    padding: 0 10px;
-    height: 36px;
-    min-width: 80px;
-    /* Reduced min width for better shrinking */
-    max-width: 180px;
-    flex: 0 1 140px;
-    /* Allow shrinking from 140px base */
-    border-right: 1px solid transparent;
+    padding: 0 12px;
+    height: 32px;
+    /* Leaves 8px space for container padding */
+    min-width: 100px;
+    max-width: 200px;
+    flex: 0 1 160px;
+    border-right: 1px solid var(--background-modifier-border);
+    /* Separator */
     background-color: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: var(--font-size-s);
+    font-size: 13px;
+    /* Tab Title specific */
+    font-weight: var(--font-weight-medium);
     position: relative;
     transition: background-color var(--transition-fast), color var(--transition-fast);
-    border-radius: var(--radius-m) var(--radius-m) 0 0;
-    margin-right: 2px;
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+    /* 8px top corners */
+    margin-right: -1px;
+    /* Overlap borders */
 }
 
 .tab:hover {
     background-color: var(--background-hover);
+    color: var(--text-normal);
 }
 
+/* Active Tab Style */
 .activeTab {
-    background-color: var(--background-secondary);
+    background-color: var(--background-primary);
+    /* Canvas White */
     color: var(--text-normal);
     position: relative;
     box-shadow: none;
+    z-index: 10;
+    border-right: 1px solid transparent;
+    /* Remove separator */
+    height: 38px;
+    /* Slightly taller to cover bottom border */
+    margin-bottom: -1px;
+    /* Overlap container border */
 }
 
-/* Remove the bottom line covering pseudo-element */
-.activeTab::after {
-    display: none;
-}
-
-/* Remove the top accent line if desired, or keep it */
 .activeTab::before {
     content: '';
     position: absolute;
@@ -104,8 +113,14 @@
     left: 0;
     right: 0;
     height: 2px;
-    background-color: var(--interactive-accent);
-    border-radius: var(--radius-m) var(--radius-m) 0 0;
+    background-color: var(--color-flux-violet);
+    /* Top Border Accent */
+    border-radius: var(--radius-l) var(--radius-l) 0 0;
+}
+
+/* Hide separator of previous tab if active */
+.activeTab+.tab {
+    border-left: none;
 }
 
 .tabContent {
@@ -125,16 +140,15 @@
 
 .tabIndicator {
     position: relative;
-    width: 18px;
-    height: 18px;
+    width: 16px;
+    height: 16px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .dirtyIndicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
     width: 8px;
     height: 8px;
     border-radius: 50%;
@@ -145,43 +159,41 @@
     display: none;
 }
 
-.unsavedIndicator {
-    margin-left: 4px;
-    font-weight: bold;
-}
-
 .unsavedTab .tabTitle {
-    text-decoration: underline dotted;
+    /* Optional: visual cue for unsaved */
 }
 
 .closeButton {
-    position: absolute;
-    top: 0;
-    left: 0;
-    opacity: 0;
+    display: none;
+    /* Hidden by default */
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
     padding: 0;
     border-radius: 50%;
-    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 16px;
-    width: 18px;
-    height: 18px;
-    transition: opacity var(--transition-fast), background-color var(--transition-fast);
+    font-size: 14px;
+    width: 16px;
+    height: 16px;
+    transition: all var(--transition-fast);
 }
 
-.tab:hover .closeButton {
-    opacity: 1;
+/* Show close button on hover OR if active */
+.tab:hover .closeButton,
+.activeTab .closeButton {
+    display: flex;
+}
+
+.tab:hover .dirtyIndicator {
+    display: none;
+    /* Hide dirty indicator on hover to show close button */
 }
 
 .closeButton:hover {
-    background-color: var(--background-hover);
-    color: var(--text-normal);
-    transform: scale(1.05);
+    background-color: var(--background-modifier-error);
+    color: white;
 }
 
 .newTabButton {
@@ -190,7 +202,7 @@
     justify-content: center;
     min-width: 32px;
     width: 32px;
-    height: 30px;
+    height: 32px;
     border: none;
     background: transparent;
     color: var(--text-muted);
@@ -198,12 +210,11 @@
     font-size: 18px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
-    margin: 0 4px 0 2px;
+    margin-left: 4px;
     transition: all var(--transition-fast);
 }
 
 .newTabButton:hover {
     background-color: var(--background-hover);
     color: var(--text-normal);
-    transform: scale(1.05);
 }

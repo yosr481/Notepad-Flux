@@ -236,7 +236,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Markdown syntax is **replaced** with rendered image
 - Image displays inline with proper sizing
 - Max width: `100%`
-- Border radius: `4px`
+- Border radius: `var(--radius-m)` (6px)
 - Margin: `0.5em 0`
 
 **Active State** (cursor touching syntax):
@@ -296,7 +296,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Font size: `0.9em`
 - Line height: `1.6`
 - Padding: `0.75em 1em`
-- Border radius: `4px`
+- Border radius: `var(--radius-m)` (6px)
 - Class: `.cm-code-block`
 
 **Active State** (cursor touching block):
@@ -395,7 +395,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Text has background highlight
 - Background: `var(--text-highlight-bg)`
 - Padding: `2px 4px`
-- Border radius: `4px`
+- Border radius: `var(--radius-s)` (4px)
 - Class: `.cm-highlight`
 
 **Active State** (cursor touching):

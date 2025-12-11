@@ -1,5 +1,6 @@
 .menuBar {
-    height: 30px;
+    height: 40px;
+    /* Increased height for touch targets */
     background-color: var(--background-secondary);
     /* Fallback */
     background-color: var(--mica-background);
@@ -17,19 +18,24 @@
 
 .menuItems {
     display: flex;
-    gap: 15px;
+    gap: 8px;
+    /* Tighter gap */
     font-size: 13px;
+    /* Standard UI font size */
 }
 
 .menuItem {
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 6px 10px;
     border-radius: var(--radius-s);
+    /* 4px */
     transition: background-color var(--transition-fast);
+    color: var(--text-normal);
+    font-weight: var(--font-weight-medium);
 }
 
 .menuItem:hover {
-    background-color: var(--background-modifier-border);
+    background-color: var(--background-hover);
 }
 
 .menuItemWrapper {
@@ -146,18 +152,27 @@
     animation: fadeIn var(--transition-fast);
 }
 
+/* Settings Button - Flux Style */
 .settingsButton {
-    background: none;
+    background: transparent;
     border: none;
     cursor: pointer;
-    color: var(--text-normal);
+    color: var(--text-muted);
+    /* Slate 500 */
     display: flex;
     align-items: center;
-    padding: 6px;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
     border-radius: var(--radius-s);
-    transition: background-color var(--transition-fast);
+    /* 4px */
+    transition: all var(--transition-fast);
 }
 
 .settingsButton:hover {
-    background-color: var(--background-modifier-border);
+    background-color: var(--background-hover);
+    /* Slate 200 */
+    color: var(--text-normal);
+    /* Slate 800 */
 }

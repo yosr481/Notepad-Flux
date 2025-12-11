@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings } from 'lucide-react';
+import { Gear } from 'phosphor-react';
 import styles from './MenuBar.module.css';
 
 const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll, onFind, onReplace, onGoToLine, onInsertDateTime, onNewTab, onNewWindow, onOpen, onOpenRecent, onSave, onSaveAs, onExportToPDF, onExportToHTML, onPrint, onCloseTab, onCloseWindow, onExit, onOpenSettings, recentFiles = [] }) => {
@@ -167,7 +167,7 @@ const MenuBar = ({ onUndo, onRedo, onCut, onCopy, onPaste, onDelete, onSelectAll
                 </div>
             </div>
             <button className={styles.settingsButton} onClick={onOpenSettings} title="Settings">
-                <Settings size={18} />
+                <Gear size={18} />
             </button>
         </div>
     );

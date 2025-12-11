@@ -25,21 +25,23 @@
 .dialog {
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 6px;
-    box-shadow: 0 8px 24px var(--background-modifier-box-shadow);
+    border-radius: var(--radius-l);
+    /* 8px */
+    box-shadow: var(--shadow-xl);
     min-width: 350px;
     max-width: 450px;
-    animation: slideIn 0.2s ease;
+    animation: dialogPop 0.1s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transform-origin: center;
 }
 
-@keyframes slideIn {
+@keyframes dialogPop {
     from {
-        transform: translateY(-20px);
+        transform: scale(0.95);
         opacity: 0;
     }
 
     to {
-        transform: translateY(0);
+        transform: scale(1);
         opacity: 1;
     }
 }
@@ -48,28 +50,28 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 16px 12px 16px;
+    padding: 16px 20px;
     border-bottom: 1px solid var(--background-modifier-border);
 }
 
 .title {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--text-normal);
     margin: 0;
 }
 
 .closeButton {
-    background: none;
+    background: transparent;
     border: none;
     color: var(--text-muted);
     cursor: pointer;
     padding: 4px;
-    border-radius: 4px;
+    border-radius: var(--radius-s);
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .closeButton:hover {
@@ -78,89 +80,88 @@
 }
 
 .content {
-    padding: 16px;
+    padding: 20px;
+    background-color: var(--background-primary);
+    border-radius: 0 0 var(--radius-l) var(--radius-l);
 }
 
 .inputGroup {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-bottom: 16px;
+    margin-bottom: 24px;
 }
 
 .label {
     font-size: 13px;
-    color: var(--text-normal);
+    color: var(--text-secondary);
     font-weight: 500;
 }
 
 .input {
+    height: 40px;
+    /* Larger input for main dialog action */
     background-color: var(--background-primary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    padding: 8px 12px;
+    border-radius: var(--radius-m);
+    padding: 0 12px;
     color: var(--text-normal);
     font-size: 14px;
     font-family: var(--font-text);
     outline: none;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .input:focus {
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 3px rgba(127, 109, 242, 0.1);
-}
-
-.input::-webkit-outer-spin-button,
-.input::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-}
-
-.input[type=number] {
-    appearance: textfield;
-    -moz-appearance: textfield;
+    border-color: var(--color-flux-violet);
+    box-shadow: var(--shadow-focus);
 }
 
 .actions {
     display: flex;
     justify-content: flex-end;
-    gap: 8px;
+    gap: 12px;
 }
 
 .cancelButton {
-    background-color: var(--interactive-normal);
+    height: 36px;
+    background-color: transparent;
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
+    border-radius: var(--radius-m);
     color: var(--text-normal);
     cursor: pointer;
-    padding: 8px 16px;
-    font-size: 13px;
+    padding: 0 16px;
+    font-size: 14px;
     font-weight: 500;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .cancelButton:hover {
-    background-color: var(--interactive-hover);
+    background-color: var(--background-hover);
+    border-color: var(--interactive-accent);
 }
 
 .goButton {
-    background-color: var(--interactive-accent);
+    height: 36px;
+    background-color: var(--color-flux-violet);
     border: none;
-    border-radius: 4px;
-    color: var(--text-on-accent);
+    border-radius: var(--radius-m);
+    color: white;
     cursor: pointer;
-    padding: 8px 20px;
-    font-size: 13px;
+    padding: 0 24px;
+    font-size: 14px;
     font-weight: 500;
-    transition: all 0.15s ease;
+    transition: all var(--transition-fast);
 }
 
 .goButton:hover:not(:disabled) {
     background-color: var(--interactive-accent-hover);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-s);
 }
 
 .goButton:disabled {
-    opacity: 0.4;
+    opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
 }

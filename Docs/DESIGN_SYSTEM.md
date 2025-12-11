@@ -24,34 +24,31 @@ Notepad Flux combines the simplicity of Windows Notepad with the modern aestheti
 ### Core Principles
 
 - **Minimalism**: The interface should be clean and uncluttered. Controls should appear only when needed.
-- **Fluent Design**: Incorporate modern design elements like rounded corners, depth (shadows), motion (transitions), and material effects (Mica/Acrylic).
-- **Obsidian Compatibility**: The color palette must strictly adhere to Obsidian's default theme colors to ensure familiarity for Obsidian users.
+- **Flux Aesthetics**: Utilize **Flux Violet** brand colors, sleek gradients, and sophisticated motion to create a premium feel.
+- **Live Preview First**: The editor focuses on content, with syntax markers receding until active interaction.
 
 ---
 
 ## 2. Color System
 
-The application uses a semantic color system based on Obsidian's default theme. All colors are defined as CSS variables in `src/styles/variables.css`.
+The application uses a semantic color system based on the **Flux Design System**, prioritized for a premium, distraction-free writing experience. All colors are defined as CSS variables in `src/styles/variables.css`.
 
-### Base Colors (Dark Mode)
-
-| Variable | Color | Usage |
-|----------|-------|-------|
-| `--background-primary` | `#202020` | Editor background |
-| `--background-secondary` | `#1e1e1e` | Sidebar, Menu bar |
-| `--text-normal` | `#dadada` | Primary text color |
-| `--text-muted` | `#999999` | Secondary/faint text |
-| `--interactive-accent` | `#7f6df2` | Primary action color |
-
-### Base Colors (Light Mode)
+### Base Colors (Brand)
 
 | Variable | Color | Usage |
 |----------|-------|-------|
-| `--background-primary` | `#ffffff` | Editor background |
-| `--background-secondary` | `#f2f3f5` | Sidebar, Menu bar |
-| `--text-normal` | `#2e3338` | Primary text color |
-| `--text-muted` | `#888888` | Secondary/faint text |
-| `--interactive-accent` | `#705dcf` | Primary action color |
+| `--color-flux-violet` | `#7C3AED` | Primary brand color |
+| `--color-flux-violet-surface` | `#F5F3FF` | Active selection backgrounds |
+| `--color-editor-white` | `#FFFFFF` | Canvas background |
+
+### Base Colors (Slate Neutral)
+
+| Variable | Color | Usage |
+|----------|-------|-------|
+| `--color-slate-800` | `#1E293B` | Primary text |
+| `--color-slate-500` | `#64748B` | Secondary text |
+| `--color-slate-200` | `#E2E8F0` | Borders/Dividers |
+| `--color-slate-50` | `#F8FAFC` | App background |
 
 ### Semantic Color Variables
 
@@ -95,9 +92,9 @@ The application uses a semantic color system based on Obsidian's default theme. 
 ### 3.1 Geometry & Shape
 
 **Corner Radius:**
-- Small elements (buttons, inputs): `var(--radius-s)` (2px)
-- Medium elements (menus, dialogs): `var(--radius-m)` (4px)
-- Large containers: `var(--radius-l)` (6px)
+- Small elements (buttons, inputs): `var(--radius-s)` (4px)
+- Medium elements (menus, dialogs): `var(--radius-m)` (6px)
+- Large containers: `var(--radius-l)` (8px)
 - Round elements (avatars, icon buttons): `var(--radius-round)` (50%)
 
 ### 3.2 Depth & Elevation
@@ -106,9 +103,10 @@ Use shadows to create hierarchy and depth.
 
 | Level | Variable | Usage |
 |-------|----------|-------|
-| Level 1 | `var(--shadow-m)` | Dropdowns, Tooltips |
-| Level 2 | `var(--shadow-l)` | Modals, Dialogs |
-| Level 3 | `var(--shadow-xl)` | Floating Action Buttons |
+| Level 1 | `var(--shadow-s)` | Subtle depth |
+| Level 2 | `var(--shadow-m)` | Dropdowns, Context Menus |
+| Level 3 | `var(--shadow-image)` | Images, Modals |
+| Focus | `var(--shadow-focus)` | Active input states |
 
 ### 3.3 Materials (Mica/Acrylic)
 
@@ -127,8 +125,8 @@ Transitions should be smooth and natural.
 | Speed | Variable | Usage |
 |-------|----------|-------|
 | Fast | `var(--transition-fast)` (100ms) | Hover effects |
-| Normal | `var(--transition-normal)` (200ms) | Menu opening/closing |
-| Smooth | `var(--transition-smooth)` (400ms) | Page transitions |
+| Normal | `var(--transition-normal)` (150ms) | UI element reveals |
+| Slow | `var(--transition-slow)` (200ms) | Layout changes, Tab reorder |
 
 **Easing:**
 - Use `ease-in-out` for most transitions
@@ -144,13 +142,13 @@ Transitions should be smooth and natural.
 **Top Bar:**
 - Contains Tabs and Menu Bar stacked vertically
 - Order: Tabs (top) → Menu Bar (middle) → Editor (bottom)
-- **Connection**: The active tab visually connects to the menu bar by sharing the same background color (`var(--background-secondary)`)
+- **Visual Connection**: The active tab connects seamlessly to the canvas.
 
 ### 4.2 Tabs
 
 **Dimensions:**
 - Height: `40px`
-- Min width: `120px`
+- Min width: `100px`
 - Max width: `200px`
 
 **Shape:**
@@ -158,10 +156,10 @@ Transitions should be smooth and natural.
 - No bottom border (blends with Menu Bar)
 
 **Active State:**
-- Background matches Menu Bar: `var(--background-secondary)`
-- Accent color top border: `2px solid var(--interactive-accent)`
-- No bottom border (blends with Menu Bar)
-- Text: `var(--text-normal)`
+- Background: `var(--background-primary)` (White)
+- Top Border: `2px solid var(--color-flux-violet)`
+- Rounded Corners: 8px top radius
+- No bottom border
 
 **Inactive State:**
 - Background: transparent
@@ -176,7 +174,7 @@ Transitions should be smooth and natural.
 ### 4.3 Menu Bar
 
 **Dimensions:**
-- Height: `30px`
+- Height: `40px`
 - Full width
 
 **Styling:**
@@ -211,7 +209,7 @@ Transitions should be smooth and natural.
 ### 4.5 Status Bar
 
 **Dimensions:**
-- Height: `24px`
+- Height: `28px`
 - Full width
 
 **Styling:**
@@ -259,12 +257,17 @@ Maintain consistent layering across the application:
 
 **UI Text:**
 ```css
-font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', sans-serif;
+font-family: 'Inter', system-ui, sans-serif;
+```
+
+**Serif (Optional Writing Mode):**
+```css
+font-family: 'Merriweather', 'Newsreader', serif;
 ```
 
 **Monospace (Code):**
 ```css
-font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+font-family: 'JetBrains Mono', 'Fira Code', monospace;
 ```
 
 ### Font Sizes
