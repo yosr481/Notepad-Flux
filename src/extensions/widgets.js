@@ -13,6 +13,18 @@ export class BulletWidget extends WidgetType {
     ignoreEvent() { return false; }
 }
 
+export class QuoteBarWidget extends WidgetType {
+    toDOM() {
+        const span = document.createElement("span");
+        span.className = "cm-quote-bar";
+        return span;
+    }
+
+    eq(other) { return true; }
+
+    ignoreEvent() { return false; }
+}
+
 export class CheckboxWidget extends WidgetType {
     constructor(checked) {
         super();

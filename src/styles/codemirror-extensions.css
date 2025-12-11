@@ -43,7 +43,6 @@
 .cm-image-broken.cm-active {
     display: flex;
     padding: var(--space-8);
-    background-color: var(--background-modifier-error);
     border-radius: var(--radius-m);
     color: var(--text-error);
 }
@@ -63,6 +62,8 @@
     color: var(--text-accent);
     text-decoration: none;
     transition: color var(--transition-fast);
+    font-weight: inherit;
+    /* Ensure bold/italic are inherited */
 }
 
 .cm-link:hover {
@@ -135,15 +136,20 @@
    BLOCKQUOTE STYLES
    ============================================ */
 
-/* Note: Logic often toggles these as decorations, ensuring styling here */
-.cm-blockquote {
-    border-left: 4px solid var(--color-flux-violet);
-    background-color: var(--background-secondary-alt);
-    /* Subtle bg? Optional */
-    padding-left: 16px;
-    margin-left: 0;
+/* Vertical bar that replaces the > character */
+.cm-quote-bar {
+    display: inline-block;
+    width: 2px;
+    height: 1.2em;
+    background-color: var(--color-flux-violet);
+    margin-right: 8px;
+    vertical-align: text-bottom;
+    border-radius: 1px;
+}
+
+/* Text styling for blockquote lines */
+.cm-blockquote-text {
     color: var(--text-muted);
-    font-style: italic;
 }
 
 /* ============================================
@@ -180,4 +186,20 @@
     color: var(--text-muted);
     padding: 1em;
     font-style: italic;
+}
+
+.cm-table-widget table {
+    border-collapse: collapse;
+}
+
+.cm-table-widget th,
+.cm-table-widget td {
+    border: 1px solid var(--background-modifier-border);
+    padding: 8px;
+    opacity: 0.9;
+}
+
+.cm-table-widget th {
+    background-color: var(--background-secondary-alt);
+    font-weight: 600;
 }

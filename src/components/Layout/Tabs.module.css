@@ -13,8 +13,6 @@
     /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
-    border-bottom: 1px solid var(--background-modifier-border);
-    /* Separator from editor */
 }
 
 .scrollButton {
@@ -92,7 +90,7 @@
 
 /* Active Tab Style */
 .activeTab {
-    background-color: var(--background-primary);
+    background-color: var(--background-secondary-alt);
     /* Canvas White */
     color: var(--text-normal);
     position: relative;
@@ -159,10 +157,6 @@
     display: none;
 }
 
-.unsavedTab .tabTitle {
-    /* Optional: visual cue for unsaved */
-}
-
 .closeButton {
     display: none;
     /* Hidden by default */
@@ -180,9 +174,8 @@
     transition: all var(--transition-fast);
 }
 
-/* Show close button on hover OR if active */
-.tab:hover .closeButton,
-.activeTab .closeButton {
+/* Show close button on hover */
+.tab:hover .closeButton {
     display: flex;
 }
 

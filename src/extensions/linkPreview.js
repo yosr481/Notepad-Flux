@@ -35,8 +35,10 @@ class LinkWidget extends WidgetType {
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // Parse bold and italic (order matters to handle combined formatting)
-        // Bold and italic: ***text*** or ___text___
+        // IMPORTANT: The order matters. Combined usage first.
+
+        // Bold and Italic: ***text*** or ___text___
+        // Logic: *** matches bold(*) + italic(**) or bold(**) + italic(*)
         html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
         html = html.replace(/\_\_\_(.*?)\_\_\_/g, "<strong><em>$1</em></strong>");
 
@@ -45,8 +47,8 @@ class LinkWidget extends WidgetType {
         html = html.replace(/\_\_(.*?)\_\_/g, "<strong>$1</strong>");
 
         // Italic: *text* or _text_
-        html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
-        html = html.replace(/\_(.*?)\_/g, "<em>$1</em>");
+        html = html.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
+        html = html.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
 
         // Strikethrough: ~~text~~
         html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");

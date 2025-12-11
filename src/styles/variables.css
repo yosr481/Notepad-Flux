@@ -74,6 +74,9 @@
    --text-highlight-bg: var(--color-flux-violet-surface);
    --text-highlight-bg-active: var(--color-flux-violet-surface);
 
+   /* Dark Mode Highlight Override for readability */
+   --text-highlight-bg-dark: rgba(124, 58, 237, 0.3);
+
    /* Interactive */
    --interactive-normal: var(--color-slate-50);
    --interactive-hover: var(--color-slate-100);
@@ -205,4 +208,6 @@
    /* Light Indigo */
    --syntax-variable: var(--color-dark-text-primary);
    --syntax-comment: #52525B;
+
+   --text-highlight-bg: var(--text-highlight-bg-dark);
 }
