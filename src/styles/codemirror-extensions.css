@@ -152,6 +152,14 @@
     color: var(--text-muted);
 }
 
+/* Border for blockquote lines */
+.cm-line.cm-blockquote-line {
+    border-left: 3px solid var(--text-accent);
+    padding-left: 1em;
+    padding-right: 1em;
+    background-color: var(--background-secondary);
+}
+
 /* ============================================
    LINK HANDLER STYLES
    ============================================ */

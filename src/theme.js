@@ -73,7 +73,7 @@ export const fluxHighlightStyle = HighlightStyle.define([
     { tag: tags.url, color: "var(--text-faint)", textDecoration: "underline" },
 
     // Block Elements
-    { tag: tags.quote, color: "var(--text-muted)", fontStyle: "italic", borderLeft: "4px solid var(--text-accent)" },
+    { tag: tags.quote, color: "var(--text-muted)", fontStyle: "italic" },
     { tag: tags.monospace, fontFamily: "var(--font-monospace)", backgroundColor: "var(--background-secondary)", padding: "2px 4px", borderRadius: "4px", color: "var(--text-normal)", fontSize: "0.9em" },
 
     // Lists
