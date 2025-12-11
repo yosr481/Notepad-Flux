@@ -1,6 +1,7 @@
-# Live Preview Markdown Behaviors & Styles
+# Feature Documentation: Live Preview
 
-This document provides a comprehensive overview of all markdown rendering behaviors, editor interactions, and styling in the Live Preview mode of this application.
+**Project:** Notepad Flux  
+**Last Updated:** 2025-12-11
 
 ---
 
@@ -20,6 +21,8 @@ This document provides a comprehensive overview of all markdown rendering behavi
 12. [Highlights](#highlights)
 13. [Keyboard Behaviors](#keyboard-behaviors)
 14. [Styling Reference](#styling-reference)
+15. [Performance Optimizations](#performance-optimizations)
+16. [Testing Guidelines](#testing-guidelines)
 
 ---
 
@@ -32,30 +35,50 @@ The Live Preview mode provides a **WYSIWYG-style** editing experience where:
 - **Cursor interaction** determines when syntax becomes visible
 - **Smooth transitions** between editing and reading modes
 
+This creates a seamless editing experience that feels like a word processor while maintaining the power and portability of plain markdown.
+
 ---
 
 ## Activation Modes
 
-The editor uses two primary activation modes to determine when to show/hide markdown syntax:
+The editor uses three primary activation modes to determine when to show/hide markdown syntax:
 
 ### Range-Based Activation
-Used for inline elements (bold, italic, strikethrough, links, inline code, etc.)
 
-**Trigger**: Cursor **touches** the element range
+**Used for:** Inline elements (bold, italic, strikethrough, links, inline code, etc.)
+
+**Trigger:** Cursor **touches** the element range
 - If cursor is anywhere within `[from, to]` of the element, syntax is revealed
 - Otherwise, syntax is hidden and content is rendered
 
-### Line-Based Activation
-Used for block elements (headings, blockquotes, horizontal rules)
+**Example:**
+```
+**Bold text**
+  ^cursor here = syntax visible
+             ^cursor here = syntax visible
+                          ^cursor here = syntax hidden
+```
 
-**Trigger**: Cursor is on the **same line** as the element
+### Line-Based Activation
+
+**Used for:** Block elements (headings, blockquotes, horizontal rules)
+
+**Trigger:** Cursor is on the **same line** as the element
 - If cursor is anywhere on the line containing the element, syntax is revealed
 - Otherwise, syntax is hidden and content is rendered
 
-### Block-Based Activation
-Used for multi-line elements (tables, code blocks)
+**Example:**
+```
+# Heading
+^cursor anywhere on this line = syntax visible
+  Next line^cursor here = syntax hidden above
+```
 
-**Trigger**: Cursor **touches** any part of the block
+### Block-Based Activation
+
+**Used for:** Multi-line elements (tables, code blocks)
+
+**Trigger:** Cursor **touches** any part of the block
 - If cursor is within the entire block range, syntax is revealed
 - Otherwise, the block is replaced with a rendered widget
 
@@ -68,14 +91,14 @@ Used for multi-line elements (tables, code blocks)
 **Inactive State** (cursor not touching):
 - Asterisks/underscores are **hidden**
 - Text appears **bold**
-- Font weight: `bold`
+- Font weight: `bold` (700)
 
 **Active State** (cursor touching):
 - Asterisks/underscores are **visible**
 - Text remains bold
 - Allows editing of markers
 
-**Nested Handling**:
+**Nested Handling:**
 - Supports nested emphasis (e.g., `***bold italic***`)
 - If cursor touches outer emphasis, inner markers are also revealed
 
@@ -83,12 +106,12 @@ Used for multi-line elements (tables, code blocks)
 
 ### Italic (`*text*` or `_text_`)
 
-**Inactive State**:
+**Inactive State:**
 - Asterisks/underscores are **hidden**
 - Text appears *italic*
 - Font style: `italic`
 
-**Active State**:
+**Active State:**
 - Asterisks/underscores are **visible**
 - Text remains italic
 - Allows editing of markers
@@ -97,13 +120,13 @@ Used for multi-line elements (tables, code blocks)
 
 ### Strikethrough (`~~text~~`)
 
-**Inactive State**:
+**Inactive State:**
 - Tildes (`~~`) are **hidden**
 - Text has **line-through** decoration
 - Color: `var(--text-muted)`
 - Class: `.cm-strikethrough`
 
-**Active State**:
+**Active State:**
 - Tildes are **visible**
 - Strikethrough styling remains
 - Allows editing of markers
@@ -124,13 +147,13 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Heading styling remains
 - Allows editing of heading level
 
-**Sizes**:
+**Sizes:**
 - H1: `1.6em`
 - H2: `1.4em`
 - H3: `1.2em`
 - H4: `1.1em`
 - H5: `1.0em`
-- H6: `0.9em` (muted color)
+- H6: `0.9em` (with muted color)
 
 ---
 
@@ -138,7 +161,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Unordered Lists (`-` or `*`)
 
-**Inactive State**:
+**Inactive State:**
 - Dash/asterisk is **replaced** with a bullet widget (`•`)
 - Class: `.cm-bullet`
 - Bullet color: Inherits from theme
@@ -155,7 +178,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Task Lists (`- [ ]` or `- [x]`)
 
-**Inactive State**:
+**Inactive State:**
 - Dash is **hidden**
 - Checkbox marker (`[ ]` or `[x]`) is **replaced** with interactive checkbox widget
 - Checkbox is clickable and toggles state
@@ -166,10 +189,10 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Checkbox marker is **visible** as text
 - Allows editing of task syntax
 
-**Checkbox Interaction**:
+**Checkbox Interaction:**
 - Click checkbox to toggle between `[ ]` (unchecked) and `[x]` (checked)
 - Updates document content directly
-- Prevents default focus behavior
+- Prevents default focus behavior to maintain editor focus
 
 ---
 
@@ -177,29 +200,29 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Markdown Links (`[text](url)`)
 
-**Inactive State**:
+**Inactive State:**
 - Brackets and parentheses are **hidden**
 - Link is rendered as clickable anchor element
 - Displays link text with external link icon
 - Color: `var(--text-accent)`
 - Text decoration: `underline`
-- Icon: External link SVG (12x12)
+- Icon: External link SVG (12×12)
 
 **Active State** (cursor touching):
 - Full markdown syntax is **visible**
 - Link is not clickable
 - Allows editing of text and URL
 
-**Link Rendering**:
+**Link Rendering:**
 - Supports markdown formatting in link text (bold, italic, strikethrough, code)
 - Opens in new tab (`target="_blank"`)
 - Security: `rel="noopener noreferrer"`
 
-**Tooltip**:
+**Tooltip:**
 - Hover over inactive link shows: "Ctrl + Click to open link"
 - Tooltip disappears when cursor touches link
 
-**Click Behavior**:
+**Click Behavior:**
 - `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab
 - Regular click moves cursor to link for editing
 
@@ -209,7 +232,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Markdown Images (`![alt](url)`)
 
-**Inactive State**:
+**Inactive State:**
 - Markdown syntax is **replaced** with rendered image
 - Image displays inline with proper sizing
 - Max width: `100%`
@@ -222,19 +245,19 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Display: `block`
 - Allows editing of alt text and URL
 
-**Loading States**:
+**Loading States:**
 - Uses LRU cache (limit: 100 images) for performance
 - Shows loading state while fetching
 - Debounced updates for large documents (>1000 lines)
 
-**Broken Images**:
+**Broken Images:**
 - Displays broken image icon (SVG)
 - Shows alt text or "Image not found"
 - Background: `var(--background-secondary)`
 - Border: `1px solid var(--background-modifier-border)`
 - Class: `.cm-image-broken`
 
-**Image Cache**:
+**Image Cache:**
 - Global cache shared across editor instances
 - Prevents redundant network requests
 - Handles pending requests to avoid duplicates
@@ -245,7 +268,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Inline Code (`` `text` ``)
 
-**Inactive State**:
+**Inactive State:**
 - Backticks are **hidden**
 - Text has monospace font and background
 - Background: `var(--background-secondary)`
@@ -255,7 +278,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Font size: `0.9em`
 - Class: `.cm-inline-code`
 
-**Active State**:
+**Active State:**
 - Backticks are **visible**
 - Styling remains
 - Allows editing of code content
@@ -264,7 +287,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Code Blocks (Fenced with ` ``` `)
 
-**Inactive State**:
+**Inactive State:**
 - Opening and closing fence markers (` ``` `) are **hidden**
 - Language identifier is **hidden**
 - Code content is displayed with background
@@ -283,7 +306,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Opacity: `0.7`
 - Code block background remains
 
-**Styling Details**:
+**Styling Details:**
 - First line: Top padding and rounded top corners
 - Last line: Bottom padding and rounded bottom corners
 - Single-line blocks: All corners rounded
@@ -307,7 +330,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Border remains
 - Allows editing of quote content
 
-**Multi-line Blockquotes**:
+**Multi-line Blockquotes:**
 - Each line gets the border decoration
 - Continuous border effect across all lines
 - Quote markers hidden/shown per line based on cursor position
@@ -333,13 +356,13 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Allows editing of table structure
 - Pipe characters and alignment markers visible
 
-**Table Rendering**:
+**Table Rendering:**
 - First row treated as header (`<th>`)
 - Subsequent rows as data (`<td>`)
 - Alignment row (`| --- |`) is skipped
 - Supports markdown formatting in cells (bold, italic, strikethrough, code, links, highlights)
 
-**Click Behavior**:
+**Click Behavior:**
 - Clicking table (when inactive) moves cursor to table start
 - Allows links in table cells to be clickable
 - Prevents default mousedown on table widget
@@ -367,7 +390,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Highlighted Text (`==text==`)
 
-**Inactive State**:
+**Inactive State:**
 - Equal signs (`==`) are **hidden**
 - Text has background highlight
 - Background: `var(--text-highlight-bg)`
@@ -380,7 +403,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Background highlight remains
 - Allows editing of markers
 
-**Implementation**:
+**Implementation:**
 - Uses regex matching (`/==(.*?)==/g`)
 - Implemented via ViewPlugin for performance
 - Respects cursor selection for show/hide behavior
@@ -391,13 +414,13 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Enter Key in Lists
 
-**Non-empty list item**:
+**Non-empty list item:**
 - Creates new list item on next line
 - Preserves indentation
 - For ordered lists: Auto-increments number
 - For task lists: Creates new unchecked task (`[ ]`)
 
-**Empty list item**:
+**Empty list item:**
 - Deletes the bullet/marker
 - Exits list mode
 - Stays on current line (no new line created)
@@ -419,7 +442,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### Shift+Tab in Lists
 
-**Behavior**:
+**Behavior:**
 - Unindents the list item
 - Uses `indentLess` command
 - Moves item up one level in hierarchy
@@ -430,7 +453,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ### CSS Variables Used
 
-**Colors**:
+**Colors:**
 - `--text-normal`: Primary text color
 - `--text-muted`: Secondary/muted text
 - `--text-faint`: Very faint text (syntax markers)
@@ -443,25 +466,13 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - `--blockquote-border`: Blockquote left border
 - `--interactive-accent`: Interactive elements
 
-**Fonts**:
+**Fonts:**
 - `--font-text`: Primary text font
 - `--font-monospace`: Monospace font for code
 
-**Syntax Highlighting** (for code blocks):
-- `--syntax-keyword`: Keywords
-- `--syntax-string`: Strings
-- `--syntax-regexp`: Regular expressions
-- `--syntax-number`: Numbers
-- `--syntax-bool`: Booleans
-- `--syntax-function`: Functions
-- `--syntax-class`: Classes
-- `--syntax-property`: Properties
-
----
-
 ### Key CSS Classes
 
-**Markdown Elements**:
+**Markdown Elements:**
 - `.cm-bullet`: Bullet widget
 - `.cm-checkbox`: Task checkbox widget
 - `.cm-hr`: Horizontal rule widget
@@ -475,11 +486,11 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - `.cm-image`: Rendered image
 - `.cm-image-broken`: Broken image display
 
-**Syntax Markers**:
+**Syntax Markers:**
 - `.cm-faint-syntax`: Faint syntax markers (active code blocks)
 - `.cm-formatting`: General formatting characters
 
-**Image States**:
+**Image States:**
 - `.cm-image-container`: Image wrapper
 - `.cm-image-loading`: Loading state
 - `.cm-broken-icon`: Broken image icon
@@ -490,17 +501,20 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 ## Performance Optimizations
 
 ### Image Preview
+
 - **LRU Cache**: Limits cached images to 100
 - **Debouncing**: 300ms delay for large documents (>1000 lines)
 - **Pending Requests**: Prevents duplicate network requests
 - **Image Decoding**: Uses `img.decode()` for smooth rendering
 
 ### Link Preview
+
 - **Debouncing**: 300ms delay for large documents
 - **Viewport-based**: Only processes visible ranges
 - **Regex Matching**: Efficient pattern matching
 
 ### Live Preview Decorations
+
 - **Sorted Decorations**: Ensures RangeSetBuilder requirements
 - **Incremental Updates**: Only rebuilds on doc/selection changes
 - **Viewport Optimization**: Processes only visible content
@@ -521,7 +535,6 @@ Supports ATX-style headings (`# H1` through `###### H6`)
    - `CheckboxWidget`: Interactive task checkbox
    - `HRWidget`: Horizontal rule
    - `TableWidget`: Rendered table
-   - `CodeBlockWidget`: Code block (currently unused)
 
 3. **`imagePreview.js`**: Image rendering
    - Image loading and caching
@@ -545,27 +558,63 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 
 ---
 
-## Theme Integration
+## Testing Guidelines
 
-The editor uses a theme system defined in `theme.js`:
+When testing Live Preview behaviors, ensure coverage of:
 
-**Base Theme** (`obsidianBaseTheme`):
-- Sets editor layout and colors
-- Configures cursor, selection, and gutters
-- Uses CSS variables for theming
+### 1. Cursor Positioning
+- Test cursor at various positions (before, inside, after elements)
+- Test cursor on element boundaries
+- Test cursor movement with arrow keys
 
-**Highlight Style** (`obsidianHighlightStyle`):
-- Defines syntax highlighting for markdown elements
-- Configures heading sizes
-- Sets colors for inline formatting
+### 2. Selection Ranges
+- Test with text selections spanning multiple elements
+- Test with selections partially overlapping elements
+- Test copy/paste behavior
 
-**Theme Export**:
-```javascript
-export const obsidianTheme = [
-    obsidianBaseTheme,
-    syntaxHighlighting(obsidianHighlightStyle)
-];
-```
+### 3. Nested Elements
+- Test nested formatting (bold inside italic, etc.)
+- Test multiple levels of nesting
+- Test cursor behavior in nested elements
+
+### 4. Multi-line Elements
+- Test blockquotes, code blocks, and tables across many lines
+- Test scrolling behavior with large blocks
+- Test performance with deeply nested structures
+
+### 5. Edge Cases
+- Empty elements
+- Malformed syntax
+- Special characters in content
+- Unicode characters
+- RTL text
+
+### 6. Performance
+- Test with large documents (>1000 lines)
+- Test with many images
+- Test with complex tables
+- Monitor memory usage
+
+### 7. Keyboard Navigation
+- Test arrow keys
+- Test home/end keys
+- Test page up/down
+- Test tab/shift+tab in lists
+
+### 8. State Management
+- Test undo/redo behavior
+- Test state persistence across tab switches
+- Test dirty state tracking
+
+### 9. Theme Switching
+- Test in both light and dark modes
+- Test custom color values
+- Test contrast ratios
+
+### 10. Accessibility
+- Test with screen readers
+- Test keyboard-only navigation
+- Test focus management
 
 ---
 
@@ -575,26 +624,20 @@ Potential areas for expansion:
 
 - **Footnotes**: Support for `[^1]` syntax
 - **Collapsible Sections**: Fold/unfold headings
-- **Table Editing**: Enhanced table editing experience
-- **Image Resizing**: width and height attributes for image sizing
+- **Table Editing**: Enhanced table editing experience with visual row/column manipulation
+- **Image Resizing**: Width and height attributes for image sizing
+- **Math Equations**: LaTeX/MathJax support
+- **Diagrams**: Mermaid diagram rendering
+- **Embeds**: YouTube, Twitter, etc. embed support
 
 ---
 
-## Testing Recommendations
+## Cross-References
 
-When testing Live Preview behaviors:
-
-1. **Cursor Positioning**: Test cursor at various positions (before, inside, after elements)
-2. **Selection Ranges**: Test with text selections spanning multiple elements
-3. **Nested Elements**: Test nested formatting (bold inside italic, etc.)
-4. **Multi-line Elements**: Test blockquotes, code blocks, and tables across many lines
-5. **Edge Cases**: Empty elements, malformed syntax, special characters
-6. **Performance**: Test with large documents (>1000 lines)
-7. **Keyboard Navigation**: Test arrow keys, home/end, page up/down
-8. **Copy/Paste**: Ensure markdown syntax is preserved
-9. **Undo/Redo**: Verify state management
-10. **Theme Switching**: Test in both light and dark modes
+- For design system details, see [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md)
+- For overall architecture, see [`ARCHITECTURE.md`](./ARCHITECTURE.md)
+- For UX specifications, see [`SPECIFICATIONS.md`](./SPECIFICATIONS.md)
 
 ---
 
-*Last Updated: 2025-11-26*
+*This feature documentation should be updated whenever new markdown features are added or existing behaviors are modified.*
