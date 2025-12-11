@@ -9,7 +9,7 @@
     height: 40px;
     user-select: none;
     position: relative;
-    padding: 8px 10px 0 10px;
+    padding: 0 10px;
     /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
@@ -110,7 +110,7 @@
     top: 0;
     left: 0;
     right: 0;
-    height: 2px;
+    height: 5px;
     background-color: var(--color-flux-violet);
     /* Top Border Accent */
     border-radius: var(--radius-l) var(--radius-l) 0 0;
