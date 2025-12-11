@@ -28,6 +28,14 @@ export const obsidianBaseTheme = EditorView.theme({
         backgroundColor: "var(--background-primary)",
         color: "var(--text-muted)",
         border: "none"
+    },
+    ".cm-searchMatch": {
+        backgroundColor: "var(--text-highlight-bg)",
+        borderRadius: "2px"
+    },
+    ".cm-searchMatch.cm-searchMatch-selected": {
+        backgroundColor: "var(--text-highlight-bg-active)",
+        border: "1px solid var(--text-accent)"
     }
 });
 

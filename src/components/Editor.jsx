@@ -10,6 +10,7 @@ import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
 import { linkHandler } from '../extensions/linkHandler';
 import { listKeymap } from '../extensions/listKeymap';
+import { searchMatchHighlight } from '../extensions/searchHighlight';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
 
@@ -115,6 +116,12 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
         findNext(view);
       } else if (options.direction === 'previous') {
         findPrevious(view);
+      } else if (options.direction === 'current') {
+        // Incremental search: start from the beginning of current selection
+        // to avoid skipping the match being typed
+        const { from } = view.state.selection.main;
+        view.dispatch({ selection: { anchor: from, head: from } });
+        findNext(view);
       }
 
       // Count matches
@@ -228,6 +235,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
         keymap.of([...defaultKeymap, ...historyKeymap]),
         history(),
         search(),
+        searchMatchHighlight,
         EditorView.lineWrapping,
         markdown({ base: markdownLanguage, codeLanguages: languages }),
         livePreview,
