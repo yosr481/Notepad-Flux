@@ -244,7 +244,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
         linkPreview,
         linkHandler,
         listKeymap,
-        indentUnit.of("    "),
+        indentUnit.of("\t"),
         obsidianTheme,
         EditorView.theme({
           "&": {
