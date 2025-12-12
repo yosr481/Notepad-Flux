@@ -1,0 +1,94 @@
+import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
+import { readFile, writeFile } from 'node:fs/promises'
+
+ipcMain.handle('read-file', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+        properties: ['openFile'],
+        filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+    })
+    if (canceled) return { canceled }
+    const content = await readFile(filePaths[0], 'utf-8')
+    return { canceled, filePath: filePaths[0], content }
+})
+
+ipcMain.handle('read-file-content', async (event, filePath) => {
+    try {
+        const content = await readFile(filePath, 'utf-8')
+        return content
+    } catch (e) {
+        throw e
+    }
+})
+
+ipcMain.handle('save-file', async (event, { filePath, content }) => {
+    if (!filePath) {
+        const { canceled, filePath: savePath } = await dialog.showSaveDialog({
+            filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+        })
+        if (canceled) return { canceled: true }
+        filePath = savePath
+    }
+    await writeFile(filePath, content, 'utf-8')
+    return { filePath }
+})
+
+
+// Get __dirname equivalent in ESM
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// The built directory structure
+//
+// ├─┬ dist
+// │ └── index.html
+// ├── dist-electron
+// │ ├── main.js
+// │ └── preload.js
+//
+process.env.DIST_ELECTRON = join(__dirname, '../dist-electron')
+process.env.DIST = join(__dirname, '../dist')
+process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
+    ? join(__dirname, '../public')
+    : process.env.DIST
+
+let win = null
+
+function createWindow() {
+    win = new BrowserWindow({
+        width: 1200,
+        height: 800,
+        icon: join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+        webPreferences: {
+            preload: join(process.env.DIST_ELECTRON, 'preload.js'),
+        },
+    })
+
+    Menu.setApplicationMenu(null)
+
+
+    // Test active push message to Renderer-process
+    win.webContents.on('did-finish-load', () => {
+        win?.webContents.send('main-process-message', (new Date).toLocaleString())
+    })
+
+    if (process.env.VITE_DEV_SERVER_URL) {
+        win.loadURL(process.env.VITE_DEV_SERVER_URL)
+    } else {
+        // win.loadFile('dist/index.html')
+        win.loadFile(join(process.env.DIST, 'index.html'))
+    }
+}
+
+app.on('window-all-closed', () => {
+    win = null
+    if (process.platform !== 'darwin') app.quit()
+})
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow()
+})
+
+app.whenReady().then(createWindow)

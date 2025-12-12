@@ -199,9 +199,58 @@ const WebFallbackDriver = {
 
 // --- Main Export ---
 
+const ElectronDriver = {
+    isSupported: () => !!window.ipcRenderer,
+
+    openFile: async () => {
+        try {
+            const result = await window.ipcRenderer.invoke('read-file');
+            if (result.canceled) return null;
+
+            const name = result.filePath.replace(/^.*[\\/]/, '');
+            return {
+                handle: result.filePath,
+                content: result.content,
+                name
+            };
+        } catch (err) {
+            console.error('Electron open error:', err);
+            throw err;
+        }
+    },
+
+    saveFile: async (handle, content) => {
+        await window.ipcRenderer.invoke('save-file', { filePath: handle, content });
+    },
+
+    saveFileAs: async (content, suggestedName) => {
+        const result = await window.ipcRenderer.invoke('save-file', { content });
+        if (result.canceled) return null;
+
+        const name = result.filePath.replace(/^.*[\\/]/, '');
+        return {
+            handle: result.filePath,
+            name
+        };
+    },
+
+    exportFile: async (content, suggestedName, types) => {
+        return ElectronDriver.saveFileAs(content, suggestedName);
+    },
+
+    openFileFromHandle: async (handle) => {
+        const content = await window.ipcRenderer.invoke('read-file-content', handle);
+        const name = handle.replace(/^.*[\\/]/, '');
+        return {
+            handle,
+            content,
+            name
+        };
+    }
+};
+
 const getDriver = () => {
-    // In the future, we can check for Electron context here
-    // if (window.electron) return ElectronDriver;
+    if (window.ipcRenderer) return ElectronDriver;
 
     if (WebNativeDriver.isSupported()) {
         return WebNativeDriver;
