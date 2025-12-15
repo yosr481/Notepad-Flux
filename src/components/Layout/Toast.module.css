@@ -1,0 +1,64 @@
+.toast {
+  visibility: hidden;
+  min-width: 250px;
+  margin-left: -125px;
+  background-color: var(--background-secondary);
+  color: var(--text-normal);
+  text-align: center;
+  border-radius: var(--radius-s);
+  padding: var(--space-16);
+  position: fixed;
+  z-index: var(--z-notification);
+  right: 30px;
+  bottom: 30px;
+  font-size: var(--font-size-normal);
+  overflow: hidden;
+  box-shadow: var(--shadow-m);
+}
+
+.toast.show {
+  visibility: visible;
+  -webkit-animation: fadein 0.5s;
+  animation: fadein 0.5s;
+}
+
+.progressBar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 4px;
+  background-color: var(--interactive-accent);
+  width: 100%;
+  -webkit-animation: progress 3s linear forwards;
+  animation: progress 3s linear forwards;
+}
+
+@-webkit-keyframes fadein {
+  from {bottom: 0; opacity: 0;} 
+  to {bottom: 30px; opacity: 1;}
+}
+
+@keyframes fadein {
+  from {bottom: 0; opacity: 0;}
+  to {bottom: 30px; opacity: 1;}
+}
+
+@-webkit-keyframes fadeout {
+  from {bottom: 30px; opacity: 1;} 
+  to {bottom: 0; opacity: 0;}
+}
+
+@keyframes fadeout {
+  from {bottom: 30px; opacity: 1;}
+  to {bottom: 0; opacity: 0;}
+}
+
+@-webkit-keyframes progress {
+    from { width: 100%; }
+    to { width: 0; }
+}
+
+@keyframes progress {
+    from { width: 100%; }
+    to { width: 0; }
+}

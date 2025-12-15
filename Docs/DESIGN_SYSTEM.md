@@ -247,7 +247,8 @@ Maintain consistent layering across the application:
 | Elevated | 100 | Sticky headers |
 | Dropdowns | 1000 | Menus, select dropdowns |
 | Modals | 2000 | Dialog boxes, overlays |
-| Tooltips | 3000 | Tooltips, notifications |
+| Tooltips | 4000 | Tooltips |
+| Notifications | 5000 | Notifications, toasts |
 
 ---
 

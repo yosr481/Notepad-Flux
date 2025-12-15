@@ -2,14 +2,13 @@ import React from 'react';
 import { useSession } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
-import { marked } from 'marked';
 import { exportToHtml } from '../utils/export';
 import { createRoot } from 'react-dom/client';
 import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export const useCommands = () => {
+export const useCommands = (showToast) => {
     const {
         tabs,
         activeTabId,
@@ -19,7 +18,6 @@ export const useCommands = () => {
         updateTab,
         switchTab,
         reorderTabs,
-        setTabs,
         recentFiles,
         addRecentFile,
         isPrimaryWindow
@@ -29,14 +27,14 @@ export const useCommands = () => {
         createTab();
     };
 
-    const closeTab = async (id, editorRef) => {
+    const closeTab = async (id) => {
         const tab = tabs.find(t => t.id === id);
         if (!tab) return;
 
         if (tab.isDirty) {
             const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
             if (shouldSave) {
-                const content = editorRef?.current?.getCurrentContent() || tab.content;
+                const content = tab.content;
 
                 try {
                     if (tab.fileHandle) {
@@ -82,91 +80,20 @@ export const useCommands = () => {
         }
     };
 
-    const closeOtherTabs = async (id, editorRef) => {
+    const closeOtherTabs = async (id) => {
         const tabsToClose = tabs.filter(t => t.id !== id);
-
         for (const tab of tabsToClose) {
-            if (tab.isDirty) {
-                const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
-                if (shouldSave) {
-                    const content = tab.content;
-
-                    try {
-                        if (tab.fileHandle) {
-                            await fileSystem.saveFile(tab.fileHandle, content);
-                            updateTab(tab.id, { content, isDirty: false });
-                        } else if (!fileSystem.isSupported() && tab.filePath) {
-                            const result = await fileSystem.saveFileAs(content, tab.filePath);
-                            if (!result) return;
-                            updateTab(tab.id, { content, isDirty: false });
-                        } else {
-                            const result = await fileSystem.saveFileAs(content, tab.title);
-                            if (!result) return;
-                            updateTab(tab.id, {
-                                title: result.name,
-                                filePath: result.name,
-                                fileHandle: result.handle,
-                                content: content,
-                                isDirty: false
-                            });
-                        }
-                    } catch (error) {
-                        console.error("Failed to save file on close", error);
-                        return;
-                    }
-                }
-            }
+            await closeTab(tab.id);
         }
-
-        setTabs([tabs.find(t => t.id === id)]);
-        setActiveTabId(id);
     };
 
-    const closeTabsToRight = async (id, editorRef) => {
+    const closeTabsToRight = async (id) => {
         const index = tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
         const tabsToClose = tabs.slice(index + 1);
-
         for (const tab of tabsToClose) {
-            if (tab.isDirty) {
-                const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
-                if (shouldSave) {
-                    const content = tab.content;
-
-                    try {
-                        if (tab.fileHandle) {
-                            await fileSystem.saveFile(tab.fileHandle, content);
-                            updateTab(tab.id, { content, isDirty: false });
-                        } else if (!fileSystem.isSupported() && tab.filePath) {
-                            const result = await fileSystem.saveFileAs(content, tab.filePath);
-                            if (!result) return;
-                            updateTab(tab.id, { content, isDirty: false });
-                        } else {
-                            const result = await fileSystem.saveFileAs(content, tab.title);
-                            if (!result) return;
-                            updateTab(tab.id, {
-                                title: result.name,
-                                filePath: result.name,
-                                fileHandle: result.handle,
-                                content: content,
-                                isDirty: false
-                            });
-                        }
-                    } catch (error) {
-                        console.error("Failed to save file on close", error);
-                        return;
-                    }
-                }
-            }
-        }
-
-        const newTabs = tabs.slice(0, index + 1);
-        setTabs(newTabs);
-        // The active tab might have been one of the closed ones, or the current one.
-        // If active tab was to the right, switch to the 'id' tab.
-        if (!newTabs.find(t => t.id === activeTabId)) {
-            setActiveTabId(id);
+            await closeTab(tab.id);
         }
     };
 
@@ -284,10 +211,11 @@ export const useCommands = () => {
         }
     };
 
-    const exportToPDF = (
-    ) => {
+    const exportToPDF = async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
+
+        showToast('Exporting to PDF...');
 
         const printContainer = document.createElement('div');
         printContainer.id = 'print-container';
@@ -297,7 +225,9 @@ export const useCommands = () => {
         const content = React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content });
         root.render(content);
 
-        requestIdleCallback(async () => {
+        await new Promise(resolve => requestIdleCallback(resolve));
+
+        try {
             const canvas = await html2canvas(printContainer, {
                 scale: 2, // Higher resolution
             });
@@ -330,22 +260,44 @@ export const useCommands = () => {
             }
 
             const pdfBlob = pdf.output('blob');
-            await fileSystem.exportFile(pdfBlob, `${activeTab.title.replace(/\s/g, '_')}.pdf`, [
+            const success = await fileSystem.exportFile(pdfBlob, `${activeTab.title.replace(/\s/g, '_')}.pdf`, [
                 {
                     description: 'PDF Document',
                     accept: { 'application/pdf': ['.pdf'] },
                 },
             ]);
 
+            if (success) {
+                showToast('Exported to PDF successfully!');
+            } else {
+                showToast('Export to PDF cancelled.');
+            }
+        } catch (error) {
+            console.error("Failed to export to PDF", error);
+            showToast('Failed to export to PDF.');
+        } finally {
             root.unmount();
             document.body.removeChild(printContainer);
-        });
+        }
     };
 
-    const exportToHTML = () => {
+    const exportToHTML = async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
-        exportToHtml(activeTab.title, activeTab.content);
+
+        showToast('Exporting to HTML...');
+
+        try {
+            const success = await exportToHtml(activeTab.title, activeTab.content);
+            if (success) {
+                showToast('Exported to HTML successfully!');
+            } else {
+                showToast('Export to HTML cancelled.');
+            }
+        } catch (error) {
+            console.error("Failed to export to HTML", error);
+            showToast('Failed to export to HTML.');
+        }
     };
 
     const print = () => {
@@ -368,11 +320,10 @@ export const useCommands = () => {
         });
     };
 
-    const closeWindow = async (editorRef) => {
+    const closeWindow = async () => {
         if (!isPrimaryWindow) {
             const dirtyTabs = tabs.filter(t => t.isDirty);
             if (dirtyTabs.length > 0) {
-                const confirmMsg = `You have ${dirtyTabs.length} unsaved tab${dirtyTabs.length > 1 ? 's' : ''}. Do you want to save your changes before closing?`;
                 // We can't easily use a custom dialog here without blocking, so we use confirm.
                 // A better UX might be a custom modal, but for now window.confirm is consistent with closeTab.
                 // However, standard confirm is OK/Cancel. We need Save/Don't Save/Cancel.

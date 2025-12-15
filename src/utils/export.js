@@ -5,7 +5,7 @@ export const markdownToHtml = (markdown) => {
     return marked(markdown);
 };
 
-export const exportToHtml = (title, markdown) => {
+export const exportToHtml = async (title, markdown) => {
     const htmlContent = markdownToHtml(markdown);
     const fullHtml = `
         <!DOCTYPE html>
@@ -28,7 +28,7 @@ export const exportToHtml = (title, markdown) => {
         </html>
     `;
 
-    fileSystem.exportFile(fullHtml, `${title.replace(/\s/g, '_')}.html`, [
+    return await fileSystem.exportFile(fullHtml, `${title.replace(/\s/g, '_')}.html`, [
         {
             description: 'HTML File',
             accept: { 'text/html': ['.html'] },

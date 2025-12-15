@@ -6,20 +6,30 @@ import StatusBar from './components/Layout/StatusBar';
 import ContextMenu from './components/Layout/ContextMenu';
 import FindReplacePanel from './components/Layout/FindReplacePanel';
 import GoToLineDialog from './components/Layout/GoToLineDialog';
+import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 
 import Settings from './components/Settings/Settings';
 
 function App() {
+    const editorRef = React.useRef(null);
     const [theme, setTheme] = useState('dark');
     const [showSettings, setShowSettings] = useState(false);
+    const [toast, setToast] = useState({ message: '', show: false });
     const [stats, setStats] = useState({
         line: 1,
         col: 1,
         wordCount: 0,
         charCount: 0
     });
+
+    const showToast = (message) => {
+        setToast({ message, show: true });
+        setTimeout(() => {
+            setToast({ message: '', show: false });
+        }, 3000);
+    };
 
     const {
         tabs,
@@ -42,7 +52,7 @@ function App() {
         recentFiles,
         closeWindow,
         isPrimaryWindow
-    } = useCommands();
+    } = useCommands(showToast);
 
     // Handle beforeunload for secondary windows
     useEffect(() => {
@@ -64,6 +74,13 @@ function App() {
     const [showFindReplace, setShowFindReplace] = useState(false);
     const [findReplaceMode, setFindReplaceMode] = useState('find');
     const [showGoToLine, setShowGoToLine] = useState(false);
+    const [totalLines, setTotalLines] = useState(0);
+
+    useEffect(() => {
+        if (showGoToLine) {
+            setTotalLines(editorRef.current?.getTotalLines() || 0);
+        }
+    }, [showGoToLine]);
 
     const handleContextMenu = (e, id) => {
         e.preventDefault();
@@ -126,7 +143,7 @@ function App() {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [newTab, openFile, saveFile, saveFileAs, closeTab, activeTabId, switchTab]);
+    }, [newTab, openFile, saveFile, saveFileAs, closeTab, activeTabId, switchTab, print]);
 
     // Apply theme to body
     useEffect(() => {
@@ -137,8 +154,6 @@ function App() {
 
     // Safety check if activeTab is undefined (e.g. during close race condition)
     if (!activeTab) return null;
-
-    const editorRef = React.useRef(null);
 
     const handleUndo = () => editorRef.current?.undo();
     const handleRedo = () => editorRef.current?.redo();
@@ -243,7 +258,7 @@ function App() {
 
             {showGoToLine && (
                 <GoToLineDialog
-                    totalLines={editorRef.current?.getTotalLines() || 0}
+                    totalLines={totalLines}
                     onGoToLine={(line) => editorRef.current?.goToLine(line)}
                     onClose={() => setShowGoToLine(false)}
                 />
@@ -255,6 +270,14 @@ function App() {
                 theme={theme}
                 setTheme={setTheme}
             />
+
+            {toast.show && (
+                <Toast
+                    message={toast.message}
+                    duration={3000}
+                    onClose={() => setToast({ message: '', show: false })}
+                />
+            )}
         </div>
     );
 }
