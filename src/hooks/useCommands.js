@@ -347,23 +347,19 @@ export const useCommands = (showToast) => {
                 if (await dialogs.confirm('You have unsaved changes. Save them now?')) {
                     // Try to save all dirty tabs
                     for (const tab of dirtyTabs) {
-                        // Logic similar to closeTab save
-                        // We need to activate the tab to get editor content? 
-                        // Actually tab.content might be stale if editor has changes not yet synced?
-                        // onContentChange syncs to tab.content, so tab.content should be up to date.
-
                         try {
                             if (tab.fileHandle) {
                                 await fileSystem.saveFile(tab.fileHandle, tab.content);
+                                updateTab(tab.id, { isDirty: false });
                             } else if (!fileSystem.isSupported() && tab.filePath) {
-                                await fileSystem.saveFileAs(tab.content, tab.filePath);
+                                const result = await fileSystem.saveFileAs(tab.content, tab.filePath);
+                                if (!result) return; // Abort
+                                updateTab(tab.id, { isDirty: false });
                             } else {
                                 const result = await fileSystem.saveFileAs(tab.content, tab.title);
                                 if (result) {
-                                    // Update tab just in case, though we are closing
                                     updateTab(tab.id, { ...result, isDirty: false });
                                 } else {
-                                    // User cancelled save dialog for a file
                                     return; // Abort close
                                 }
                             }
@@ -373,13 +369,12 @@ export const useCommands = (showToast) => {
                         }
                     }
                 } else {
-                    // User said No to "Save them now?". 
-                    // Does that mean "Don't Save" or "Cancel"?
-                    // Usually "Cancel" means "Oops, I didn't mean to close".
-                    // But standard confirm is binary.
-                    // Let's ask: "Are you sure you want to close without saving?" if they say No to saving.
                     if (!await dialogs.confirm('Close without saving?')) {
                         return;
+                    }
+                    // If user confirms to close without saving, mark all dirty tabs as not dirty
+                    for (const tab of dirtyTabs) {
+                        updateTab(tab.id, { isDirty: false });
                     }
                 }
             }
