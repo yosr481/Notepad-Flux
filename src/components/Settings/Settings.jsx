@@ -1,12 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 
-const Settings = ({ isOpen, onClose, theme, setTheme }) => {
-    // Local state for settings that aren't yet connected to global state
-    const [sessionWarnTabs, setSessionWarnTabs] = useState(30);
-    const [sessionWarnSize, setSessionWarnSize] = useState(80);
-
+const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
     if (!isOpen) return null;
 
     return (
@@ -29,8 +25,8 @@ const Settings = ({ isOpen, onClose, theme, setTheme }) => {
                         </div>
                         <select
                             className={styles.select}
-                            value={theme}
-                            onChange={(e) => setTheme(e.target.value)}
+                            value={settings.theme}
+                            onChange={(e) => updateSettings({ theme: e.target.value })}
                         >
                             <option value="light">Light</option>
                             <option value="dark">Dark</option>
@@ -51,8 +47,8 @@ const Settings = ({ isOpen, onClose, theme, setTheme }) => {
                         <input
                             type="number"
                             className={styles.input}
-                            value={sessionWarnTabs}
-                            onChange={(e) => setSessionWarnTabs(e.target.value)}
+                            value={settings.sessionWarnTabs}
+                            onChange={(e) => updateSettings({ sessionWarnTabs: parseInt(e.target.value) || 0 })}
                         />
                     </div>
 
@@ -64,8 +60,8 @@ const Settings = ({ isOpen, onClose, theme, setTheme }) => {
                         <input
                             type="number"
                             className={styles.input}
-                            value={sessionWarnSize}
-                            onChange={(e) => setSessionWarnSize(e.target.value)}
+                            value={settings.sessionWarnSize}
+                            onChange={(e) => updateSettings({ sessionWarnSize: parseInt(e.target.value) || 0 })}
                         />
                     </div>
                 </div>

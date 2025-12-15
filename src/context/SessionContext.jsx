@@ -19,6 +19,11 @@ export const SessionProvider = ({ children }) => {
     const [recentFiles, setRecentFiles] = useState([]);
     const [isPrimaryWindow, setIsPrimaryWindow] = useState(false);
     const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+    const [settings, setSettings] = useState({
+        theme: 'system',
+        sessionWarnTabs: 30,
+        sessionWarnSize: 80,
+    });
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
@@ -89,6 +94,9 @@ export const SessionProvider = ({ children }) => {
                     if (session.recentFiles) {
                         setRecentFiles(session.recentFiles);
                     }
+                    if (session.settings) {
+                        setSettings(prev => ({ ...prev, ...session.settings }));
+                    }
                 } catch (err) {
                     console.error('Failed to load session:', err);
                 } finally {
@@ -122,9 +130,9 @@ export const SessionProvider = ({ children }) => {
     // Save metadata when relevant state changes
     useEffect(() => {
         if (isPrimaryWindow && isSessionLoaded) {
-            storage.saveMetadata({ activeTabId, recentFiles });
+            storage.saveMetadata({ activeTabId, recentFiles, settings });
         }
-    }, [activeTabId, recentFiles, isPrimaryWindow, isSessionLoaded]);
+    }, [activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
 
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
@@ -247,6 +255,10 @@ export const SessionProvider = ({ children }) => {
         }
     }, [tabs, isPrimaryWindow, isSessionLoaded]);
 
+    const updateSettings = useCallback((newSettings) => {
+        setSettings(prev => ({ ...prev, ...newSettings }));
+    }, []);
+
     const value = {
         tabs,
         activeTabId,
@@ -260,7 +272,9 @@ export const SessionProvider = ({ children }) => {
         recentFiles,
         addRecentFile,
         isPrimaryWindow, // Expose this if UI needs to know
-        isSessionLoaded
+        isSessionLoaded,
+        settings,
+        updateSettings
     };
 
     return (

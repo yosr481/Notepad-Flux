@@ -9,12 +9,12 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
+import { useSession } from './context/SessionContext';
 
 import Settings from './components/Settings/Settings';
 
 function App() {
     const editorRef = React.useRef(null);
-    const [theme, setTheme] = useState('dark');
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
     const [stats, setStats] = useState({
@@ -23,6 +23,8 @@ function App() {
         wordCount: 0,
         charCount: 0
     });
+
+    const { settings, updateSettings } = useSession();
 
     const showToast = (message) => {
         setToast({ message, show: true });
@@ -147,8 +149,8 @@ function App() {
 
     // Apply theme to body
     useEffect(() => {
-        document.body.setAttribute('data-theme', theme);
-    }, [theme]);
+        document.body.setAttribute('data-theme', settings.theme);
+    }, [settings.theme]);
 
     const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
 
@@ -182,7 +184,7 @@ function App() {
     };
 
     return (
-        <div className={styles.appContainer} data-theme={theme} onClick={() => setContextMenu(null)}>
+        <div className={styles.appContainer} data-theme={settings.theme} onClick={() => setContextMenu(null)}>
             <div className={styles.topBar}>
                 <Tabs
                     tabs={tabs}
@@ -267,8 +269,8 @@ function App() {
             <Settings
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}
-                theme={theme}
-                setTheme={setTheme}
+                settings={settings}
+                updateSettings={updateSettings}
             />
 
             {toast.show && (

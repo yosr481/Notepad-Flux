@@ -49,12 +49,14 @@ export const storage = {
         const activeTabId = await db.get(STORE_METADATA, 'activeTabId');
         const recentFiles = await db.get(STORE_METADATA, 'recentFiles') || [];
         const tabOrder = await db.get(STORE_METADATA, 'tabOrder') || [];
+        const settings = await db.get(STORE_METADATA, 'settings');
 
         return {
             tabs: tabs || [],
             activeTabId,
             recentFiles,
-            tabOrder
+            tabOrder,
+            settings
         };
     },
 
