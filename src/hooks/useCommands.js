@@ -174,18 +174,28 @@ export const useCommands = (showToast) => {
 
     const openRecentFile = async (filePath, fileName, fileHandle) => {
         try {
-            // Try to open from file handle first
             let file = null;
+            // 1. Try to open from file handle first (WebNativeDriver, Electron)
             if (fileHandle && fileSystem.isSupported()) {
                 try {
                     file = await fileSystem.openFileFromHandle(fileHandle);
                 } catch (err) {
-                    console.warn(`Could not open from handle, fallback to picker:`, err);
+                    console.warn(`Could not open from handle, trying filePath:`, err);
                     file = null;
                 }
             }
 
-            // Fallback: open file picker if handle doesn't work
+            // 2. If handle failed, try to open from filePath (Electron only effectively)
+            if (!file && filePath) {
+                try {
+                    file = await fileSystem.openFileFromPath(filePath);
+                } catch (err) {
+                    console.warn(`Could not open from filePath, falling back to picker:`, err);
+                    file = null;
+                }
+            }
+            
+            // 3. If both failed, open file picker
             if (!file) {
                 file = await fileSystem.openFile();
                 if (!file) {
@@ -202,7 +212,7 @@ export const useCommands = (showToast) => {
                     fileHandle: file.handle,
                     isDirty: false
                 });
-                // Add to recent files with updated handle
+                // Add to recent files with updated handle (in case it changed, or was from path)
                 addRecentFile(file.name, file.name, file.handle);
             }
         } catch (error) {

@@ -114,6 +114,11 @@ const WebNativeDriver = {
             console.error('Error opening file from handle:', err);
             throw err;
         }
+    },
+
+    openFileFromPath: async () => {
+        // Not supported for WebNativeDriver without a picker
+        return null;
     }
 };
 
@@ -194,6 +199,11 @@ const WebFallbackDriver = {
 
     openFileFromHandle: async (handle) => {
         throw new Error('Cannot open from handle in fallback mode');
+    },
+
+    openFileFromPath: async () => {
+        // Not supported for WebFallbackDriver
+        return null;
     }
 };
 
@@ -246,6 +256,21 @@ const ElectronDriver = {
             content,
             name
         };
+    },
+
+    openFileFromPath: async (filePath) => {
+        try {
+            const content = await window.ipcRenderer.invoke('read-file-content', filePath);
+            const name = filePath.replace(/^.*[\\/]/, '');
+            return {
+                handle: filePath,
+                content,
+                name
+            };
+        } catch (err) {
+            console.error('Electron open file from path error:', err);
+            throw err;
+        }
     }
 };
 
@@ -269,5 +294,6 @@ export const fileSystem = {
 
     exportFile: (content, suggestedName, types) => getDriver().exportFile(content, suggestedName, types),
 
-    openFileFromHandle: (handle) => getDriver().openFileFromHandle(handle)
+    openFileFromHandle: (handle) => getDriver().openFileFromHandle(handle),
+
 };
