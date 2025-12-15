@@ -165,14 +165,17 @@
    ============================================ */
 
 .cm-tooltip-cursor {
-    padding: 4px 8px;
+    padding: var(--space-4) var(--space-8);
     background-color: var(--background-secondary);
     border: 1px solid var(--background-modifier-border);
-    border-radius: 4px;
-    font-size: 12px;
+    border-radius: var(--radius-s);
+    font-size: var(--font-size-xs);
+    font-family: var(--font-text);
+    font-weight: var(--font-weight-regular);
     color: var(--text-normal);
-    z-index: 100;
+    z-index: var(--z-tooltip);
     box-shadow: var(--shadow-m);
+    transition: opacity var(--transition-fast);
 }
 
 /* ============================================
