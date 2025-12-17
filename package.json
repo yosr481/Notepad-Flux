@@ -4,8 +4,8 @@
   "version": "1.0.0",
   "type": "module",
   "main": "dist-electron/main.js",
-  "description": "Notepad Flux - An advanced markdown editor",
-  "author": "Yossi",
+  "description": "Notepad Flux - An minimal markdown editor",
+  "author": "Yosr481",
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
