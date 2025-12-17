@@ -10,9 +10,32 @@
     user-select: none;
     position: relative;
     padding: 0 10px;
+    padding-right: 140px;
+    /* Space for Window Controls */
     /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
+    -webkit-app-region: drag;
+}
+
+.appIconButton {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-right: 12px;
+    margin-left: 4px;
+    -webkit-app-region: no-drag;
+    border-radius: var(--radius-s);
+    transition: background-color var(--transition-fast);
+}
+
+.appIcon {
+    width: 20px;
+    height: 20px;
+    opacity: 0.8;
 }
 
 .scrollButton {
@@ -33,6 +56,7 @@
     font-weight: bold;
     margin: 0 2px;
     transition: all var(--transition-fast);
+    -webkit-app-region: no-drag;
 }
 
 .scrollButton:hover {
@@ -81,6 +105,7 @@
     /* 8px top corners */
     margin-right: -1px;
     /* Overlap borders */
+    -webkit-app-region: no-drag;
 }
 
 .tab:hover {
@@ -194,17 +219,18 @@
     align-items: center;
     justify-content: center;
     min-width: 32px;
-    width: 32px;
-    height: 32px;
+    width: 36px;
+    height: 36px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 18px;
+    font-size: 26px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
     margin-left: 4px;
     transition: all var(--transition-fast);
+    -webkit-app-region: no-drag;
 }
 
 .newTabButton:hover {

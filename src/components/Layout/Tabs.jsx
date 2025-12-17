@@ -103,6 +103,12 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
 
     return (
         <div className={styles.tabsContainer}>
+            <img
+                src="/favicon-32x32.png"
+                alt="App Icon"
+                className={styles.appIcon}
+                draggable="false"
+            />
             {showLeftArrow && (
                 <button className={styles.scrollButton} onClick={() => scroll('left')}>
                     ‹

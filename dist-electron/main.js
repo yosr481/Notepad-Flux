@@ -40,6 +40,18 @@ function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
+    minWidth: 400,
+    minHeight: 300,
+    titleBarStyle: "hidden",
+    titleBarOverlay: {
+      color: "#00000000",
+      // Transparent background
+      symbolColor: "#64748b",
+      // Slate-500 matches UI usually, or use theme color
+      height: 40
+      // Match tab height
+    },
+    backgroundMaterial: "mica",
     icon: join(process.env.VITE_PUBLIC, "electron-vite.svg"),
     webPreferences: {
       preload: join(process.env.DIST_ELECTRON, "preload.js")
