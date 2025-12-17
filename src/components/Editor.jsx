@@ -12,6 +12,7 @@ import { linkHandler } from '../extensions/linkHandler';
 import { listKeymap } from '../extensions/listKeymap';
 import { indentUnit } from '@codemirror/language';
 import { searchMatchHighlight } from '../extensions/searchHighlight';
+import { textDirection } from '../extensions/textDirection';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
 
@@ -244,6 +245,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
         linkPreview,
         linkHandler,
         listKeymap,
+        textDirection,
         indentUnit.of("\t"),
         obsidianTheme,
         EditorView.theme({
