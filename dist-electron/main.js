@@ -1,49 +1,45 @@
-import { ipcMain, dialog, app, BrowserWindow, Menu } from "electron";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { readFile, writeFile } from "node:fs/promises";
-ipcMain.handle("read-file", async () => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
+import { ipcMain as r, dialog as d, app as s, BrowserWindow as l, Menu as f } from "electron";
+import { dirname as u, join as o } from "node:path";
+import { fileURLToPath as E } from "node:url";
+import { readFile as p, writeFile as v } from "node:fs/promises";
+r.handle("read-file", async () => {
+  const { canceled: i, filePaths: e } = await d.showOpenDialog({
     properties: ["openFile"],
     filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
   });
-  if (canceled) return { canceled };
-  const content = await readFile(filePaths[0], "utf-8");
-  return { canceled, filePath: filePaths[0], content };
+  if (i) return { canceled: i };
+  const t = await p(e[0], "utf-8");
+  return { canceled: i, filePath: e[0], content: t };
 });
-ipcMain.handle("read-file-content", async (event, filePath) => {
+r.handle("read-file-content", async (i, e) => {
   try {
-    const content = await readFile(filePath, "utf-8");
-    return content;
-  } catch (e) {
-    throw e;
+    return await p(e, "utf-8");
+  } catch (t) {
+    throw t;
   }
 });
-ipcMain.handle("save-file", async (event, { filePath, content }) => {
-  if (!filePath) {
-    const { canceled, filePath: savePath } = await dialog.showSaveDialog({
+r.handle("save-file", async (i, { filePath: e, content: t }) => {
+  if (!e) {
+    const { canceled: h, filePath: m } = await d.showSaveDialog({
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
     });
-    if (canceled) return { canceled: true };
-    filePath = savePath;
+    if (h) return { canceled: !0 };
+    e = m;
   }
-  await writeFile(filePath, content, "utf-8");
-  return { filePath };
+  return await v(e, t, "utf-8"), { filePath: e };
 });
-const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$1 = dirname(__filename$1);
-process.env.DIST_ELECTRON = join(__dirname$1, "../dist-electron");
-process.env.DIST = join(__dirname$1, "../dist");
-process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? join(__dirname$1, "../public") : process.env.DIST;
-let win = null;
-let splash = null;
-function createWindow() {
-  win = new BrowserWindow({
+const _ = E(import.meta.url), c = u(_);
+process.env.DIST_ELECTRON = o(c, "../dist-electron");
+process.env.DIST = o(c, "../dist");
+process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? o(c, "../public") : process.env.DIST;
+let n = null, a = null;
+function w() {
+  n = new l({
     width: 1200,
     height: 800,
     minWidth: 400,
     minHeight: 300,
-    show: false,
+    show: !1,
     // Wait until ready-to-show
     titleBarStyle: "hidden",
     titleBarOverlay: {
@@ -55,43 +51,29 @@ function createWindow() {
       // Match tab height
     },
     backgroundMaterial: "mica",
-    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
+    icon: o(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
     webPreferences: {
-      preload: join(process.env.DIST_ELECTRON, "preload.js")
+      preload: o(process.env.DIST_ELECTRON, "preload.js")
     }
-  });
-  win.once("ready-to-show", () => {
-    win.show();
-    if (splash) {
-      splash.close();
-    }
-  });
-  Menu.setApplicationMenu(null);
-  win.webContents.on("did-finish-load", () => {
-    win?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
-  if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(join(process.env.DIST, "index.html"));
-  }
+  }), n.once("ready-to-show", () => {
+    n.show(), a && a.close();
+  }), f.setApplicationMenu(null), n.webContents.on("did-finish-load", () => {
+    n?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), process.env.VITE_DEV_SERVER_URL ? n.loadURL(process.env.VITE_DEV_SERVER_URL) : n.loadFile(o(process.env.DIST, "index.html"));
 }
-app.on("window-all-closed", () => {
-  win = null;
-  if (process.platform !== "darwin") app.quit();
+s.on("window-all-closed", () => {
+  n = null, process.platform !== "darwin" && s.quit();
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+s.on("activate", () => {
+  l.getAllWindows().length === 0 && w();
 });
-app.whenReady().then(() => {
-  splash = new BrowserWindow({
+s.whenReady().then(() => {
+  a = new l({
     width: 300,
     height: 300,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
-  });
-  splash.loadFile(join(process.env.VITE_PUBLIC, "loading.html"));
-  createWindow();
+    transparent: !0,
+    frame: !1,
+    alwaysOnTop: !0,
+    icon: o(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+  }), a.loadFile(o(process.env.VITE_PUBLIC, "loading.html")), w();
 });

@@ -104,7 +104,7 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
     return (
         <div className={styles.tabsContainer}>
             <img
-                src="/icons/web/favicon-32x32.png"
+                src="icons/web/favicon-32x32.png"
                 alt="App Icon"
                 className={styles.appIcon}
                 draggable="false"
