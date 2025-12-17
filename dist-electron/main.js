@@ -36,12 +36,15 @@ process.env.DIST_ELECTRON = join(__dirname$1, "../dist-electron");
 process.env.DIST = join(__dirname$1, "../dist");
 process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? join(__dirname$1, "../public") : process.env.DIST;
 let win = null;
+let splash = null;
 function createWindow() {
   win = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 400,
     minHeight: 300,
+    show: false,
+    // Wait until ready-to-show
     titleBarStyle: "hidden",
     titleBarOverlay: {
       color: "#00000000",
@@ -55,6 +58,12 @@ function createWindow() {
     icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
     webPreferences: {
       preload: join(process.env.DIST_ELECTRON, "preload.js")
+    }
+  });
+  win.once("ready-to-show", () => {
+    win.show();
+    if (splash) {
+      splash.close();
     }
   });
   Menu.setApplicationMenu(null);
@@ -74,4 +83,15 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  splash = new BrowserWindow({
+    width: 300,
+    height: 300,
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+  });
+  splash.loadFile(join(process.env.VITE_PUBLIC, "loading.html"));
+  createWindow();
+});
