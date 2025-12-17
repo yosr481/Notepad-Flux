@@ -59,7 +59,9 @@ export const dialogs = {
             const handleClose = (result) => {
                 try {
                     root.unmount();
-                } catch {}
+                } catch (_err) {
+                    // noop: unmount can throw if already unmounted
+                }
                 container.remove();
                 resolve(result);
             };

@@ -1,26 +1,27 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { useCommands } from '../useCommands';
-import * as SessionContext from '../context/SessionContext';
+import * as SessionContext from '../../context/SessionContext';
 
 // Mock the context
-vi.mock('../context/SessionContext', () => ({
+vi.mock('../../context/SessionContext', () => ({
     useSession: vi.fn()
 }));
 
 // Mock utils
-vi.mock('../utils/fileSystem', () => ({
+vi.mock('../../utils/fileSystem', () => ({
     fileSystem: {
-        saveFile: vi.fn(),
-        saveFileAs: vi.fn(),
+        saveFile: vi.fn(async () => undefined),
+        saveFileAs: vi.fn(async (_content, name) => ({ name, handle: {} })),
         isSupported: vi.fn(() => true)
     }
 }));
 
-vi.mock('../utils/dialogs', () => ({
+vi.mock('../../utils/dialogs', () => ({
     dialogs: {
         confirm: vi.fn(() => Promise.resolve(true)),
-        alert: vi.fn()
+        alert: vi.fn(),
+        saveChangesPrompt: vi.fn(async () => 'save'),
     }
 }));
 

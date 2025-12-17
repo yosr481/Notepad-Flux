@@ -1,6 +1,5 @@
 import { keymap } from "@codemirror/view";
-import { indentMore, indentLess } from "@codemirror/commands";
-import { syntaxTree } from "@codemirror/language";
+import { indentMore } from "@codemirror/commands";
 
 const isListLine = (state, line) => {
     const text = line.text;
