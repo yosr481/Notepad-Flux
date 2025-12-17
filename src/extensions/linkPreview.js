@@ -10,7 +10,7 @@ class LinkWidget extends WidgetType {
         this.style = style; // { bold: boolean, italic: boolean }
     }
 
-    toDOM() {
+    toDOM(view) {
         const link = document.createElement("a");
         link.className = "cm-link";
         link.href = this.url;
@@ -46,15 +46,15 @@ class LinkWidget extends WidgetType {
         // Bold and Italic: ***text*** or ___text___
         // Logic: *** matches bold(*) + italic(**) or bold(**) + italic(*)
         html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
-        html = html.replace(/___(.*?)___/g, "<strong><em>$1</em></strong>");
+        html = html.replace(/\_\_\_(.*?)\_\_\_/g, "<strong><em>$1</em></strong>");
 
         // Bold: **text** or __text__
         html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-        html = html.replace(/__(.*?)__/g, "<strong>$1</strong>");
+        html = html.replace(/\_\_(.*?)\_\_/g, "<strong>$1</strong>");
 
         // Italic: *text* or _text_
         html = html.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-        html = html.replace(/(?<!_)_{1}(?!_)(.*?)(?<!_)_{1}(?!_)/g, "<em>$1</em>");
+        html = html.replace(/(?<!\_)\_(?!\_)(.*?)(?<!\_)\_(?!\_)/g, "<em>$1</em>");
 
         // Strikethrough: ~~text~~
         html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
@@ -157,7 +157,7 @@ export const linkPreview = ViewPlugin.fromClass(class {
                 }
 
                 if (!shouldReveal) {
-                    // let urlNode = node.node.getChild("URL");
+                    let urlNode = node.node.getChild("URL");
 
                     // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
                     const textContentFull = doc.sliceString(from, to);
@@ -165,7 +165,7 @@ export const linkPreview = ViewPlugin.fromClass(class {
                     // Ignore image links which start with !
                     if (textContentFull.startsWith("!")) return;
 
-                    const match = textContentFull.match(/^\[(.*?)\]\(([^"\s)]+)(?:\s+"(.*?)")?\)/);
+                    const match = textContentFull.match(/^\[(.*?)\]\(([^"\s\)]+)(?:\s+"(.*?)")?\)/);
 
                     if (match) {
                         // double check with urlNode if it exists to be precise? 
