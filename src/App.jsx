@@ -28,6 +28,18 @@ function App() {
 
     const { settings, updateSettings } = useSession();
 
+    const [systemTheme, setSystemTheme] = useState(
+        window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+    );
+
+    useEffect(() => {
+        if (!window.matchMedia) return;
+        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+        const handler = (e) => setSystemTheme(e.matches ? 'dark' : 'light');
+        mediaQuery.addEventListener('change', handler);
+        return () => mediaQuery.removeEventListener('change', handler);
+    }, []);
+
     const showToast = (message) => {
         setToast({ message, show: true });
         setTimeout(() => {
@@ -164,8 +176,9 @@ function App() {
 
     // Apply theme to body
     useEffect(() => {
-        document.body.setAttribute('data-theme', settings.theme);
-    }, [settings.theme]);
+        const effectiveTheme = settings.theme === 'system' ? systemTheme : settings.theme;
+        document.body.setAttribute('data-theme', effectiveTheme);
+    }, [settings.theme, systemTheme]);
 
     const activeTab = tabs.find(t => t.id === activeTabId) || tabs[0];
 

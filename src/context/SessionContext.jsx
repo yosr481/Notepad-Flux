@@ -112,6 +112,15 @@ export const SessionProvider = ({ children }) => {
             } else {
                 // We are a secondary window
                 setIsPrimaryWindow(false);
+                try {
+                    // Attempt to load settings so we inherit the theme/preferences
+                    const session = await storage.loadSession();
+                    if (session.settings) {
+                        setSettings(prev => ({ ...prev, ...session.settings }));
+                    }
+                } catch (err) {
+                    console.warn('Secondary window failed to load settings:', err);
+                }
                 setIsSessionLoaded(true);
             }
         };
