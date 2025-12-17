@@ -69,7 +69,7 @@ function createWindow() {
             height: 40 // Match tab height
         },
         backgroundMaterial: 'mica',
-        icon: join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+        icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
         webPreferences: {
             preload: join(process.env.DIST_ELECTRON, 'preload.js'),
         },

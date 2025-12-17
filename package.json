@@ -59,7 +59,8 @@
   "build": {
     "appId": "com.notepad-flux.app",
     "productName": "Notepad Flux",
-    "copyright": "Copyright © 2025 Yossi",
+    "copyright": "Copyright © 2025 Yosef I. Rienitz",
+    "icon": "public/icons/desktop/icon.png",
     "directories": {
       "output": "dist-electron/release"
     },

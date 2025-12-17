@@ -18,24 +18,11 @@
     -webkit-app-region: drag;
 }
 
-.appIconButton {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-    border: none;
-    padding: 0;
-    margin-right: 12px;
-    margin-left: 4px;
-    -webkit-app-region: no-drag;
-    border-radius: var(--radius-s);
-    transition: background-color var(--transition-fast);
-}
-
 .appIcon {
     width: 20px;
     height: 20px;
-    opacity: 0.8;
+    margin-right: 12px;
+    margin-left: 4px;
 }
 
 .scrollButton {
