@@ -1,7 +1,7 @@
 # Product Specifications
 
 **Project:** Notepad Flux  
-**Last Updated:** 2025-12-11
+**Last Updated:** 2025-12-17
 
 ---
 
@@ -88,13 +88,16 @@ On app start:
 **Trigger:** `File → Close window`, `File → Exit`, or window close button
 
 **Behavior:**
-- For each dirty tab:
-  - Prompt: **Save / Don't Save / Cancel**.
-  - `Save`: write to disk, `IsDirty = false`.
-  - `Don't Save`: discard unsaved changes for that tab.
-  - `Cancel`: abort window close.
-- If no Cancel:
-  - Window closes; **no session is stored**.
+- Use a custom design-system modal (not the browser prompt) to confirm saves.
+- Iterate tabs one by one in order, applying the following per-tab flow:
+  1. If tab is dirty, show message box with: **Save / Don't Save / Cancel**.
+     - `Save`: write to disk, then close the tab.
+     - `Don't Save`: close the tab without writing.
+     - `Cancel`: abort the entire window-closing operation immediately.
+  2. If tab is not dirty, close it immediately.
+- Continue until only a single default tab remains. If that last tab is clean, close the window.
+- If at any point the user cancels a Save As dialog, treat as `Cancel` and abort the closing.
+- No session is stored for secondary windows.
 
 ---
 

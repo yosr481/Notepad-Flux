@@ -4,6 +4,12 @@
  * with native Electron dialogs or custom UI components in the future.
  */
 
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+
+// Lazy import to avoid bundling cost unless needed
+let MessageBox = null;
+
 export const dialogs = {
     /**
      * Show a confirmation dialog.
@@ -25,5 +31,51 @@ export const dialogs = {
     alert: async (message) => {
         // if (window.electron) ...
         return window.alert(message);
+    },
+
+    /**
+     * Show a tri-state save changes prompt using the app design system.
+     * Returns one of: 'save' | 'dontsave' | 'cancel'
+     * @param {object} options
+     * @param {string} options.title - Dialog title
+     * @param {string} options.message - Dialog message
+     * @param {string} [options.primaryLabel] - Label for Save button
+     * @param {string} [options.secondaryLabel] - Label for Don't Save button
+     * @param {string} [options.cancelLabel] - Label for Cancel button
+     * @returns {Promise<'save'|'dontsave'|'cancel'>}
+     */
+    saveChangesPrompt: async ({ title, message, primaryLabel = 'Save', secondaryLabel = "Don't Save", cancelLabel = 'Cancel' }) => {
+        // Dynamic import to avoid circular deps
+        if (!MessageBox) {
+            // eslint-disable-next-line no-undef
+            MessageBox = (await import('../components/Layout/MessageBox.jsx')).default;
+        }
+
+        return new Promise((resolve) => {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const root = createRoot(container);
+
+            const handleClose = (result) => {
+                try {
+                    root.unmount();
+                } catch {}
+                container.remove();
+                resolve(result);
+            };
+
+            root.render(
+                React.createElement(MessageBox, {
+                    title,
+                    message,
+                    primaryLabel,
+                    secondaryLabel,
+                    cancelLabel,
+                    onPrimary: () => handleClose('save'),
+                    onSecondary: () => handleClose('dontsave'),
+                    onCancel: () => handleClose('cancel')
+                })
+            );
+        });
     }
 };

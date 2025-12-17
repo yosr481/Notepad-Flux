@@ -27,26 +27,30 @@ export const useCommands = (showToast) => {
         createTab();
     };
 
-    const closeTab = async (id) => {
+    const closeTab = async (id, options = {}) => {
+        const { skipPrompt = false } = options;
         const tab = tabs.find(t => t.id === id);
         if (!tab) return;
 
-        if (tab.isDirty) {
-            const shouldSave = await dialogs.confirm(`Save changes to ${tab.title}?`);
-            if (shouldSave) {
+        if (!skipPrompt && tab.isDirty) {
+            const choice = await dialogs.saveChangesPrompt({
+                title: 'Save changes?',
+                message: `Do you want to save changes to "${tab.title}" before closing?`
+            });
+            if (choice === 'cancel') return; // abort
+            if (choice === 'save') {
                 const content = tab.content;
-
                 try {
                     if (tab.fileHandle) {
                         await fileSystem.saveFile(tab.fileHandle, content);
                         updateTab(id, { content, isDirty: false });
                     } else if (!fileSystem.isSupported() && tab.filePath) {
                         const result = await fileSystem.saveFileAs(content, tab.filePath);
-                        if (!result) return;
+                        if (!result) return; // user cancelled save as
                         updateTab(id, { content, isDirty: false });
                     } else {
                         const result = await fileSystem.saveFileAs(content, tab.title);
-                        if (!result) return;
+                        if (!result) return; // user cancelled save as
                         updateTab(id, {
                             title: result.name,
                             filePath: result.name,
@@ -57,9 +61,10 @@ export const useCommands = (showToast) => {
                     }
                 } catch (error) {
                     console.error("Failed to save file on close", error);
-                    return;
+                    return; // abort close on error
                 }
             }
+            // if 'dontsave', proceed to close
         }
 
         // Logic to determine next active tab
@@ -332,56 +337,51 @@ export const useCommands = (showToast) => {
 
     const closeWindow = async () => {
         if (!isPrimaryWindow) {
-            const dirtyTabs = tabs.filter(t => t.isDirty);
-            if (dirtyTabs.length > 0) {
-                // We can't easily use a custom dialog here without blocking, so we use confirm.
-                // A better UX might be a custom modal, but for now window.confirm is consistent with closeTab.
-                // However, standard confirm is OK/Cancel. We need Save/Don't Save/Cancel.
-                // Browser confirm doesn't support 3 options.
-                // Let's use a simple flow: "Save changes?" -> OK=Save, Cancel=Don't Save? No, Cancel usually means abort.
-                // Let's try: "Unsaved changes. Click OK to Save and Close, Cancel to Close without saving?" - No that's dangerous.
-                // Let's stick to the browser standard: "Leave site? Changes you made may not be saved." logic via beforeunload for the X button.
-                // For the menu button, we can be smarter.
+            // Iterate tabs and prompt/save/close one by one until only one default tab remains
+            // Take a snapshot of current order to iterate deterministically
+            let toProcess = [...tabs];
+            for (let i = 0; i < toProcess.length; i++) {
+                // Refresh current tabs length on each iteration
+                if (tabs.length <= 1) break; // leave one default tab
+                const tab = toProcess[i];
+                // If this tab has already been closed due to side effects, skip
+                const current = tabs.find(t => t.id === tab.id);
+                if (!current) continue;
 
-                // Let's assume we want to offer saving.
-                if (await dialogs.confirm('You have unsaved changes. Save them now?')) {
-                    // Try to save all dirty tabs
-                    for (const tab of dirtyTabs) {
-                        // Logic similar to closeTab save
-                        // We need to activate the tab to get editor content? 
-                        // Actually tab.content might be stale if editor has changes not yet synced?
-                        // onContentChange syncs to tab.content, so tab.content should be up to date.
-
+                if (current.isDirty) {
+                    const choice = await dialogs.saveChangesPrompt({
+                        title: 'Save changes?',
+                        message: `Do you want to save changes to "${current.title}" before closing the window?`
+                    });
+                    if (choice === 'cancel') return; // abort entire close
+                    if (choice === 'save') {
                         try {
-                            if (tab.fileHandle) {
-                                await fileSystem.saveFile(tab.fileHandle, tab.content);
-                            } else if (!fileSystem.isSupported() && tab.filePath) {
-                                await fileSystem.saveFileAs(tab.content, tab.filePath);
+                            if (current.fileHandle) {
+                                await fileSystem.saveFile(current.fileHandle, current.content);
+                                updateTab(current.id, { isDirty: false });
+                            } else if (!fileSystem.isSupported() && current.filePath) {
+                                const result = await fileSystem.saveFileAs(current.content, current.filePath);
+                                if (!result) return; // aborted save-as
+                                updateTab(current.id, { isDirty: false });
                             } else {
-                                const result = await fileSystem.saveFileAs(tab.content, tab.title);
-                                if (result) {
-                                    // Update tab just in case, though we are closing
-                                    updateTab(tab.id, { ...result, isDirty: false });
-                                } else {
-                                    // User cancelled save dialog for a file
-                                    return; // Abort close
-                                }
+                                const result = await fileSystem.saveFileAs(current.content, current.title);
+                                if (!result) return; // aborted save-as
+                                updateTab(current.id, {
+                                    title: result.name,
+                                    filePath: result.name,
+                                    fileHandle: result.handle,
+                                    isDirty: false
+                                });
                             }
                         } catch (err) {
                             console.error('Failed to save', err);
-                            return; // Abort close
+                            return; // abort close on error
                         }
                     }
-                } else {
-                    // User said No to "Save them now?". 
-                    // Does that mean "Don't Save" or "Cancel"?
-                    // Usually "Cancel" means "Oops, I didn't mean to close".
-                    // But standard confirm is binary.
-                    // Let's ask: "Are you sure you want to close without saving?" if they say No to saving.
-                    if (!await dialogs.confirm('Close without saving?')) {
-                        return;
-                    }
+                    // if 'dontsave', proceed without saving
                 }
+
+                await closeTab(current.id, { skipPrompt: true });
             }
         }
         window.close();

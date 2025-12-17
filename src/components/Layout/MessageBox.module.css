@@ -1,0 +1,96 @@
+﻿.overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--background-modifier-cover);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+}
+
+.container {
+  background: var(--background-primary);
+  color: var(--text-normal);
+  width: 420px;
+  max-width: calc(100% - 32px);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m, 6px);
+  box-shadow: var(--shadow-image, 0 12px 32px rgba(0,0,0,0.2));
+  overflow: hidden;
+}
+
+.header {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-text);
+  font-size: var(--font-size-m);
+  font-weight: 600;
+}
+
+.content {
+  padding: 16px;
+}
+
+.message {
+  margin: 0;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  background: var(--background-secondary);
+  border-top: 1px solid var(--background-modifier-border);
+}
+
+.spacer {
+  flex: 1;
+}
+
+.buttonBase {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: var(--radius-s, 4px);
+  font-family: var(--font-text);
+  font-size: var(--font-size-s);
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.primaryButton {
+  composes: buttonBase;
+  background: var(--interactive-accent);
+  color: var(--text-on-accent);
+}
+
+.primaryButton:hover {
+  background: var(--interactive-accent-hover);
+}
+
+.secondaryButton {
+  composes: buttonBase;
+  background: var(--interactive-normal);
+  color: var(--text-normal);
+  border-color: var(--background-modifier-border);
+}
+
+.secondaryButton:hover {
+  background: var(--interactive-hover);
+}
+
+.cancelButton {
+  composes: buttonBase;
+  background: transparent;
+  color: var(--text-normal);
+}
+
+.cancelButton:hover {
+  background: var(--interactive-hover);
+}
