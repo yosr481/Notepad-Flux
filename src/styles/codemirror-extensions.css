@@ -164,6 +164,12 @@
    LINK HANDLER STYLES
    ============================================ */
 
+.cm-tooltip {
+    border: none !important;
+    outline: none !important;
+    background: transparent !important;
+}
+
 .cm-tooltip-cursor {
     padding: var(--space-4) var(--space-8);
     background-color: var(--background-secondary);
