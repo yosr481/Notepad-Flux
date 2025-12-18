@@ -73,6 +73,21 @@ function createWindow() {
       contextIsolation: true
     }
   });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    return {
+      action: "allow",
+      overrideBrowserWindowOptions: {
+        titleBarStyle: "hidden",
+        titleBarOverlay: {
+          color: "#00000000",
+          symbolColor: "#64748b",
+          height: 40
+        },
+        backgroundMaterial: "mica",
+        icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+      }
+    };
+  });
   win.once("ready-to-show", () => {
     win.show();
     if (splash) {
