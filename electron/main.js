@@ -92,6 +92,7 @@ function createWindow() {
             preload: join(process.env.DIST_ELECTRON, 'preload.js'),
             nodeIntegration: false,
             contextIsolation: true,
+            sandbox: true
         },
     })
     
@@ -107,6 +108,10 @@ function createWindow() {
                 },
                 backgroundMaterial: 'mica',
                 icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
+                webPreferences: {
+                    preload: join(process.env.DIST_ELECTRON, 'preload.js'),
+                    sandbox: true,
+                }
             }
         }
     })
