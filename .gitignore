@@ -1,4 +1,4 @@
-﻿# Node
+# Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
@@ -48,3 +48,4 @@ logs/**/*.log
 *.local
 *.swp
 *.swo
+.output.txt
