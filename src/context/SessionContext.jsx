@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { storage } from '../services/storage';
+import { sanitizeFilename } from '../utils/fileSystem';
 
 const SessionContext = createContext();
 
@@ -31,7 +32,8 @@ export const SessionProvider = ({ children }) => {
     // Helper to generate title from content
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
-        return firstLine ? firstLine.slice(0, 35) : 'Untitled';
+        const title = firstLine ? firstLine.slice(0, 35) : 'Untitled';
+        return sanitizeFilename(title);
     };
 
     // Debounced save helper
