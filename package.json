@@ -91,7 +91,7 @@
       "oneClick": false,
       "perMachine": false,
       "allowElevation": true,
-      "allowToChangeInstallationDirectory": false,
+      "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Notepad Flux",

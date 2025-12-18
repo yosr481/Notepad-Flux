@@ -1,60 +1,51 @@
-import { app, ipcMain, dialog, BrowserWindow, Menu } from "electron";
-import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { readFile, writeFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { platform } from "node:process";
-const __filename$1 = fileURLToPath(import.meta.url);
-const __dirname$1 = dirname(__filename$1);
-const getPersistentDataPath = () => {
-  const home = homedir();
-  if (platform === "win32") {
-    return join(home, "AppData", "LocalLow", "Notepad Flux");
-  } else {
-    return join(home, ".config", "notepad-flux");
-  }
+import { app as a, ipcMain as s, dialog as d, BrowserWindow as l, Menu as f } from "electron";
+import { dirname as u, join as e } from "node:path";
+import { fileURLToPath as v } from "node:url";
+import { readFile as p, writeFile as E } from "node:fs/promises";
+import { homedir as g } from "node:os";
+import { platform as I } from "node:process";
+const _ = v(import.meta.url), c = u(_), T = () => {
+  const n = g();
+  return I === "win32" ? e(n, "AppData", "LocalLow", "Notepad Flux") : e(n, ".config", "notepad-flux");
 };
-app.setPath("userData", getPersistentDataPath());
-ipcMain.handle("read-file", async () => {
-  const { canceled, filePaths } = await dialog.showOpenDialog({
+a.setPath("userData", T());
+s.handle("read-file", async () => {
+  const { canceled: n, filePaths: o } = await d.showOpenDialog({
     properties: ["openFile"],
     filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
   });
-  if (canceled) return { canceled };
-  const content = await readFile(filePaths[0], "utf-8");
-  return { canceled, filePath: filePaths[0], content };
+  if (n) return { canceled: n };
+  const r = await p(o[0], "utf-8");
+  return { canceled: n, filePath: o[0], content: r };
 });
-ipcMain.handle("read-file-content", async (event, filePath) => {
+s.handle("read-file-content", async (n, o) => {
   try {
-    const content = await readFile(filePath, "utf-8");
-    return content;
-  } catch (e) {
-    throw e;
+    return await p(o, "utf-8");
+  } catch (r) {
+    throw r;
   }
 });
-ipcMain.handle("save-file", async (event, { filePath, content }) => {
-  if (!filePath) {
-    const { canceled, filePath: savePath } = await dialog.showSaveDialog({
+s.handle("save-file", async (n, { filePath: o, content: r }) => {
+  if (!o) {
+    const { canceled: m, filePath: h } = await d.showSaveDialog({
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
     });
-    if (canceled) return { canceled: true };
-    filePath = savePath;
+    if (m) return { canceled: !0 };
+    o = h;
   }
-  await writeFile(filePath, content, "utf-8");
-  return { filePath };
+  return await E(o, r, "utf-8"), { filePath: o };
 });
-process.env.DIST_ELECTRON = join(__dirname$1, "../dist-electron");
-process.env.DIST = join(__dirname$1, "../dist");
-process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? join(__dirname$1, "../public") : process.env.DIST;
-let win = null;
-let splash = null;
-function createWindow() {
-  win = new BrowserWindow({
+process.env.DIST_ELECTRON = e(c, "../dist-electron");
+process.env.DIST = e(c, "../dist");
+process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? e(c, "../public") : process.env.DIST;
+let t = null, i = null;
+function w() {
+  t = new l({
     width: 1200,
     height: 800,
     minWidth: 400,
     minHeight: 300,
-    show: false,
+    show: !1,
     // Wait until ready-to-show
     titleBarStyle: "hidden",
     titleBarOverlay: {
@@ -66,61 +57,48 @@ function createWindow() {
       // Match tab height
     },
     backgroundMaterial: "mica",
-    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
+    icon: e(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
     webPreferences: {
-      preload: join(process.env.DIST_ELECTRON, "preload.js"),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: true
+      preload: e(process.env.DIST_ELECTRON, "preload.js"),
+      nodeIntegration: !1,
+      contextIsolation: !0,
+      sandbox: !0
     }
-  });
-  win.webContents.setWindowOpenHandler(({ url }) => {
-    return {
-      action: "allow",
-      overrideBrowserWindowOptions: {
-        titleBarStyle: "hidden",
-        titleBarOverlay: {
-          color: "#00000000",
-          symbolColor: "#64748b",
-          height: 40
-        },
-        backgroundMaterial: "mica",
-        icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+  }), t.webContents.setWindowOpenHandler(({ url: n }) => ({
+    action: "allow",
+    overrideBrowserWindowOptions: {
+      titleBarStyle: "hidden",
+      titleBarOverlay: {
+        color: "#00000000",
+        symbolColor: "#64748b",
+        height: 40
+      },
+      backgroundMaterial: "mica",
+      icon: e(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
+      webPreferences: {
+        preload: e(process.env.DIST_ELECTRON, "preload.js"),
+        sandbox: !0
       }
-    };
-  });
-  win.once("ready-to-show", () => {
-    win.show();
-    if (splash) {
-      splash.close();
     }
-  });
-  Menu.setApplicationMenu(null);
-  win.webContents.on("did-finish-load", () => {
-    win?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  });
-  if (process.env.VITE_DEV_SERVER_URL) {
-    win.loadURL(process.env.VITE_DEV_SERVER_URL);
-  } else {
-    win.loadFile(join(process.env.DIST, "index.html"));
-  }
+  })), t.once("ready-to-show", () => {
+    t.show(), i && i.close();
+  }), f.setApplicationMenu(null), t.webContents.on("did-finish-load", () => {
+    t?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  }), process.env.VITE_DEV_SERVER_URL ? t.loadURL(process.env.VITE_DEV_SERVER_URL) : t.loadFile(e(process.env.DIST, "index.html"));
 }
-app.on("window-all-closed", () => {
-  win = null;
-  if (process.platform !== "darwin") app.quit();
+a.on("window-all-closed", () => {
+  t = null, process.platform !== "darwin" && a.quit();
 });
-app.on("activate", () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
+a.on("activate", () => {
+  l.getAllWindows().length === 0 && w();
 });
-app.whenReady().then(() => {
-  splash = new BrowserWindow({
+a.whenReady().then(() => {
+  i = new l({
     width: 300,
     height: 300,
-    transparent: true,
-    frame: false,
-    alwaysOnTop: true,
-    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
-  });
-  splash.loadFile(join(process.env.VITE_PUBLIC, "loading.html"));
-  createWindow();
+    transparent: !0,
+    frame: !1,
+    alwaysOnTop: !0,
+    icon: e(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+  }), i.loadFile(e(process.env.VITE_PUBLIC, "loading.html")), w();
 });
