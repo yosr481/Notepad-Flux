@@ -1,7 +1,7 @@
 # Architecture Design Document
 
 **Project:** Notepad Flux  
-**Last Updated:** 2025-12-11
+**Last Updated:** 2025-12-18
 
 ---
 
@@ -13,15 +13,26 @@ This document outlines the architectural design of **Notepad Flux**, a lightweig
 
 ## 2. System Overview
 
-The application is a Single Page Application (SPA) built with **React** and **Vite**, utilizing **CodeMirror 6** as the core text editing engine. It is designed to run in modern web browsers with planned support for desktop packaging via Electron.
+The application is a Single Page Application (SPA) built with **React** and **Vite**, utilizing **CodeMirror 6** as the core text editing engine. It runs in modern web browsers and is also packaged as a native desktop application using **Electron** (implemented).
 
 ### Key Technologies
 
-- **Frontend Framework**: React 18+
+- **Frontend Framework**: React 18+/19
 - **Build Tool**: Vite
 - **Editor Engine**: CodeMirror 6 (@codemirror/view, @codemirror/state, @codemirror/language)
 - **Styling**: CSS Modules + Global CSS Variables
 - **Icons**: Phosphor Icons
+
+### Desktop Packaging (Electron)
+
+- Main Process: electron/main.js
+- Preload Script: dist-electron/preload.js (built)
+- Renderer: dist/index.html (Vite build)
+- IPC Channels: read-file, read-file-content, save-file, main-process-message
+- Window Integration: custom title bar overlay, mica background (Windows), splash screen
+- Installers: Windows NSIS (x64, ia32), Linux deb and AppImage via electron-builder
+
+For full desktop packaging details, see Docs/DESKTOP_ELECTRON.md.
 
 ---
 
@@ -54,26 +65,40 @@ graph TD
 
 ## 4. Directory Structure
 
-```
+Directory Structure (key paths):
+
 src/
-├── components/         # React UI Components
-│   ├── Layout/         # UI Shell (MenuBar, Tabs, StatusBar, etc.)
-│   └── Editor.jsx      # Wrapper around CodeMirror instance
-├── context/            # React Context for global state
-│   └── SessionContext  # Manages tabs, active file, and session data
-├── extensions/         # CodeMirror 6 Extensions (The "Brain" of the editor)
-│   ├── livePreview.js  # Core WYSIWYG logic (syntax hiding/revealing)
-│   ├── widgets.js      # Custom DOM widgets (Checkboxes, Tables, HR)
-│   ├── imagePreview.js # Inline image rendering
+├── components/             - React UI Components
+│   ├── Layout/             - UI Shell (MenuBar, Tabs, StatusBar, etc.)
+│   └── Editor.jsx          - Wrapper around CodeMirror instance
+├── context/                - React Context for global state
+│   └── SessionContext      - Manages tabs, active file, and session data
+├── extensions/             - CodeMirror 6 Extensions (The "Brain" of the editor)
+│   ├── livePreview.js      - Core WYSIWYG logic (syntax hiding/revealing)
+│   ├── widgets.js          - Custom DOM widgets (Checkboxes, Tables, HR)
+│   ├── imagePreview.js     - Inline image rendering
 │   └── ...
-├── hooks/              # Custom React Hooks
-│   └── useCommands.js  # Centralized command logic (Save, Open, New Tab)
-├── styles/             # Global styles and CSS variables
-├── utils/              # Utility functions
-│   └── fileSystem.js   # Abstraction for File System Access API
-├── App.jsx             # Main application layout and event wiring
-└── main.jsx            # Entry point
-```
+├── hooks/                  - Custom React Hooks
+│   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
+├── styles/                 - Global styles and CSS variables
+├── utils/                  - Utility functions
+│   └── fileSystem.js       - Abstraction for File System Access API
+├── App.jsx                 - Main application layout and event wiring
+└── main.jsx                - Entry point
+
+electron/                   - Electron main-process source (ESM)
+└── main.js                 - Creates windows, sets IPC handlers
+
+dist/                       - Vite build output for renderer
+└── index.html
+
+dist-electron/              - Built Electron bundles (by Vite/electron plugin)
+├── main.js                 - Transpiled main process
+└── preload.js              - Preload script (contextBridge)
+
+public/
+├── icons/desktop/icon.png  - App icon used by installers/windows
+└── loading.html            - Splash screen UI
 
 ---
 
@@ -107,8 +132,26 @@ src/
 - **Mechanism**:
   - Uses a CodeMirror `ViewPlugin` and `StateField`.
   - **`buildDecorations`**: Scans the document for markdown syntax (Bold, Italic, Headings, etc.).
-  - **Cursor Detection**: Checks if the user's cursor (`state.selection`) overlaps with a syntax node.
+    - **Cursor Detection**: Checks if the user's cursor (`state.selection`) overlaps with a syntax node.
     - **If Overlap**: Renders raw text (reveals syntax).
+
+### 5.4. Desktop IPC & File Access
+
+When running under Electron, file operations are routed via IPC to the main process to maintain security boundaries:
+
+- read-file: Opens a native file picker and returns { canceled, filePath, content }.
+- read-file-content(filePath): Reads content of a given path.
+- save-file({ filePath?, content }): Saves to an existing path or opens Save As when filePath is missing.
+
+The renderer uses the preload script to access typed IPC wrappers (see DESKTOP_ELECTRON.md).
+
+### 5.5. Persistence Paths (Desktop)
+
+- app.getPath('userData') is overridden to a stable per-OS path:
+  - Windows: %USERPROFILE%\AppData\LocalLow\Notepad Flux
+  - Linux: ~/.config/notepad-flux
+
+This path is used for window/session metadata, crash dumps, and other runtime data where applicable.
     - **If No Overlap**: Replaces syntax with styled `Decoration` (e.g., hides `**`, makes text bold) or replaces the node with a `Widget` (e.g., Checkbox, Horizontal Rule).
 
 - **Widgets**:
