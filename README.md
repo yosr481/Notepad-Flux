@@ -25,15 +25,26 @@ The app is designed to be fast and distraction-free. It combines the simplicity 
   - **Tabs**: Support for multiple open files via a tabbed interface.
 - **Theming**: Built-in support for both Dark and Light modes.
 
+## Screenshots
+
+> Note: The images below are referenced from `Docs/screenshots/`.
+
+![Notepad Flux — Dark theme with tabs, status bar, and Markdown table/blockquote preview](Docs/screenshots/editor-dark-tables-blockquotes.png)
+
+Small demo in Dark theme showing multiple tabs, status bar, and live-rendered Markdown (tables and blockquotes).
+
+![Notepad Flux — Light theme window](Docs/screenshots/editor-light-window.png)
+
+Light theme look-and-feel with a minimal canvas and multiple windows.
+
+![Notepad Flux — Blank canvas in Dark theme](Docs/screenshots/editor-dark-blank.png)
+
+A distraction-free, blank canvas ready for writing in Dark mode.
+
 ## Technology Stack
 - **Frontend**: React + Vite
 - **Editor Engine**: CodeMirror 6
 - **Current Status**: Stable desktop builds are available via Releases (see above). The web app can also be run locally for development.
-
-## Roadmap
-The ultimate goal is to wrap the application in **Electron** to distribute it as a native desktop application for:
-- Windows
-- Linux
 
 # For Developers: Project Setup
 
