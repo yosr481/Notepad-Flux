@@ -1,10 +1,10 @@
----  
-name: Bug Report  
-description: Report a reproducible bug in Notepad-Flux  
-title: "[Bug]: "  
-labels: ["bug"]  
-assignees: []  
----  
+---
+name: Bug report
+about: Report a reproducible bug in Notepad Flux
+title: "[Bug]: "
+labels: bug
+assignees: ''
+---
   
 ## Description  
 A clear and concise description of what the bug is.  
