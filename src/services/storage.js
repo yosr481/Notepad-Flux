@@ -1,4 +1,5 @@
 import { openDB } from 'idb';
+import { encrypt, decrypt } from '../utils/crypto';
 
 const DB_NAME = 'notepad-flux-db';
 const DB_VERSION = 1;
@@ -21,7 +22,13 @@ export const storage = {
 
     async saveTab(tab) {
         const db = await this.initDB();
-        await db.put(STORE_TABS, tab);
+        // Encrypt content before saving
+        const encryptedContent = await encrypt(tab.content);
+        const encryptedTab = {
+            ...tab,
+            content: encryptedContent
+        };
+        await db.put(STORE_TABS, encryptedTab);
     },
 
     async deleteTab(tabId) {
@@ -31,10 +38,17 @@ export const storage = {
 
     async saveMetadata(data) {
         const db = await this.initDB();
-        const tx = db.transaction(STORE_METADATA, 'readwrite');
-        const store = tx.objectStore(STORE_METADATA);
+        
+        // Encrypt all metadata values first, outside the transaction
+        const encryptedData = {};
         for (const [key, value] of Object.entries(data)) {
-            await store.put(value, key);
+            const stringifiedValue = JSON.stringify(value);
+            encryptedData[key] = await encrypt(stringifiedValue);
+        }
+
+        const tx = db.transaction(STORE_METADATA, 'readwrite');
+        for (const [key, value] of Object.entries(encryptedData)) {
+            await tx.store.put(value, key);
         }
         await tx.done;
     },
@@ -43,13 +57,30 @@ export const storage = {
         const db = await this.initDB();
 
         // Load tabs
-        const tabs = await db.getAll(STORE_TABS);
+        const encryptedTabs = await db.getAll(STORE_TABS);
+        const tabs = await Promise.all((encryptedTabs || []).map(async tab => ({
+            ...tab,
+            content: await decrypt(tab.content)
+        })));
+
+        // Helper to load and decrypt metadata
+        const getDecryptedMetadata = async (key) => {
+            const encryptedValue = await db.get(STORE_METADATA, key);
+            if (!encryptedValue) return null;
+            const decryptedValue = await decrypt(encryptedValue);
+            try {
+                return JSON.parse(decryptedValue);
+            } catch (e) {
+                // Fallback for non-JSON or legacy data
+                return decryptedValue;
+            }
+        };
 
         // Load metadata
-        const activeTabId = await db.get(STORE_METADATA, 'activeTabId');
-        const recentFiles = await db.get(STORE_METADATA, 'recentFiles') || [];
-        const tabOrder = await db.get(STORE_METADATA, 'tabOrder') || [];
-        const settings = await db.get(STORE_METADATA, 'settings');
+        const activeTabId = await getDecryptedMetadata('activeTabId');
+        const recentFiles = await getDecryptedMetadata('recentFiles') || [];
+        const tabOrder = await getDecryptedMetadata('tabOrder') || [];
+        const settings = await getDecryptedMetadata('settings');
 
         return {
             tabs: tabs || [],
