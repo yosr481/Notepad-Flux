@@ -3,6 +3,26 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
+import { homedir } from 'node:os'
+import { platform } from 'node:process'
+
+// Define __dirname for ES modules
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
+
+// Set userData directory to platform-specific persistent path before app is ready
+const getPersistentDataPath = () => {
+    const home = homedir()
+    if (platform === 'win32') {
+        // Windows: %userprofile%\AppData\LocalLow\Notepad Flux
+        return join(home, 'AppData', 'LocalLow', 'Notepad Flux')
+    } else {
+        // Linux: ~/.config/notepad-flux
+        return join(home, '.config', 'notepad-flux')
+    }
+}
+
+app.setPath('userData', getPersistentDataPath())
 
 ipcMain.handle('read-file', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -35,10 +55,6 @@ ipcMain.handle('save-file', async (event, { filePath, content }) => {
     return { filePath }
 })
 
-
-// Get __dirname equivalent in ESM
-const __filename = fileURLToPath(import.meta.url)
-const __dirname = dirname(__filename)
 
 // The built directory structure
 //
@@ -74,7 +90,30 @@ function createWindow() {
         icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
         webPreferences: {
             preload: join(process.env.DIST_ELECTRON, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true
         },
+    })
+    
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        return {
+            action: 'allow',
+            overrideBrowserWindowOptions: {
+                titleBarStyle: 'hidden',
+                titleBarOverlay: {
+                    color: '#00000000',
+                    symbolColor: '#64748b',
+                    height: 40
+                },
+                backgroundMaterial: 'mica',
+                icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
+                webPreferences: {
+                    preload: join(process.env.DIST_ELECTRON, 'preload.js'),
+                    sandbox: true,
+                }
+            }
+        }
     })
 
     win.once('ready-to-show', () => {

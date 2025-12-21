@@ -1,9 +1,9 @@
 ---
-name: Feature Request
-description: Suggest an idea or improvement for Notepad-Flux
+name: Feature request
+about: Suggest an idea or improvement for Notepad Flux
 title: "[Feature]: "
-labels: ["enhancement"]
-assignees: []
+labels: enhancement
+assignees: ''
 ---
 
 ## Is your feature request related to a problem?

@@ -15,6 +15,7 @@ Welcome to the Notepad Flux documentation. This directory contains comprehensive
 | **[DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md)** | Design system including colors, typography, Fluent design elements, and accessibility guidelines |
 | **[FEATURES.md](./FEATURES.md)** | Detailed documentation of Live Preview markdown features and behaviors |
 | **[MARKDOWN_REFERENCE.md](./MARKDOWN_REFERENCE.md)** | Quick reference guide for supported Markdown syntax |
+| **[DESKTOP_ELECTRON.md](./DESKTOP_ELECTRON.md)** | Electron desktop app architecture, IPC bridges, installers (Windows NSIS, Linux deb/AppImage), and packaging notes |
 
 ---
 
@@ -25,6 +26,7 @@ Welcome to the Notepad Flux documentation. This directory contains comprehensive
 - **Start with:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) to understand the system structure
 - **Then read:** [`DESIGN_SYSTEM.md`](./DESIGN_SYSTEM.md) for UI/UX implementation guidelines
 - **Reference:** [`FEATURES.md`](./FEATURES.md) when implementing or modifying markdown features
+- **Desktop builds:** See [`DESKTOP_ELECTRON.md`](./DESKTOP_ELECTRON.md) for Electron specifics and installer targets
 
 ### For Designers
 
@@ -32,16 +34,11 @@ Welcome to the Notepad Flux documentation. This directory contains comprehensive
 - **Then read:** [`SPECIFICATIONS.md`](./SPECIFICATIONS.md) for UX behavior requirements
 - **Reference:** [`FEATURES.md`](./FEATURES.md) to understand feature interactions
 
-### For Product Managers
-
-- **Start with:** [`SPECIFICATIONS.md`](./SPECIFICATIONS.md) for product requirements
-- **Then read:** [`FEATURES.md`](./FEATURES.md) to understand feature capabilities
-- **Reference:** [`ARCHITECTURE.md`](./ARCHITECTURE.md) for technical constraints and scalability
-
 ### For Users
 
 - **Start with:** [`MARKDOWN_REFERENCE.md`](./MARKDOWN_REFERENCE.md) for markdown syntax help
 - **Reference:** [`FEATURES.md`](./FEATURES.md) to understand advanced features
+- **Installers:** See [`DESKTOP_ELECTRON.md`](./DESKTOP_ELECTRON.md) for platform-specific install notes
 
 ---
 

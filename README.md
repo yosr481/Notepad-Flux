@@ -2,6 +2,18 @@
 
 A minimal, lightweight markdown writing application inspired by the simplicity of Windows Notepad, but with powerful modern features.
 
+## Download (Windows & Linux)
+
+We distribute Notepad Flux via GitHub Releases.
+
+- Latest stable: https://github.com/yosr481/Notepad-Flux/releases/tag/v1.1.0
+
+Downloads are available for:
+- Windows (installer)
+- Linux (AppImage or equivalent package)
+
+After download, run the installer (Windows) or mark the file as executable and run it (Linux). No additional setup is required.
+
 ## Core Philosophy
 The app is designed to be fast and distraction-free. It combines the simplicity of a plain text editor with the power of a WYSIWYG interface.
 
@@ -13,19 +25,30 @@ The app is designed to be fast and distraction-free. It combines the simplicity 
   - **Tabs**: Support for multiple open files via a tabbed interface.
 - **Theming**: Built-in support for both Dark and Light modes.
 
+## Screenshots
+
+> Note: The images below are referenced from `Docs/screenshots/`.
+
+![Notepad Flux — Dark theme with tabs, status bar, and Markdown table/blockquote preview](Docs/screenshots/editor-dark-tables-blockquotes.png)
+
+Small demo in Dark theme showing multiple tabs, status bar, and live-rendered Markdown (tables and blockquotes).
+
+![Notepad Flux — Light theme window](Docs/screenshots/editor-light-window.png)
+
+Light theme look-and-feel with a minimal canvas and multiple windows.
+
+![Notepad Flux — Blank canvas in Dark theme](Docs/screenshots/editor-dark-blank.png)
+
+A distraction-free, blank canvas ready for writing in Dark mode.
+
 ## Technology Stack
 - **Frontend**: React + Vite
 - **Editor Engine**: CodeMirror 6
-- **Current Status**: Currently under development and testing in Chrome/Firefox.
+- **Current Status**: Stable desktop builds are available via Releases (see above). The web app can also be run locally for development.
 
-## Roadmap
-The ultimate goal is to wrap the application in **Electron** to distribute it as a native desktop application for:
-- Windows
-- Linux
+# For Developers: Project Setup
 
-# Project Setup Instructions
-
-Welcome to the **Notepad Flux** project! Since you are setting this up on a new machine, follow these steps to get up and running.
+Welcome to the **Notepad Flux** project! If you want to develop or contribute, follow these steps to get up and running locally.
 
 ## Prerequisites
 
@@ -39,7 +62,7 @@ Welcome to the **Notepad Flux** project! Since you are setting this up on a new 
     npm install
     ```
 
-## Running the Project
+## Running the Project (Web Dev Server)
 
 1.  **Start the development server**:
     ```bash
@@ -61,5 +84,10 @@ To run the linter:
 npm run lint
 ```
 
-# License
+## Support and Feedback
+
+- Found a bug or have a feature request? Please open an issue.
+- Looking to contribute? See `CONTRIBUTING.md`.
+
+## License
 This project is licensed under the [MIT License](LICENSE).

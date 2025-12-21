@@ -1,14 +1,16 @@
----  
-name: Bug Report  
-description: Report a reproducible bug in Notepad-Flux  
-title: "[Bug]: "  
-labels: ["bug"]  
-assignees: []  
----  
+---
+name: Bug report
+about: Report a reproducible bug in Notepad Flux
+title: "[Bug]: "
+labels: bug
+assignees: ''
+---
   
 ## Description  
 A clear and concise description of what the bug is.  
   
+> Tip: Please confirm the bug on the latest Release build before filing. Download here: https://github.com/yosr481/Notepad-Flux/releases/tag/v1.0.0
+
 ## Steps to Reproduce  
 1. Go to '...'  
 2. Click on '...'  
@@ -25,9 +27,9 @@ What actually happened?
 If applicable, add screenshots or a short recording to help explain your problem.  
   
 ## Environment  
-- OS: [e.g. Windows 11, macOS 14, Ubuntu 22.04]  
-- Browser: [e.g. Chrome 125, Firefox 125, Edge]  
-- App Version (if visible in UI or package.json):  
+- OS: [e.g. Windows 11, Ubuntu 22.04]  
+- App Variant: [Desktop Release, Dev build]  
+- App Version (from About dialog or release tag, e.g., v1.0.0):  
 - Any special configuration (e.g. large files, specific settings):  
   
 ## Additional Context  

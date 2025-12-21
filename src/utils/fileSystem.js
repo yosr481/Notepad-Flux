@@ -3,6 +3,54 @@
  * Handles file operations for the browser environment.
  */
 
+// Conditional import of path module (only available in Electron/Node.js)
+let path = null;
+try {
+    path = require('path');
+} catch (e) {
+    // path module not available (web environment)
+}
+
+// --- Utilities ---
+
+/**
+ * Sanitize filename by removing/replacing invalid characters
+ * Handles Windows, macOS, and Linux invalid characters
+ * @param {string} filename - The filename to sanitize
+ * @returns {string} - The sanitized filename
+ */
+export const sanitizeFilename = (filename) => {
+    // Invalid characters on Windows, macOS, and Linux
+    const invalidChars = /[<>:"|?*\x00-\x1f]/g;
+    
+    // Replace invalid chars with underscore
+    let sanitized = filename.replace(invalidChars, '');
+    
+    // Remove leading/trailing dots and spaces (Windows reserved)
+    sanitized = sanitized.replace(/^\.+|\.+$|^ +| +$/g, '');
+    
+    // Prevent reserved names (Windows)
+    const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
+    if (reserved.test(sanitized)) {
+        sanitized = `_${sanitized}`;
+    }
+    
+    return sanitized || 'untitled';
+};
+
+/**
+ * Extract filename from full file path using Path API (Electron) or fallback
+ * @param {string} filePath - The full file path
+ * @returns {string} - Just the filename
+ */
+export const getFilenameFromPath = (filePath) => {
+    if (typeof filePath === 'string') {
+        // Use path.basename if available (Electron), otherwise use web fallback
+        return path ? path.basename(filePath) : filePath.split(/[\\/]/).pop();
+    }
+    return filePath;
+};
+
 // --- Drivers ---
 
 const WebNativeDriver = {
@@ -50,8 +98,9 @@ const WebNativeDriver = {
 
     saveFileAs: async (content, suggestedName) => {
         try {
+            const cleanName = sanitizeFilename(suggestedName);
             const handle = await window.showSaveFilePicker({
-                suggestedName,
+                suggestedName: cleanName,
                 types: [
                     {
                         description: 'Markdown File',
@@ -81,8 +130,9 @@ const WebNativeDriver = {
 
     exportFile: async (content, suggestedName, types) => {
         try {
+            const cleanName = sanitizeFilename(suggestedName);
             const handle = await window.showSaveFilePicker({
-                suggestedName,
+                suggestedName: cleanName,
                 types,
             });
 
@@ -182,18 +232,20 @@ const WebFallbackDriver = {
     },
 
     saveFileAs: async (content, suggestedName) => {
-        WebFallbackDriver.downloadFile(content, suggestedName);
+        const cleanName = sanitizeFilename(suggestedName);
+        WebFallbackDriver.downloadFile(content, cleanName);
         return {
             handle: null,
-            name: suggestedName
+            name: cleanName
         };
     },
 
     exportFile: async (content, suggestedName, types) => {
-        WebFallbackDriver.downloadFile(content, suggestedName);
+        const cleanName = sanitizeFilename(suggestedName);
+        WebFallbackDriver.downloadFile(content, cleanName);
         return {
             handle: null,
-            name: suggestedName
+            name: cleanName
         };
     },
 
@@ -217,7 +269,7 @@ const ElectronDriver = {
             const result = await window.ipcRenderer.invoke('read-file');
             if (result.canceled) return null;
 
-            const name = result.filePath.replace(/^.*[\\/]/, '');
+            const name = getFilenameFromPath(result.filePath);
             return {
                 handle: result.filePath,
                 content: result.content,
@@ -234,10 +286,11 @@ const ElectronDriver = {
     },
 
     saveFileAs: async (content, suggestedName) => {
-        const result = await window.ipcRenderer.invoke('save-file', { content });
+        const cleanName = sanitizeFilename(suggestedName);
+        const result = await window.ipcRenderer.invoke('save-file', { content, suggestedName: cleanName });
         if (result.canceled) return null;
 
-        const name = result.filePath.replace(/^.*[\\/]/, '');
+        const name = getFilenameFromPath(result.filePath);
         return {
             handle: result.filePath,
             name
@@ -250,7 +303,7 @@ const ElectronDriver = {
 
     openFileFromHandle: async (handle) => {
         const content = await window.ipcRenderer.invoke('read-file-content', handle);
-        const name = handle.replace(/^.*[\\/]/, '');
+        const name = getFilenameFromPath(handle);
         return {
             handle,
             content,
@@ -261,7 +314,7 @@ const ElectronDriver = {
     openFileFromPath: async (filePath) => {
         try {
             const content = await window.ipcRenderer.invoke('read-file-content', filePath);
-            const name = filePath.replace(/^.*[\\/]/, '');
+            const name = getFilenameFromPath(filePath);
             return {
                 handle: filePath,
                 content,

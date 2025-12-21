@@ -1,87 +1,51 @@
-########################
-# Node / Package Manager
-########################
+# Node
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json.*
-yarn.lock.*
-pnpm-lock.yaml.*
 
-#############
-# Build Artifacts
-#############
+# Build output
 dist/
-dist-electron/
-build/
+dist-*/
 out/
-release/
-*.asar
-
-# Vite cache
-.vite/
-
-################
-# Environment / Secrets
-################
-# Never commit real env or secret files
-.env
-.env.*
-!.env.example
-
-# Local config overrides
-*.local
-
-#################
-# Logs & Diagnostics
-#################
-*.log
-logs/
-debug.log
-
-#############
-# Test / Coverage
-#############
+build/
 coverage/
 .nyc_output/
-.jest/
-.vscode-test/
 
-############
-# OS Files
-############
+# Electron packaging
+release/
+app-release/
+*.asar
+
+# IDE/editor
+.idea/
+.vscode/
+*.iml
+
+# OS files
 .DS_Store
 Thumbs.db
-ehthumbs.db
-.Spotlight-V100
-.Trashes
 
-################
-# Editor / IDE
-################
-# VS Code
-.vscode/
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+# Environment / local config
+.env*
+.cache/
 
-# JetBrains / Rider / WebStorm
-.idea/
-*.iml
-*.ipr
-*.iws
+# Test caches
+.eslintcache
+*.tsbuildinfo
 
-# Other editors
+# Internal docs and tooling
+.agent/
+Docs/internal/
+
+# Logs
+logs/
+*.log
+logs/**/*.log
+
+# Misc
+*.local
 *.swp
 *.swo
-*~
-GEMINI.md
-
-#############
-# Misc
-#############
-*.tgz
-*.orig
+.output.txt
