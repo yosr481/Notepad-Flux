@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
+    const [errors, setErrors] = useState({});
+
     if (!isOpen) return null;
+
+    const handleNumberChange = (key, value, min, max) => {
+        const num = parseInt(value, 10);
+        let error = '';
+        
+        if (isNaN(num)) {
+            error = 'Please enter a valid number';
+        } else if (num < min || num > max) {
+            error = `Must be between ${min} and ${max}`;
+        }
+
+        setErrors(prev => ({ ...prev, [key]: error }));
+        updateSettings({ [key]: isNaN(num) ? 0 : num });
+    };
 
     return (
         <div className={styles.overlay}>
@@ -46,10 +62,13 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
                         </div>
                         <input
                             type="number"
-                            className={styles.input}
+                            className={`${styles.input} ${errors.sessionWarnTabs ? styles.inputError : ''}`}
                             value={settings.sessionWarnTabs}
-                            onChange={(e) => updateSettings({ sessionWarnTabs: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => handleNumberChange('sessionWarnTabs', e.target.value, 1, 100)}
+                            min="1"
+                            max="100"
                         />
+                        {errors.sessionWarnTabs && <div className={styles.error}>{errors.sessionWarnTabs}</div>}
                     </div>
 
                     <div className={styles.row}>
@@ -59,10 +78,13 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
                         </div>
                         <input
                             type="number"
-                            className={styles.input}
+                            className={`${styles.input} ${errors.sessionWarnSize ? styles.inputError : ''}`}
                             value={settings.sessionWarnSize}
-                            onChange={(e) => updateSettings({ sessionWarnSize: parseInt(e.target.value) || 0 })}
+                            onChange={(e) => handleNumberChange('sessionWarnSize', e.target.value, 1, 1024)}
+                            min="1"
+                            max="1024"
                         />
+                        {errors.sessionWarnSize && <div className={styles.error}>{errors.sessionWarnSize}</div>}
                     </div>
                 </div>
 

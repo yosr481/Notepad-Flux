@@ -135,6 +135,16 @@
     box-shadow: var(--shadow-focus);
 }
 
+.inputError {
+    border-color: var(--color-error) !important;
+}
+
+.error {
+    color: var(--color-error);
+    font-size: 12px;
+    margin-top: 4px;
+}
+
 .button {
     height: 36px;
     padding: 0 var(--space-16);
