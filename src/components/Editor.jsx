@@ -19,8 +19,8 @@ import styles from './Editor.module.css';
 const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
-  const stateCache = useRef(new Map()); // Map<string, EditorState>
-  const scrollCache = useRef(new Map()); // Map<string, number>
+  const stateCache = useRef(new Map());
+  const scrollCache = useRef(new Map());
   const currentTabIdRef = useRef(activeTabId);
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
   const stateUpdateTimer = useRef(null);
@@ -119,14 +119,11 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
       } else if (options.direction === 'previous') {
         findPrevious(view);
       } else if (options.direction === 'current') {
-        // Incremental search: start from the beginning of current selection
-        // to avoid skipping the match being typed
         const { from } = view.state.selection.main;
         view.dispatch({ selection: { anchor: from, head: from } });
         findNext(view);
       }
 
-      // Count matches
       const state = view.state;
       const cursor = query.getCursor(state.doc);
       let total = 0;
@@ -228,7 +225,6 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
     }
   }));
 
-  // Helper to create the EditorState with all extensions
   const createEditorState = (docContent, cursorAnchor = 0) => {
     return EditorState.create({
       doc: docContent,
@@ -279,7 +275,6 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
             }
           }
 
-          // Debounced state update (cursor & scroll)
           if (onStateChange && (update.selectionSet || update.docChanged || update.viewportChanged)) {
             if (stateUpdateTimer.current) clearTimeout(stateUpdateTimer.current);
             stateUpdateTimer.current = setTimeout(() => {

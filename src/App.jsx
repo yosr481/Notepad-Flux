@@ -15,7 +15,6 @@ import Settings from './components/Settings/Settings';
 
 function App() {
     const editorRef = React.useRef(null);
-    // Guard to allow programmatic window.close() to bypass beforeunload interception
     const closingRef = React.useRef(false);
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
@@ -70,24 +69,19 @@ function App() {
         isPrimaryWindow
     } = useCommands(showToast);
 
-    // Handle window close (X button) for secondary windows using custom prompt flow
     useEffect(() => {
         const handleBeforeUnload = (e) => {
             if (!isPrimaryWindow) {
-                // If a programmatic close is in progress, allow it to proceed
                 if (closingRef.current) return;
 
                 const hasDirtyTabs = tabs.some(t => t.isDirty);
                 if (hasDirtyTabs) {
-                    // Cancel the default close and run our tab-by-tab save flow instead
                     e.preventDefault();
-                    // Important: do NOT set e.returnValue here; we do not want the browser's default prompt
                     setTimeout(async () => {
                         closingRef.current = true;
                         try {
                             await closeWindow();
                         } finally {
-                            // If user cancelled the flow, reset the flag so future attempts work
                             closingRef.current = false;
                         }
                     }, 0);

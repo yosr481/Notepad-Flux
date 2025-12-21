@@ -22,7 +22,6 @@ export const storage = {
 
     async saveTab(tab) {
         const db = await this.initDB();
-        // Encrypt content before saving
         const encryptedContent = await encrypt(tab.content);
         const encryptedTab = {
             ...tab,
@@ -39,7 +38,6 @@ export const storage = {
     async saveMetadata(data) {
         const db = await this.initDB();
         
-        // Encrypt all metadata values first, outside the transaction
         const encryptedData = {};
         for (const [key, value] of Object.entries(data)) {
             const stringifiedValue = JSON.stringify(value);
@@ -56,14 +54,12 @@ export const storage = {
     async loadSession() {
         const db = await this.initDB();
 
-        // Load tabs
         const encryptedTabs = await db.getAll(STORE_TABS);
         const tabs = await Promise.all((encryptedTabs || []).map(async tab => ({
             ...tab,
             content: await decrypt(tab.content)
         })));
 
-        // Helper to load and decrypt metadata
         const getDecryptedMetadata = async (key) => {
             const encryptedValue = await db.get(STORE_METADATA, key);
             if (!encryptedValue) return null;
@@ -71,12 +67,10 @@ export const storage = {
             try {
                 return JSON.parse(decryptedValue);
             } catch (e) {
-                // Fallback for non-JSON or legacy data
                 return decryptedValue;
             }
         };
 
-        // Load metadata
         const activeTabId = await getDecryptedMetadata('activeTabId');
         const recentFiles = await getDecryptedMetadata('recentFiles') || [];
         const tabOrder = await getDecryptedMetadata('tabOrder') || [];

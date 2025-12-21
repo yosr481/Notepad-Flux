@@ -3,12 +3,10 @@ import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, CodeBlockWidget } from "./widgets";
 
-// Helper: Check if cursor touches the range [from, to]
 const isCursorTouching = (selection, from, to) => {
     return selection.ranges.some(range => range.from <= to && range.to >= from);
 };
 
-// Helper: Check if cursor/selection intersects the line
 const isCursorOnLine = (selection, doc, from) => {
     const line = doc.lineAt(from);
     return selection.ranges.some(range => range.from <= line.to && range.to >= line.from);
@@ -24,16 +22,11 @@ const buildDecorations = (state) => {
         enter: (node) => {
             const { name, from: nodeFrom, to: nodeTo } = node;
 
-            // --- Range-Based Triggers ---
-
-            // 1. Inline Styles (Bold, Italic, Strike)
             if (name === "EmphasisMark") {
                 const parent = node.node.parent;
                 if (parent && (parent.name === "Emphasis" || parent.name === "StrongEmphasis" || parent.name === "Strikethrough")) {
                     let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
-                    // Check grandparent for nested emphasis (e.g. ***bold italic***)
-                    // If the cursor touches the outer emphasis, we should also reveal the inner markers
                     if (!isTouching) {
                         const grandParent = parent.parent;
                         if (grandParent && (grandParent.name === "Emphasis" || grandParent.name === "StrongEmphasis")) {
@@ -49,13 +42,11 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // 2. Links
             if (name === "LinkMark" || name === "URL") {
                 const parent = node.node.parent;
                 if (parent && parent.name === "Link") {
                     let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
-                    // Check if cursor is touching outer emphasis (grandparents from Link)
                     if (!isTouching) {
                         let ancestor = parent.parent;
                         while (ancestor) {
@@ -77,23 +68,18 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // 3. Lists (Bullets)
             if (name === "ListMark") {
                 const parent = node.node.parent;
                 if (parent && parent.name === "ListItem") {
-                    // Check if it's an Ordered List
                     const grandParent = parent.parent;
                     const isOrdered = grandParent && grandParent.name === "OrderedList";
 
                     if (isOrdered) {
-                        // Do nothing for Ordered Lists (keep numbers)
                         return;
                     }
 
                     const taskChild = parent.getChild("Task");
                     if (taskChild) {
-                        // Task List: Hide the dash if not touching
-                        // Check if touching dash OR task marker
                         let isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
                         if (!isTouching) {
                             const taskMarker = taskChild.getChild("TaskMarker");
@@ -108,7 +94,6 @@ const buildDecorations = (state) => {
                             decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                         }
                     } else {
-                        // Normal Bullet List: Replace with Bullet Widget if not touching
                         if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
                             decorations.push({
                                 from: nodeFrom, to: nodeTo, value: Decoration.replace({
@@ -120,15 +105,13 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // 4. Tasks (Checkboxes)
             if (name === "TaskMarker") {
                 let isTouching = isCursorTouching(selection, nodeFrom, nodeTo);
 
-                // Also check if touching the ListMark (dash)
                 if (!isTouching) {
-                    const taskNode = node.node.parent; // Task
+                    const taskNode = node.node.parent;
                     if (taskNode && taskNode.name === "Task") {
-                        const listItem = taskNode.parent; // ListItem
+                        const listItem = taskNode.parent;
                         if (listItem && listItem.name === "ListItem") {
                             const listMark = listItem.getChild("ListMark");
                             if (listMark) {
@@ -150,13 +133,8 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // --- Active Line Triggers ---
-
-            // 5. Headings (ATX)
             if (name.startsWith("ATXHeading")) {
                 if (!isCursorOnLine(selection, doc, nodeFrom)) {
-                    // Regex to find the hash and trailing space: /^#+\s+/
-                    // We need to look at the text content of the node
                     const headerText = doc.sliceString(nodeFrom, nodeTo);
                     const match = headerText.match(/^#+\s+/);
                     if (match) {
@@ -167,7 +145,6 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // 6. Horizontal Rules
             if (name === "HorizontalRule") {
                 if (!isCursorOnLine(selection, doc, nodeFrom)) {
                     decorations.push({
@@ -178,7 +155,6 @@ const buildDecorations = (state) => {
                 }
             }
 
-            // 7. Blockquotes
             if (name === "Blockquote") {
                 // Iterate over lines in the blockquote to apply decoration to each line
                 // This ensures continuous border even if it's multiple lines

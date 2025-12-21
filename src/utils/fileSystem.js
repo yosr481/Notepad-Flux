@@ -1,9 +1,3 @@
-/**
- * File System Access API Wrapper with fallback for unsupported browsers
- * Handles file operations for the browser environment.
- */
-
-// Conditional import of path module (only available in Electron/Node.js)
 let path = null;
 try {
     path = require('path');
@@ -11,25 +5,14 @@ try {
     // path module not available (web environment)
 }
 
-// --- Utilities ---
-
-/**
- * Sanitize filename by removing/replacing invalid characters
- * Handles Windows, macOS, and Linux invalid characters
- * @param {string} filename - The filename to sanitize
- * @returns {string} - The sanitized filename
- */
 export const sanitizeFilename = (filename) => {
-    // Invalid characters on Windows, macOS, and Linux
+    // eslint-disable-next-line no-control-regex
     const invalidChars = /[<>:"|?*\x00-\x1f]/g;
     
-    // Replace invalid chars with underscore
     let sanitized = filename.replace(invalidChars, '');
     
-    // Remove leading/trailing dots and spaces (Windows reserved)
     sanitized = sanitized.replace(/^\.+|\.+$|^ +| +$/g, '');
     
-    // Prevent reserved names (Windows)
     const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
     if (reserved.test(sanitized)) {
         sanitized = `_${sanitized}`;
@@ -38,20 +21,12 @@ export const sanitizeFilename = (filename) => {
     return sanitized || 'untitled';
 };
 
-/**
- * Extract filename from full file path using Path API (Electron) or fallback
- * @param {string} filePath - The full file path
- * @returns {string} - Just the filename
- */
 export const getFilenameFromPath = (filePath) => {
     if (typeof filePath === 'string') {
-        // Use path.basename if available (Electron), otherwise use web fallback
         return path ? path.basename(filePath) : filePath.split(/[\\/]/).pop();
     }
     return filePath;
 };
-
-// --- Drivers ---
 
 const WebNativeDriver = {
     isSupported: () => 'showOpenFilePicker' in window && 'showSaveFilePicker' in window,

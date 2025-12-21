@@ -6,21 +6,16 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 
-// Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// Store allowed paths that the user has explicitly opened or saved via dialogs
 const allowedPaths = new Set()
 
-// Set userData directory to platform-specific persistent path before app is ready
 const getPersistentDataPath = () => {
     const home = homedir()
     if (platform === 'win32') {
-        // Windows: %userprofile%\AppData\LocalLow\Notepad Flux
         return join(home, 'AppData', 'LocalLow', 'Notepad Flux')
     } else {
-        // Linux: ~/.config/notepad-flux
         return join(home, '.config', 'notepad-flux')
     }
 }
@@ -29,21 +24,13 @@ const userDataPath = getPersistentDataPath()
 app.setPath('userData', userDataPath)
 allowedPaths.add(resolve(userDataPath))
 
-/**
- * Validates if a path is safe to access.
- * 1. Must be absolute.
- * 2. Must not contain traversal segments (..).
- * 3. Should be in the allowedPaths set (files explicitly opened/saved by user).
- */
 const isPathSafe = (filePath) => {
     if (!filePath || typeof filePath !== 'string') return false
     
     const resolvedPath = resolve(filePath)
     
-    // Check if it's absolute and normalized (no ..)
     if (!isAbsolute(resolvedPath) || filePath.includes('..')) return false
 
-    // Check if it's in the allowed paths or a subdirectory of an allowed path
     for (const allowed of allowedPaths) {
         if (resolvedPath === allowed || resolvedPath.startsWith(allowed + sep)) {
             return true
@@ -53,20 +40,17 @@ const isPathSafe = (filePath) => {
     return false
 }
 
-// Helper for safe IPC handling
 const safeHandle = (channel, handler) => {
     ipcMain.handle(channel, async (event, ...args) => {
         try {
             return await handler(event, ...args)
         } catch (error) {
             console.error(`Error in IPC handler for ${channel}:`, error)
-            // Return a generic error message to the renderer
             throw new Error('An internal system error occurred. Please try again.')
         }
     })
 }
 
-// Safe Storage handlers
 safeHandle('safe-storage-encrypt', async (event, plainText) => {
     if (!safeStorage.isEncryptionAvailable()) {
         throw new Error('Safe storage is not available.')

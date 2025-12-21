@@ -37,7 +37,7 @@ export const useCommands = (showToast) => {
                 title: 'Save changes?',
                 message: `Do you want to save changes to "${tab.title}" before closing?`
             });
-            if (choice === 'cancel') return; // abort
+            if (choice === 'cancel') return;
             if (choice === 'save') {
                 const content = tab.content;
                 try {
@@ -46,11 +46,11 @@ export const useCommands = (showToast) => {
                         updateTab(id, { content, isDirty: false });
                     } else if (!fileSystem.isSupported() && tab.filePath) {
                         const result = await fileSystem.saveFileAs(content, tab.filePath);
-                        if (!result) return; // user cancelled save as
+                        if (!result) return;
                         updateTab(id, { content, isDirty: false });
                     } else {
                         const result = await fileSystem.saveFileAs(content, tab.title);
-                        if (!result) return; // user cancelled save as
+                        if (!result) return;
                         updateTab(id, {
                             title: result.name,
                             filePath: result.name,
@@ -61,21 +61,17 @@ export const useCommands = (showToast) => {
                     }
                 } catch (error) {
                     console.error("Failed to save file on close", error);
-                    return; // abort close on error
+                    return;
                 }
             }
-            // if 'dontsave', proceed to close
         }
 
-        // Logic to determine next active tab
         if (tabs.length === 1) {
-            // Closing the last tab -> Create new one, then close old
             createTab();
             closeTabInContext(id);
         } else {
             if (activeTabId === id) {
                 const index = tabs.findIndex(t => t.id === id);
-                // Try to go to the right, else left
                 const nextTab = tabs[index + 1] || tabs[index - 1];
                 if (nextTab) {
                     setActiveTabId(nextTab.id);
@@ -113,7 +109,6 @@ export const useCommands = (showToast) => {
                     fileHandle: file.handle,
                     isDirty: false
                 });
-                // Add to recent files with handle
                 addRecentFile(file.name, file.name, file.handle);
             }
         } catch (error) {
@@ -125,11 +120,9 @@ export const useCommands = (showToast) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        // Get current content from editor
         const content = editorRef?.current?.getCurrentContent() || tab.content;
 
         if (tab.fileHandle) {
-            // We have a handle - use it to save directly (Chrome/Edge)
             try {
                 await fileSystem.saveFile(tab.fileHandle, content);
                 updateTab(activeTabId, { content, isDirty: false });
@@ -137,7 +130,6 @@ export const useCommands = (showToast) => {
                 console.error("Failed to save file", error);
             }
         } else if (!fileSystem.isSupported() && tab.filePath) {
-            // In fallback mode (Firefox) with an existing file, just download again with same name
             try {
                 const result = await fileSystem.saveFileAs(content, tab.filePath);
                 if (result) {
@@ -147,7 +139,6 @@ export const useCommands = (showToast) => {
                 console.error("Failed to save file", error);
             }
         } else {
-            // No handle and no existing file, or first save - open Save As dialog
             saveFileAs(editorRef);
         }
     };
@@ -156,7 +147,6 @@ export const useCommands = (showToast) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        // Get current content from editor
         const content = editorRef?.current?.getCurrentContent() || tab.content;
 
         try {
@@ -169,7 +159,6 @@ export const useCommands = (showToast) => {
                     content: content,
                     isDirty: false
                 });
-                // Add to recent files with handle
                 addRecentFile(result.name, result.name, result.handle);
             }
         } catch (error) {
@@ -180,7 +169,6 @@ export const useCommands = (showToast) => {
     const openRecentFile = async (filePath, fileName, fileHandle) => {
         try {
             let file = null;
-            // 1. Try to open from file handle first (WebNativeDriver, Electron)
             if (fileHandle && fileSystem.isSupported()) {
                 try {
                     file = await fileSystem.openFileFromHandle(fileHandle);
@@ -190,7 +178,6 @@ export const useCommands = (showToast) => {
                 }
             }
 
-            // 2. If handle failed, try to open from filePath (Electron only effectively)
             if (!file && filePath) {
                 try {
                     file = await fileSystem.openFileFromPath(filePath);
@@ -200,7 +187,6 @@ export const useCommands = (showToast) => {
                 }
             }
             
-            // 3. If both failed, open file picker
             if (!file) {
                 file = await fileSystem.openFile();
                 if (!file) {
@@ -217,7 +203,6 @@ export const useCommands = (showToast) => {
                     fileHandle: file.handle,
                     isDirty: false
                 });
-                // Add to recent files with updated handle (in case it changed, or was from path)
                 addRecentFile(file.name, file.name, file.handle);
             }
         } catch (error) {

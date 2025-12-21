@@ -29,14 +29,12 @@ export const SessionProvider = ({ children }) => {
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
 
-    // Helper to generate title from content
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
         const title = firstLine ? firstLine.slice(0, 35) : 'Untitled';
         return sanitizeFilename(title);
     };
 
-    // Debounced save helper
     const saveTabDebounced = useCallback((tab) => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
@@ -47,12 +45,11 @@ export const SessionProvider = ({ children }) => {
         const timer = setTimeout(() => {
             storage.saveTab(tab);
             saveTimers.current.delete(tab.id);
-        }, 1000); // 1 second debounce
+        }, 1000);
 
         saveTimers.current.set(tab.id, timer);
     }, [isPrimaryWindow, isSessionLoaded]);
 
-    // Initialize Session (Web Locks + IDB)
     useEffect(() => {
         if (!navigator.locks) {
             console.warn('Web Locks API not supported. Session persistence disabled.');
@@ -65,14 +62,12 @@ export const SessionProvider = ({ children }) => {
 
         const initSession = async (lock) => {
             if (lock) {
-                // We are the primary window
                 setIsPrimaryWindow(true);
                 try {
                     const session = await storage.loadSession();
                     if (session.tabs && session.tabs.length > 0) {
                         let loadedTabs = session.tabs;
 
-                        // Restore order if available
                         if (session.tabOrder && session.tabOrder.length > 0) {
                             const orderMap = new Map(session.tabOrder.map((id, index) => [id, index]));
                             loadedTabs.sort((a, b) => {
@@ -83,7 +78,6 @@ export const SessionProvider = ({ children }) => {
                         }
 
                         setTabs(loadedTabs);
-                        // Update nextTabId based on max existing id
                         const maxId = session.tabs.reduce((max, t) => {
                             const num = parseInt(t.id.replace('tab-', ''));
                             return !isNaN(num) && num > max ? num : max;
@@ -105,7 +99,6 @@ export const SessionProvider = ({ children }) => {
                     setIsSessionLoaded(true);
                 }
 
-                // Hold the lock until aborted
                 await new Promise((resolve) => {
                     abortController.signal.addEventListener('abort', () => {
                         resolve();
