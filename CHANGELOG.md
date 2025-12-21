@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.2] - 2025-12-21
+
+### Fixed
+- **UI/UX:** Fixed an issue where link URL colors were too washed out in dark mode, improving readability.
+
+### Documentation
+- **Consistency:** Updated documentation to use a consistent first-person singular voice throughout the README and Desktop Electron guide.
+
+### Refactoring
+- **Code Quality:** Streamlined the codebase by removing redundant comments and simplifying logic for better maintainability.
+
 ## [1.1.1] - 2025-12-21
 
 ### Security & Data Protection
