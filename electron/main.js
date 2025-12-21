@@ -1,5 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron'
-import { join } from 'node:path'
+import { join, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
@@ -9,6 +9,9 @@ import { platform } from 'node:process'
 // Define __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
+
+// Store allowed paths that the user has explicitly opened or saved via dialogs
+const allowedPaths = new Set()
 
 // Set userData directory to platform-specific persistent path before app is ready
 const getPersistentDataPath = () => {
@@ -22,35 +25,80 @@ const getPersistentDataPath = () => {
     }
 }
 
-app.setPath('userData', getPersistentDataPath())
+const userDataPath = getPersistentDataPath()
+app.setPath('userData', userDataPath)
+allowedPaths.add(resolve(userDataPath))
 
-ipcMain.handle('read-file', async () => {
+/**
+ * Validates if a path is safe to access.
+ * 1. Must be absolute.
+ * 2. Must not contain traversal segments (..).
+ * 3. Should be in the allowedPaths set (files explicitly opened/saved by user).
+ */
+const isPathSafe = (filePath) => {
+    if (!filePath || typeof filePath !== 'string') return false
+    
+    const resolvedPath = resolve(filePath)
+    
+    // Check if it's absolute and normalized (no ..)
+    if (!isAbsolute(resolvedPath) || filePath.includes('..')) return false
+
+    // Check if it's in the allowed paths or a subdirectory of an allowed path
+    for (const allowed of allowedPaths) {
+        if (resolvedPath === allowed || resolvedPath.startsWith(allowed + sep)) {
+            return true
+        }
+    }
+    
+    return false
+}
+
+// Helper for safe IPC handling
+const safeHandle = (channel, handler) => {
+    ipcMain.handle(channel, async (event, ...args) => {
+        try {
+            return await handler(event, ...args)
+        } catch (error) {
+            console.error(`Error in IPC handler for ${channel}:`, error)
+            // Return a generic error message to the renderer
+            throw new Error('An internal system error occurred. Please try again.')
+        }
+    })
+}
+
+safeHandle('read-file', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
     })
     if (canceled) return { canceled }
-    const content = await readFile(filePaths[0], 'utf-8')
-    return { canceled, filePath: filePaths[0], content }
+    
+    const filePath = filePaths[0]
+    allowedPaths.add(resolve(filePath))
+    
+    const content = await readFile(filePath, 'utf-8')
+    return { canceled, filePath, content }
 })
 
-ipcMain.handle('read-file-content', async (event, filePath) => {
-    try {
-        const content = await readFile(filePath, 'utf-8')
-        return content
-    } catch (e) {
-        throw e
+safeHandle('read-file-content', async (event, filePath) => {
+    if (!isPathSafe(filePath)) {
+        throw new Error('Access denied: Unauthorized file path.')
     }
+    return await readFile(filePath, 'utf-8')
 })
 
-ipcMain.handle('save-file', async (event, { filePath, content }) => {
+safeHandle('save-file', async (event, { filePath, content }) => {
     if (!filePath) {
         const { canceled, filePath: savePath } = await dialog.showSaveDialog({
             filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
         })
         if (canceled) return { canceled: true }
         filePath = savePath
+        allowedPaths.add(resolve(filePath))
+    } else if (!isPathSafe(filePath)) {
+        throw new Error('Access denied: Unauthorized file path.')
     }
+    
     await writeFile(filePath, content, 'utf-8')
     return { filePath }
 })

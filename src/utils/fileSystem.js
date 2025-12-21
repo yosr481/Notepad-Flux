@@ -262,11 +262,11 @@ const WebFallbackDriver = {
 // --- Main Export ---
 
 const ElectronDriver = {
-    isSupported: () => !!window.ipcRenderer,
+    isSupported: () => !!window.electronAPI,
 
     openFile: async () => {
         try {
-            const result = await window.ipcRenderer.invoke('read-file');
+            const result = await window.electronAPI.readFile();
             if (result.canceled) return null;
 
             const name = getFilenameFromPath(result.filePath);
@@ -282,12 +282,12 @@ const ElectronDriver = {
     },
 
     saveFile: async (handle, content) => {
-        await window.ipcRenderer.invoke('save-file', { filePath: handle, content });
+        await window.electronAPI.saveFile({ filePath: handle, content });
     },
 
     saveFileAs: async (content, suggestedName) => {
         const cleanName = sanitizeFilename(suggestedName);
-        const result = await window.ipcRenderer.invoke('save-file', { content, suggestedName: cleanName });
+        const result = await window.electronAPI.saveFile({ content, suggestedName: cleanName });
         if (result.canceled) return null;
 
         const name = getFilenameFromPath(result.filePath);
@@ -302,7 +302,7 @@ const ElectronDriver = {
     },
 
     openFileFromHandle: async (handle) => {
-        const content = await window.ipcRenderer.invoke('read-file-content', handle);
+        const content = await window.electronAPI.readFileContent(handle);
         const name = getFilenameFromPath(handle);
         return {
             handle,
@@ -313,7 +313,7 @@ const ElectronDriver = {
 
     openFileFromPath: async (filePath) => {
         try {
-            const content = await window.ipcRenderer.invoke('read-file-content', filePath);
+            const content = await window.electronAPI.readFileContent(filePath);
             const name = getFilenameFromPath(filePath);
             return {
                 handle: filePath,
@@ -328,7 +328,7 @@ const ElectronDriver = {
 };
 
 const getDriver = () => {
-    if (window.ipcRenderer) return ElectronDriver;
+    if (window.electronAPI) return ElectronDriver;
 
     if (WebNativeDriver.isSupported()) {
         return WebNativeDriver;

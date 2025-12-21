@@ -1,11 +1,12 @@
-import { app, ipcMain, dialog, BrowserWindow, Menu } from "electron";
-import { dirname, join } from "node:path";
+import { app, BrowserWindow, ipcMain, Menu, dialog } from "electron";
+import { dirname, resolve, join, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFile, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { platform } from "node:process";
 const __filename$1 = fileURLToPath(import.meta.url);
 const __dirname$1 = dirname(__filename$1);
+const allowedPaths = /* @__PURE__ */ new Set();
 const getPersistentDataPath = () => {
   const home = homedir();
   if (platform === "win32") {
@@ -14,31 +15,57 @@ const getPersistentDataPath = () => {
     return join(home, ".config", "notepad-flux");
   }
 };
-app.setPath("userData", getPersistentDataPath());
-ipcMain.handle("read-file", async () => {
+const userDataPath = getPersistentDataPath();
+app.setPath("userData", userDataPath);
+allowedPaths.add(resolve(userDataPath));
+const isPathSafe = (filePath) => {
+  if (!filePath || typeof filePath !== "string") return false;
+  const resolvedPath = resolve(filePath);
+  if (!isAbsolute(resolvedPath) || filePath.includes("..")) return false;
+  for (const allowed of allowedPaths) {
+    if (resolvedPath === allowed || resolvedPath.startsWith(allowed + sep)) {
+      return true;
+    }
+  }
+  return false;
+};
+const safeHandle = (channel, handler) => {
+  ipcMain.handle(channel, async (event, ...args) => {
+    try {
+      return await handler(event, ...args);
+    } catch (error) {
+      console.error(`Error in IPC handler for ${channel}:`, error);
+      throw new Error("An internal system error occurred. Please try again.");
+    }
+  });
+};
+safeHandle("read-file", async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ["openFile"],
     filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
   });
   if (canceled) return { canceled };
-  const content = await readFile(filePaths[0], "utf-8");
-  return { canceled, filePath: filePaths[0], content };
+  const filePath = filePaths[0];
+  allowedPaths.add(resolve(filePath));
+  const content = await readFile(filePath, "utf-8");
+  return { canceled, filePath, content };
 });
-ipcMain.handle("read-file-content", async (event, filePath) => {
-  try {
-    const content = await readFile(filePath, "utf-8");
-    return content;
-  } catch (e) {
-    throw e;
+safeHandle("read-file-content", async (event, filePath) => {
+  if (!isPathSafe(filePath)) {
+    throw new Error("Access denied: Unauthorized file path.");
   }
+  return await readFile(filePath, "utf-8");
 });
-ipcMain.handle("save-file", async (event, { filePath, content }) => {
+safeHandle("save-file", async (event, { filePath, content }) => {
   if (!filePath) {
     const { canceled, filePath: savePath } = await dialog.showSaveDialog({
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
     });
     if (canceled) return { canceled: true };
     filePath = savePath;
+    allowedPaths.add(resolve(filePath));
+  } else if (!isPathSafe(filePath)) {
+    throw new Error("Access denied: Unauthorized file path.");
   }
   await writeFile(filePath, content, "utf-8");
   return { filePath };

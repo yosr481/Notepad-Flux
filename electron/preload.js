@@ -1,23 +1,13 @@
 import { ipcRenderer, contextBridge } from 'electron'
 
 // --------- Expose some API to the Renderer process ---------
-contextBridge.exposeInMainWorld('ipcRenderer', {
-    on(...args) {
-        const [channel, listener] = args
-        return ipcRenderer.on(channel, (event, ...args) => listener(event, ...args))
-    },
-    off(...args) {
-        const [channel, ...omit] = args
-        return ipcRenderer.off(channel, ...omit)
-    },
-    send(...args) {
-        const [channel, ...omit] = args
-        return ipcRenderer.send(channel, ...omit)
-    },
-    invoke(...args) {
-        const [channel, ...omit] = args
-        return ipcRenderer.invoke(channel, ...omit)
-    },
-
-    // You can expose other weird stuff too
+contextBridge.exposeInMainWorld('electronAPI', {
+    readFile: () => ipcRenderer.invoke('read-file'),
+    readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
+    saveFile: (data) => ipcRenderer.invoke('save-file', data),
+    onMainMessage: (callback) => {
+        const subscription = (event, ...args) => callback(...args);
+        ipcRenderer.on('main-process-message', subscription);
+        return () => ipcRenderer.removeListener('main-process-message', subscription);
+    }
 })
