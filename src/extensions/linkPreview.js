@@ -1,6 +1,7 @@
 import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import DOMPurify from 'dompurify';
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -23,7 +24,7 @@ class LinkWidget extends WidgetType {
 
         const textSpan = document.createElement("span");
         // Parse markdown formatting in link text
-        textSpan.innerHTML = this.parseMarkdown(this.text);
+        textSpan.innerHTML = DOMPurify.sanitize(this.parseMarkdown(this.text));
         link.appendChild(textSpan);
 
         const icon = document.createElement("span");

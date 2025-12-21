@@ -1,4 +1,5 @@
 import { WidgetType } from "@codemirror/view";
+import DOMPurify from 'dompurify';
 
 export class BulletWidget extends WidgetType {
     toDOM() {
@@ -93,7 +94,7 @@ export class TableWidget extends WidgetType {
     toDOM(view) {
         const div = document.createElement("div");
         div.className = "cm-table-widget";
-        div.innerHTML = this.htmlContent;
+        div.innerHTML = DOMPurify.sanitize(this.htmlContent);
 
         div.addEventListener("mousedown", (e) => {
             // Allow clicking links inside the table
