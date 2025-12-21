@@ -70,7 +70,7 @@ export const fluxHighlightStyle = HighlightStyle.define([
 
     // Links
     { tag: tags.link, color: "var(--text-accent)", textDecoration: "none" },
-    { tag: tags.url, color: "var(--text-faint)", textDecoration: "underline" },
+    { tag: tags.url, color: "var(  --text-muted)", textDecoration: "underline" },
 
     // Block Elements
     { tag: tags.quote, color: "var(--text-muted)", fontStyle: "italic" },

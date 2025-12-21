@@ -1,84 +1,104 @@
-import { app as i, BrowserWindow as w, ipcMain as y, Menu as b, safeStorage as l, dialog as h } from "electron";
-import { dirname as I, resolve as d, join as t, isAbsolute as S, sep as _ } from "node:path";
-import { fileURLToPath as T } from "node:url";
-import { readFile as m, writeFile as D } from "node:fs/promises";
-import { homedir as L } from "node:os";
-import { platform as R } from "node:process";
-const C = T(import.meta.url), u = I(C), p = /* @__PURE__ */ new Set(), V = () => {
-  const r = L();
-  return R === "win32" ? t(r, "AppData", "LocalLow", "Notepad Flux") : t(r, ".config", "notepad-flux");
-}, v = V();
-i.setPath("userData", v);
-p.add(d(v));
-const g = (r) => {
-  if (!r || typeof r != "string") return !1;
-  const e = d(r);
-  if (!S(e) || r.includes("..")) return !1;
-  for (const n of p)
-    if (e === n || e.startsWith(n + _))
-      return !0;
-  return !1;
-}, a = (r, e) => {
-  y.handle(r, async (n, ...s) => {
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, dialog } from "electron";
+import { dirname, resolve, join, isAbsolute, sep } from "node:path";
+import { fileURLToPath } from "node:url";
+import { readFile, writeFile } from "node:fs/promises";
+import { homedir } from "node:os";
+import { platform } from "node:process";
+const __filename$1 = fileURLToPath(import.meta.url);
+const __dirname$1 = dirname(__filename$1);
+const allowedPaths = /* @__PURE__ */ new Set();
+const getPersistentDataPath = () => {
+  const home = homedir();
+  if (platform === "win32") {
+    return join(home, "AppData", "LocalLow", "Notepad Flux");
+  } else {
+    return join(home, ".config", "notepad-flux");
+  }
+};
+const userDataPath = getPersistentDataPath();
+app.setPath("userData", userDataPath);
+allowedPaths.add(resolve(userDataPath));
+const isPathSafe = (filePath) => {
+  if (!filePath || typeof filePath !== "string") return false;
+  const resolvedPath = resolve(filePath);
+  if (!isAbsolute(resolvedPath) || filePath.includes("..")) return false;
+  for (const allowed of allowedPaths) {
+    if (resolvedPath === allowed || resolvedPath.startsWith(allowed + sep)) {
+      return true;
+    }
+  }
+  return false;
+};
+const safeHandle = (channel, handler) => {
+  ipcMain.handle(channel, async (event, ...args) => {
     try {
-      return await e(n, ...s);
-    } catch (f) {
-      throw console.error(`Error in IPC handler for ${r}:`, f), new Error("An internal system error occurred. Please try again.");
+      return await handler(event, ...args);
+    } catch (error) {
+      console.error(`Error in IPC handler for ${channel}:`, error);
+      throw new Error("An internal system error occurred. Please try again.");
     }
   });
 };
-a("safe-storage-encrypt", async (r, e) => {
-  if (!l.isEncryptionAvailable())
+safeHandle("safe-storage-encrypt", async (event, plainText) => {
+  if (!safeStorage.isEncryptionAvailable()) {
     throw new Error("Safe storage is not available.");
-  return l.encryptString(e).toString("base64");
+  }
+  const buffer = safeStorage.encryptString(plainText);
+  return buffer.toString("base64");
 });
-a("safe-storage-decrypt", async (r, e) => {
-  if (!l.isEncryptionAvailable())
+safeHandle("safe-storage-decrypt", async (event, encryptedBase64) => {
+  if (!safeStorage.isEncryptionAvailable()) {
     throw new Error("Safe storage is not available.");
-  const n = Buffer.from(e, "base64");
-  return l.decryptString(n);
+  }
+  const buffer = Buffer.from(encryptedBase64, "base64");
+  return safeStorage.decryptString(buffer);
 });
-a("safe-storage-available", async () => l.isEncryptionAvailable());
-a("read-file", async () => {
-  const { canceled: r, filePaths: e } = await h.showOpenDialog({
+safeHandle("safe-storage-available", async () => {
+  return safeStorage.isEncryptionAvailable();
+});
+safeHandle("read-file", async () => {
+  const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ["openFile"],
     filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
   });
-  if (r) return { canceled: r };
-  const n = e[0];
-  p.add(d(n));
-  const s = await m(n, "utf-8");
-  return { canceled: r, filePath: n, content: s };
+  if (canceled) return { canceled };
+  const filePath = filePaths[0];
+  allowedPaths.add(resolve(filePath));
+  const content = await readFile(filePath, "utf-8");
+  return { canceled, filePath, content };
 });
-a("read-file-content", async (r, e) => {
-  if (!g(e))
+safeHandle("read-file-content", async (event, filePath) => {
+  if (!isPathSafe(filePath)) {
     throw new Error("Access denied: Unauthorized file path.");
-  return await m(e, "utf-8");
+  }
+  return await readFile(filePath, "utf-8");
 });
-a("save-file", async (r, { filePath: e, content: n }) => {
-  if (e) {
-    if (!g(e))
-      throw new Error("Access denied: Unauthorized file path.");
-  } else {
-    const { canceled: s, filePath: f } = await h.showSaveDialog({
+safeHandle("save-file", async (event, { filePath, content }) => {
+  if (!filePath) {
+    const { canceled, filePath: savePath } = await dialog.showSaveDialog({
       filters: [{ name: "Markdown", extensions: ["md", "markdown"] }]
     });
-    if (s) return { canceled: !0 };
-    e = f, p.add(d(e));
+    if (canceled) return { canceled: true };
+    filePath = savePath;
+    allowedPaths.add(resolve(filePath));
+  } else if (!isPathSafe(filePath)) {
+    throw new Error("Access denied: Unauthorized file path.");
   }
-  return await D(e, n, "utf-8"), { filePath: e };
+  await writeFile(filePath, content, "utf-8");
+  return { filePath };
 });
-process.env.DIST_ELECTRON = t(u, "../dist-electron");
-process.env.DIST = t(u, "../dist");
-process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? t(u, "../public") : process.env.DIST;
-let o = null, c = null;
-function E() {
-  o = new w({
+process.env.DIST_ELECTRON = join(__dirname$1, "../dist-electron");
+process.env.DIST = join(__dirname$1, "../dist");
+process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL ? join(__dirname$1, "../public") : process.env.DIST;
+let win = null;
+let splash = null;
+function createWindow() {
+  win = new BrowserWindow({
     width: 1200,
     height: 800,
     minWidth: 400,
     minHeight: 300,
-    show: !1,
+    show: false,
     // Wait until ready-to-show
     titleBarStyle: "hidden",
     titleBarOverlay: {
@@ -90,48 +110,65 @@ function E() {
       // Match tab height
     },
     backgroundMaterial: "mica",
-    icon: t(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
+    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
     webPreferences: {
-      preload: t(process.env.DIST_ELECTRON, "preload.js"),
-      nodeIntegration: !1,
-      contextIsolation: !0,
-      sandbox: !0
+      preload: join(process.env.DIST_ELECTRON, "preload.js"),
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: true
     }
-  }), o.webContents.setWindowOpenHandler(({ url: r }) => ({
-    action: "allow",
-    overrideBrowserWindowOptions: {
-      titleBarStyle: "hidden",
-      titleBarOverlay: {
-        color: "#00000000",
-        symbolColor: "#64748b",
-        height: 40
-      },
-      backgroundMaterial: "mica",
-      icon: t(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
-      webPreferences: {
-        preload: t(process.env.DIST_ELECTRON, "preload.js"),
-        sandbox: !0
+  });
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    return {
+      action: "allow",
+      overrideBrowserWindowOptions: {
+        titleBarStyle: "hidden",
+        titleBarOverlay: {
+          color: "#00000000",
+          symbolColor: "#64748b",
+          height: 40
+        },
+        backgroundMaterial: "mica",
+        icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png"),
+        webPreferences: {
+          preload: join(process.env.DIST_ELECTRON, "preload.js"),
+          sandbox: true
+        }
       }
+    };
+  });
+  win.once("ready-to-show", () => {
+    win.show();
+    if (splash) {
+      splash.close();
     }
-  })), o.once("ready-to-show", () => {
-    o.show(), c && c.close();
-  }), b.setApplicationMenu(null), o.webContents.on("did-finish-load", () => {
-    o?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
-  }), process.env.VITE_DEV_SERVER_URL ? o.loadURL(process.env.VITE_DEV_SERVER_URL) : o.loadFile(t(process.env.DIST, "index.html"));
+  });
+  Menu.setApplicationMenu(null);
+  win.webContents.on("did-finish-load", () => {
+    win?.webContents.send("main-process-message", (/* @__PURE__ */ new Date()).toLocaleString());
+  });
+  if (process.env.VITE_DEV_SERVER_URL) {
+    win.loadURL(process.env.VITE_DEV_SERVER_URL);
+  } else {
+    win.loadFile(join(process.env.DIST, "index.html"));
+  }
 }
-i.on("window-all-closed", () => {
-  o = null, process.platform !== "darwin" && i.quit();
+app.on("window-all-closed", () => {
+  win = null;
+  if (process.platform !== "darwin") app.quit();
 });
-i.on("activate", () => {
-  w.getAllWindows().length === 0 && E();
+app.on("activate", () => {
+  if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
-i.whenReady().then(() => {
-  c = new w({
+app.whenReady().then(() => {
+  splash = new BrowserWindow({
     width: 300,
     height: 300,
-    transparent: !0,
-    frame: !1,
-    alwaysOnTop: !0,
-    icon: t(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
-  }), c.loadFile(t(process.env.VITE_PUBLIC, "loading.html")), E();
+    transparent: true,
+    frame: false,
+    alwaysOnTop: true,
+    icon: join(process.env.VITE_PUBLIC, "icons/desktop/icon.png")
+  });
+  splash.loadFile(join(process.env.VITE_PUBLIC, "loading.html"));
+  createWindow();
 });
