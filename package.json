@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
+    "build:vite": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
