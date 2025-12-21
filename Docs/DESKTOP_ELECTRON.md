@@ -51,7 +51,7 @@ Renderer should call these via preload-provided wrappers. Never enable nodeInteg
 
 ## 4. Persistent Data Paths
 
-We override app.getPath('userData') to a stable per-OS directory before the app is ready:
+I override app.getPath('userData') to a stable per-OS directory before the app is ready:
 
 - Windows: %USERPROFILE%\AppData\LocalLow\Notepad Flux
 - Linux: ~/.config/notepad-flux
