@@ -1,10 +1,10 @@
 import React from 'react';
 import styles from './Print.module.css';
 import { marked } from 'marked';
-import DOMPurify from 'dompurify';
+import { sanitizeHTML } from '../../utils/sanitize';
 
 const PrintDocument = ({ title, content }) => {
-    const htmlContent = DOMPurify.sanitize(marked(content));
+    const htmlContent = sanitizeHTML(marked(content));
 
     return (
         <div className={styles.printContainer}>
