@@ -1,17 +1,67 @@
 ﻿const ENCRYPTION_KEY_NAME = 'notepad-flux-key';
+const SECURE_KEY_NAME = 'notepad-flux-secure-key';
 
 /**
- * Gets or creates a persistent encryption key from subtle crypto
- * In a real-world scenario, this should be more secure, but for this app
- * we'll use a simple approach with a derived key.
+ * Gets or creates a persistent encryption key.
+ * To protect the key on disk, we use Electron's safeStorage API when available.
+ * This ensures the key is encrypted with OS-level credentials (e.g., DPAPI on Windows, Keychain on macOS).
  */
 async function getEncryptionKey() {
-    let keyData = localStorage.getItem(ENCRYPTION_KEY_NAME);
+    // Try to get the secure key first
+    let secureKeyData = localStorage.getItem(SECURE_KEY_NAME);
+    let keyData = null;
+
+    if (secureKeyData && window.electronAPI?.safeStorage) {
+        try {
+            // Decrypt the key using OS-level secure storage
+            keyData = await window.electronAPI.safeStorage.decrypt(secureKeyData);
+        } catch (e) {
+            console.error('Failed to decrypt secure key:', e);
+            // Fallback to legacy key or re-generation
+        }
+    }
+
     if (!keyData) {
-        // Generate a random key if not exists
+        // Fallback to legacy plaintext key if exists
+        keyData = localStorage.getItem(ENCRYPTION_KEY_NAME);
+    }
+
+    if (!keyData) {
+        // Generate a new random key if none exists
         const randomKey = crypto.getRandomValues(new Uint8Array(32));
         keyData = btoa(String.fromCharCode(...randomKey));
-        localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
+        
+        // Try to store it securely if possible
+        if (window.electronAPI?.safeStorage) {
+            try {
+                const isAvailable = await window.electronAPI.safeStorage.isAvailable();
+                if (isAvailable) {
+                    const encryptedKey = await window.electronAPI.safeStorage.encrypt(keyData);
+                    localStorage.setItem(SECURE_KEY_NAME, encryptedKey);
+                } else {
+                    localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
+                }
+            } catch (e) {
+                console.error('Failed to store key securely:', e);
+                localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
+            }
+        } else {
+            // Not in Electron environment (e.g. browser tests)
+            localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
+        }
+    } else if (keyData && !secureKeyData && window.electronAPI?.safeStorage) {
+        // Migration: keyData exists in plaintext, try to secure it
+        try {
+            const isAvailable = await window.electronAPI.safeStorage.isAvailable();
+            if (isAvailable) {
+                const encryptedKey = await window.electronAPI.safeStorage.encrypt(keyData);
+                localStorage.setItem(SECURE_KEY_NAME, encryptedKey);
+                // Optionally remove the legacy plaintext key for better security
+                // localStorage.removeItem(ENCRYPTION_KEY_NAME);
+            }
+        } catch (e) {
+            console.warn('Migration to secure storage failed:', e);
+        }
     }
 
     const rawKey = new Uint8Array(atob(keyData).split('').map(c => c.charCodeAt(0)));

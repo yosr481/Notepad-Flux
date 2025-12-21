@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, Menu, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, Menu, safeStorage, dialog } from "electron";
 import { dirname, resolve, join, isAbsolute, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFile, writeFile } from "node:fs/promises";
@@ -39,6 +39,23 @@ const safeHandle = (channel, handler) => {
     }
   });
 };
+safeHandle("safe-storage-encrypt", async (event, plainText) => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("Safe storage is not available.");
+  }
+  const buffer = safeStorage.encryptString(plainText);
+  return buffer.toString("base64");
+});
+safeHandle("safe-storage-decrypt", async (event, encryptedBase64) => {
+  if (!safeStorage.isEncryptionAvailable()) {
+    throw new Error("Safe storage is not available.");
+  }
+  const buffer = Buffer.from(encryptedBase64, "base64");
+  return safeStorage.decryptString(buffer);
+});
+safeHandle("safe-storage-available", async () => {
+  return safeStorage.isEncryptionAvailable();
+});
 safeHandle("read-file", async () => {
   const { canceled, filePaths } = await dialog.showOpenDialog({
     properties: ["openFile"],
