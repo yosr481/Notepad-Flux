@@ -1,7 +1,7 @@
 # Contributing to Notepad-Flux
 
 First off, thank you for considering contributing! 🎉\
-This project aims to be a fast, modern Markdown/text editor built with React & Vite, with a future path to Electron.
+This project is a fast, modern Markdown/text editor built with React & Vite, now available as a native Electron desktop application for Windows and Linux. Version 1.1.0 brings enhanced security, platform-specific optimizations, and refined UI/UX.
 
 This document describes how to set up the project, how to propose changes, and some guidelines to keep the codebase healthy and consistent.
 
@@ -44,8 +44,9 @@ Then open the URL printed in the terminal (usually `http://localhost:5173/`).
 ### Building for production
 ```bash
 npm run build
-npm run preview
 ```
+
+This command will build the web assets and create Electron distribution packages for Windows and Linux.
 
 ---
 ## Branching & Workflow
@@ -76,12 +77,19 @@ If you’re unsure whether an idea fits this project, feel free to open a discus
 
 ---
 ## Code Style
-This project uses modern JavaScript/React with Vite.
+This project uses modern JavaScript/React with Vite and Electron for desktop distribution.
 * Follow the existing patterns in:
   * `src/components/`
   * `src/context/`
   * `src/hooks/`
   * `src/utils/`
+  * `electron/` (for desktop-specific code)
+
+* When working on security-sensitive areas (IPC, preload scripts, file handling):
+  * Use explicit, safe data handling patterns
+  * Sanitize filenames to ensure OS compatibility (Windows/Linux)
+  * Use platform-specific paths for persistent data storage
+  * Keep sandbox restrictions in mind for the main window
 
 * Prefer:
   * Small, focused components and hooks.
