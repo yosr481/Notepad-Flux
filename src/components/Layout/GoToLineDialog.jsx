@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X } from 'phosphor-react';
+import { limitLength } from '../../utils/validation';
 import styles from './GoToLineDialog.module.css';
 
 const GoToLineDialog = ({ onClose, onGoToLine, totalLines }) => {
     const [lineNumber, setLineNumber] = useState('');
+    const [error, setError] = useState('');
     const inputRef = useRef(null);
 
     useEffect(() => {
@@ -14,10 +16,20 @@ const GoToLineDialog = ({ onClose, onGoToLine, totalLines }) => {
     const handleSubmit = (e) => {
         e.preventDefault();
         const num = parseInt(lineNumber, 10);
-        if (!isNaN(num) && num > 0 && num <= totalLines) {
-            onGoToLine(num);
-            onClose();
+        if (isNaN(num) || num < 1 || num > totalLines) {
+            setError(`Please enter a number between 1 and ${totalLines}`);
+            return;
         }
+        onGoToLine(num);
+        onClose();
+    };
+
+    const handleChange = (e) => {
+        const val = e.target.value;
+        // Limit to 10 digits (plenty for any file)
+        const limited = limitLength(val, 10);
+        setLineNumber(limited);
+        setError('');
     };
 
     const handleKeyDown = (e) => {
@@ -47,9 +59,10 @@ const GoToLineDialog = ({ onClose, onGoToLine, totalLines }) => {
                             max={totalLines}
                             className={styles.input}
                             value={lineNumber}
-                            onChange={(e) => setLineNumber(e.target.value)}
+                            onChange={handleChange}
                             onKeyDown={handleKeyDown}
                         />
+                        {error && <div className={styles.error}>{error}</div>}
                     </div>
                     <div className={styles.actions}>
                         <button

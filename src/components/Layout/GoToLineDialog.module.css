@@ -165,3 +165,9 @@
     cursor: not-allowed;
     transform: none;
 }
+
+.error {
+    color: var(--text-error, #f85149);
+    font-size: 12px;
+    margin-top: 4px;
+}
