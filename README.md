@@ -6,7 +6,7 @@ A minimal, lightweight markdown writing application inspired by the simplicity o
 
 I distribute Notepad Flux via GitHub Releases.
 
-- Latest stable: https://github.com/yosr481/Notepad-Flux/releases/tag/v1.1.1
+- Latest stable: https://github.com/yosr481/Notepad-Flux/releases/tag/v1.1.2
 
 Downloads are available for:
 - Windows (installer)
