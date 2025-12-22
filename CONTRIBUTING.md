@@ -1,13 +1,13 @@
 # Contributing to Notepad-Flux
 
-First off, thank you for considering contributing! 🎉\
+First off, thank you for considering contributing! \
 This project is a fast, modern Markdown/text editor built with React & Vite, now available as a native Electron desktop application for Windows and Linux. Version 1.1.0 brings enhanced security, platform-specific optimizations, and refined UI/UX.
 
 This document describes how to set up the project, how to propose changes, and some guidelines to keep the codebase healthy and consistent.
 
 ---
 ## Table of Contents
-* [Code of Conduct](#code-of-conduct)
+* [Code of Conduct](CODE_OF_CONDUCT.md)
 * [Project Setup](#project-setup)
 * [Branching & Workflow](#branching--workflow)
 * [Issues & Feature Requests](#issues--feature-requests)
@@ -16,12 +16,6 @@ This document describes how to set up the project, how to propose changes, and s
 * [Testing](#testing)
 * [Commit Messages](#commit-messages)
 * [Pull Request Checklist](#pull-request-checklist)
-
----
-## Code of Conduct
-By participating in this project, you agree to maintain a respectful, inclusive, and constructive environment.
-
-If you see or experience unacceptable behavior, please open an issue or reach out to the maintainer.
 
 ---
 ## Project Setup
@@ -134,4 +128,4 @@ Before opening or merging a PR, please ensure:
 - [ ] New UI/UX behavior is documented in the PR description (screenshots/gifs encouraged).
 - [ ] Any new configuration or env vars are documented (e.g., in `README.md` or `.env.example`).
 
-Thank you for contributing! 🙌
+Thank you for contributing! 
