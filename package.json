@@ -6,6 +6,7 @@
   "main": "dist-electron/main.js",
   "description": "Notepad Flux - A minimal markdown editor",
   "author": "yosr481 | Yosef I. Rienitz",
+  "license": "MIT",
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -14,7 +15,8 @@
     "preview": "vite preview",
     "test": "vitest",
     "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "license-check": "license-checker-rseidelsohn --summary --failOn \"AGPL-3.0; LGPL-2.1; LGPL-3.0; GPL-1.0; GPL-2.0; GPL-3.0\""
   },
   "dependencies": {
     "@codemirror/lang-markdown": "^6.5.0",
@@ -53,6 +55,7 @@
     "fake-indexeddb": "^6.2.5",
     "globals": "^16.5.0",
     "jsdom": "^27.3.0",
+    "license-checker-rseidelsohn": "^4.4.2",
     "vite": "^7.2.4",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6",

@@ -21,6 +21,20 @@ jobs:
       - name: Run NPM Audit
         run: npm audit --audit-level=moderate
 
+  license-check:
+    name: License Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm install
+      - name: Run License Check
+        run: npm run license-check
+
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
