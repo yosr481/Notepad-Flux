@@ -87,6 +87,7 @@ npm run lint
 ## Support and Feedback
 
 - Found a bug or have a feature request? Please open an issue.
+- **Security Vulnerability?** Please see our [Security Policy](SECURITY.md) for safe reporting instructions.
 - Looking to contribute? See `CONTRIBUTING.md`.
 
 ## License

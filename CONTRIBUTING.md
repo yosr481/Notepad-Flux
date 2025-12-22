@@ -60,6 +60,7 @@ This command will build the web assets and create Electron distribution packages
 
 ---
 ## Issues & Feature Requests
+* **Security Vulnerabilities**: If you find a security issue, please **do not** open a public issue. Follow the instructions in our [Security Policy](SECURITY.md).
 * **Bug reports**: Use the "Bug Report" issue template if available.
   * Include steps to reproduce, expected vs. actual behavior, and environment details.
 * **Feature requests**: Use the "Feature Request" template if available.
