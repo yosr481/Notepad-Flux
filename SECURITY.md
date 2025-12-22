@@ -9,7 +9,7 @@ The following versions of Notepad-Flux are currently being supported with securi
 | 1.1.x   | V         |
 | < 1.1.0 | X         |
 
-We recommend always using the latest stable release.
+I recommend always using the latest stable release.
 
 ## Reporting a Vulnerability
 
