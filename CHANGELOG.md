@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2025-12-23
+
+### Added
+- **Session Persistence:** Implemented immediate tab and metadata saving upon new tab creation to prevent data loss.
+- **Session Protection:** Added a robust `beforeunload` listener to ensure all open documents and application states are persisted right before closure.
+
+### Fixed
+- **State Reliability:** Resolved issues where the tab order or active tab might reset if the browser/electron process was killed unexpectedly.
+
 ## [1.1.2] - 2025-12-21
 
 ### Fixed
