@@ -151,16 +151,17 @@ export const SessionProvider = ({ children }) => {
             ...initialData
         };
 
-        setTabs(curr => {
-            const updated = [...curr, newTab];
-            return updated;
-        });
+        setTabs(curr => [...curr, newTab]);
         setActiveTabId(newId);
 
         if (isPrimaryWindow && isSessionLoaded) {
             storage.saveTab(newTab);
+            storage.saveMetadata({
+                activeTabId: newId,
+                tabOrder: [...tabs.map(t => t.id), newId]
+            });
         }
-    }, [isPrimaryWindow, isSessionLoaded]);
+    }, [tabs, isPrimaryWindow, isSessionLoaded]);
 
     const closeTab = useCallback((id) => {
         setTabs(prev => {
@@ -263,6 +264,40 @@ export const SessionProvider = ({ children }) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
     }, []);
 
+    const saveSession = useCallback(async () => {
+        if (!isPrimaryWindow || !isSessionLoaded) return;
+
+        try {
+            // Save all tabs content immediately
+            await Promise.all(tabs.map(tab => storage.saveTab(tab)));
+
+            // Save metadata
+            await storage.saveMetadata({
+                activeTabId,
+                recentFiles,
+                settings,
+                tabOrder: tabs.map(t => t.id)
+            });
+        } catch (err) {
+            console.error('Failed to save session:', err);
+        }
+    }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
+
+    // Save session before window closes
+    useEffect(() => {
+        const handleBeforeUnload = () => {
+            if (isPrimaryWindow && isSessionLoaded) {
+                // Since beforeunload is synchronous, we can't wait for the promise.
+                // However, storage operations might still complete if they start before the process dies.
+                // In Electron, we could use synchronous storage or IPC, but with IDB we do our best.
+                saveSession();
+            }
+        };
+
+        window.addEventListener('beforeunload', handleBeforeUnload);
+        return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+    }, [saveSession, isPrimaryWindow, isSessionLoaded]);
+
     const value = {
         tabs,
         activeTabId,
@@ -275,10 +310,11 @@ export const SessionProvider = ({ children }) => {
         reorderTabs,
         recentFiles,
         addRecentFile,
-        isPrimaryWindow, // Expose this if UI needs to know
+        isPrimaryWindow,
         isSessionLoaded,
         settings,
-        updateSettings
+        updateSettings,
+        saveSession
     };
 
     return (
