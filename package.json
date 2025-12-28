@@ -39,7 +39,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@codemirror/state": "^6.5.2",
+    "@codemirror/state": "^6.5.3",
     "@codemirror/view": "^6.39.3",
     "@eslint/js": "^9.39.1",
     "@testing-library/jest-dom": "^6.9.1",
