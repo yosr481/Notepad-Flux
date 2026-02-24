@@ -1,23 +1,26 @@
 let path = null;
-try {
-    path = require('path');
-} catch (e) {
-    // path module not available (web environment)
+if (typeof require !== 'undefined') {
+    try {
+        // eslint-disable-next-line no-undef
+        path = require('path');
+    } catch (e) {
+        // path module not available
+    }
 }
 
 export const sanitizeFilename = (filename) => {
     // eslint-disable-next-line no-control-regex
     const invalidChars = /[<>:"|?*\x00-\x1f]/g;
-    
+
     let sanitized = filename.replace(invalidChars, '');
-    
+
     sanitized = sanitized.replace(/^\.+|\.+$|^ +| +$/g, '');
-    
+
     const reserved = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i;
     if (reserved.test(sanitized)) {
         sanitized = `_${sanitized}`;
     }
-    
+
     return sanitized || 'untitled';
 };
 
