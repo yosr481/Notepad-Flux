@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 
-const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
+const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
 
     if (!isOpen) return null;
@@ -10,7 +10,7 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
     const handleNumberChange = (key, value, min, max) => {
         const num = parseInt(value, 10);
         let error = '';
-        
+
         if (isNaN(num)) {
             error = 'Please enter a valid number';
         } else if (num < min || num > max) {
@@ -99,6 +99,29 @@ const Settings = ({ isOpen, onClose, settings, updateSettings }) => {
                         <button className={`${styles.button} ${styles.danger}`}>
                             Clear Session Data
                         </button>
+                    </div>
+                </div>
+
+                {/* About */}
+                <div className={styles.section}>
+                    <h3 className={styles.sectionTitle}>About</h3>
+                    <div className={styles.row}>
+                        <div>
+                            <div className={styles.label}>Notepad Flux{appVersion ? ` — Version ${appVersion}` : ''}</div>
+                            <div className={styles.description}>A minimal, distraction-free markdown editor</div>
+                        </div>
+                        <a
+                            className={styles.button}
+                            href="https://github.com/yosr481/Notepad_Flux/releases"
+                            target="_blank"
+                            rel="noreferrer"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                window.open('https://github.com/yosr481/Notepad_Flux/releases', '_blank');
+                            }}
+                        >
+                            View Releases
+                        </a>
                     </div>
                 </div>
             </div>

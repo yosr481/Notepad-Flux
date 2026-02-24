@@ -5,7 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-02-24
+
+### Added
+- **Auto-Update Pipeline**: The app now checks for updates automatically on startup using `electron-updater`. Users are prompted with a native OS dialog to download and install new versions. Updates are downloaded in the background and applied on the next restart.
+- **Version Display**: App version (`v1.2.0`) is now shown in the title bar next to the app icon. Full version info and a link to the GitHub Releases page are available in Settings → About.
+
+### Changed
+- **Electron 40**: Upgraded Electron from v39 to v40.0.0.
+- **Dependency Updates**: Updated jsdom (27.4.0), eslint (10.x), and various transitive dependencies.
+
+### Security
+- Applied npm security audit fixes.
+- Resolved several dependency vulnerabilities flagged in audits (#9, #12, #13, #14).
+
 ## [1.1.3] - 2025-12-23
+
 
 ### Added
 - **Session Persistence:** Implemented immediate tab and metadata saving upon new tab creation to prevent data loss.

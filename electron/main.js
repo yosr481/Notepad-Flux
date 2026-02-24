@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage } from 'electron'
+import { autoUpdater } from 'electron-updater'
 import { join, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
@@ -26,9 +27,9 @@ allowedPaths.add(resolve(userDataPath))
 
 const isPathSafe = (filePath) => {
     if (!filePath || typeof filePath !== 'string') return false
-    
+
     const resolvedPath = resolve(filePath)
-    
+
     if (!isAbsolute(resolvedPath) || filePath.includes('..')) return false
 
     for (const allowed of allowedPaths) {
@@ -36,7 +37,7 @@ const isPathSafe = (filePath) => {
             return true
         }
     }
-    
+
     return false
 }
 
@@ -77,10 +78,10 @@ safeHandle('read-file', async () => {
         filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
     })
     if (canceled) return { canceled }
-    
+
     const filePath = filePaths[0]
     allowedPaths.add(resolve(filePath))
-    
+
     const content = await readFile(filePath, 'utf-8')
     return { canceled, filePath, content }
 })
@@ -103,11 +104,49 @@ safeHandle('save-file', async (event, { filePath, content }) => {
     } else if (!isPathSafe(filePath)) {
         throw new Error('Access denied: Unauthorized file path.')
     }
-    
+
     await writeFile(filePath, content, 'utf-8')
     return { filePath }
 })
 
+
+// --------- Auto Updater ---------
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = true
+
+autoUpdater.on('update-available', async (info) => {
+    const { response } = await dialog.showMessageBox({
+        type: 'info',
+        buttons: ['Download Now', 'Later'],
+        title: 'Update Available',
+        message: `A new version (${info.version}) of Notepad Flux is available. Would you like to download it now?`,
+    })
+
+    if (response === 0) {
+        autoUpdater.downloadUpdate()
+    }
+})
+
+autoUpdater.on('update-downloaded', async (info) => {
+    const { response } = await dialog.showMessageBox({
+        type: 'info',
+        buttons: ['Restart and Install', 'Later'],
+        title: 'Update Ready',
+        message: 'The update has been downloaded and is ready to be installed. Would you like to restart the application now?',
+    })
+
+    if (response === 0) {
+        autoUpdater.quitAndInstall()
+    }
+})
+
+autoUpdater.on('error', (err) => {
+    console.error('Auto Updater error:', err)
+})
+
+safeHandle('get-app-version', async () => {
+    return app.getVersion()
+})
 
 // The built directory structure
 //
@@ -148,7 +187,7 @@ function createWindow() {
             sandbox: true
         },
     })
-    
+
     win.webContents.setWindowOpenHandler(({ url }) => {
         return {
             action: 'allow',
@@ -212,4 +251,11 @@ app.whenReady().then(() => {
     })
     splash.loadFile(join(process.env.VITE_PUBLIC, 'loading.html'))
     createWindow()
+
+    // Check for updates on startup
+    if (!process.env.VITE_DEV_SERVER_URL) {
+        autoUpdater.checkForUpdates().catch(err => {
+            console.error('Failed to check for updates:', err)
+        })
+    }
 })

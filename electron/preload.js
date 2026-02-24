@@ -14,5 +14,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const subscription = (event, ...args) => callback(...args);
         ipcRenderer.on('main-process-message', subscription);
         return () => ipcRenderer.removeListener('main-process-message', subscription);
-    }
+    },
+    getAppVersion: () => ipcRenderer.invoke('get-app-version')
 })

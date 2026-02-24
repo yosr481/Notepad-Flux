@@ -52,7 +52,7 @@ const SortableTab = ({ tab, isActive, onClick, onClose, onContextMenu }) => {
     );
 };
 
-const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMenu, onReorder }) => {
+const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMenu, onReorder, appVersion }) => {
     const listRef = useRef(null);
     const [showLeftArrow, setShowLeftArrow] = useState(false);
     const [showRightArrow, setShowRightArrow] = useState(false);
@@ -109,6 +109,9 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                 className={styles.appIcon}
                 draggable="false"
             />
+            {appVersion && (
+                <span className={styles.versionBadge}>v{appVersion}</span>
+            )}
             {showLeftArrow && (
                 <button className={styles.scrollButton} onClick={() => scroll('left')}>
                     ‹

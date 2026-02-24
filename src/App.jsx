@@ -18,6 +18,11 @@ function App() {
     const closingRef = React.useRef(false);
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
+    const [appVersion, setAppVersion] = useState(null);
+
+    useEffect(() => {
+        window.electronAPI?.getAppVersion?.().then(setAppVersion).catch(() => { });
+    }, []);
     const [stats, setStats] = useState({
         line: 1,
         col: 1,
@@ -216,6 +221,7 @@ function App() {
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
                     onReorder={reorderTabs}
+                    appVersion={appVersion}
                 />
                 <MenuBar
                     onUndo={handleUndo}
@@ -293,6 +299,7 @@ function App() {
                 onClose={() => setShowSettings(false)}
                 settings={settings}
                 updateSettings={updateSettings}
+                appVersion={appVersion}
             />
 
             {toast.show && (
