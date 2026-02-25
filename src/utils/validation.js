@@ -1,14 +1,7 @@
-import sanitizeHtml from 'sanitize-html';
+import { sanitizeText } from './sanitize';
 
 export const sanitizeInput = (text) => {
-    if (typeof text !== 'string') return text;
-
-    // Remove all HTML tags and attributes, including scripts and their content,
-    // using a robust HTML sanitizer instead of brittle regular expressions.
-    return sanitizeHtml(text, {
-        allowedTags: [],
-        allowedAttributes: {}
-    });
+    return sanitizeText(text);
 };
 
 export const isValidEmail = (email) => {
