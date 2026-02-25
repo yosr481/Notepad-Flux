@@ -1,11 +1,8 @@
 ﻿export const sanitizeInput = (text) => {
     if (typeof text !== 'string') return text;
     
-    let sanitized = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-    
-    sanitized = sanitized.replace(/<[^>]*>?/gm, '');
-    
-    return sanitized;
+    // Remove all angle brackets to prevent any HTML or script tags
+    return text.replace(/[<>]/g, '');
 };
 
 export const isValidEmail = (email) => {
