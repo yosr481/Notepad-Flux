@@ -1,7 +1,7 @@
 ﻿export const sanitizeInput = (text) => {
     if (typeof text !== 'string') return text;
     
-    let sanitized = text.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+    let sanitized = text;
     
     sanitized = sanitized.replace(/<[^>]*>?/gm, '');
     
