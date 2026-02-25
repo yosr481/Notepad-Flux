@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { join, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -148,6 +148,10 @@ safeHandle('get-app-version', async () => {
     return app.getVersion()
 })
 
+safeHandle('open-external', async (event, url) => {
+    return await shell.openExternal(url)
+})
+
 // The built directory structure
 //
 // ├─┬ dist
@@ -188,7 +192,11 @@ function createWindow() {
         },
     })
 
-    win.webContents.setWindowOpenHandler(() => {
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        if (url.startsWith('http')) {
+            shell.openExternal(url)
+            return { action: 'deny' }
+        }
         return {
             action: 'allow',
             overrideBrowserWindowOptions: {

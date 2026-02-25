@@ -15,5 +15,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
         ipcRenderer.on('main-process-message', subscription);
         return () => ipcRenderer.removeListener('main-process-message', subscription);
     },
-    getAppVersion: () => ipcRenderer.invoke('get-app-version')
+    getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    openExternal: (url) => ipcRenderer.invoke('open-external', url)
 })

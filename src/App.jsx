@@ -10,6 +10,7 @@ import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 import { useSession } from './context/SessionContext';
+import { version } from '../package.json';
 
 import Settings from './components/Settings/Settings';
 
@@ -18,10 +19,12 @@ function App() {
     const closingRef = React.useRef(false);
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
-    const [appVersion, setAppVersion] = useState(null);
+    const [appVersion, setAppVersion] = useState(version);
 
     useEffect(() => {
-        window.electronAPI?.getAppVersion?.().then(setAppVersion).catch(() => { });
+        if (window.electronAPI?.getAppVersion) {
+            window.electronAPI.getAppVersion().then(setAppVersion).catch(() => { });
+        }
     }, []);
     const [stats, setStats] = useState({
         line: 1,
@@ -221,7 +224,6 @@ function App() {
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
                     onReorder={reorderTabs}
-                    appVersion={appVersion}
                 />
                 <MenuBar
                     onUndo={handleUndo}
@@ -265,7 +267,7 @@ function App() {
                 />
             </div>
 
-            <StatusBar stats={stats} />
+            <StatusBar stats={stats} appVersion={appVersion} />
 
             {contextMenu && (
                 <ContextMenu

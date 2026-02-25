@@ -156,6 +156,11 @@
     font-weight: 500;
     cursor: pointer;
     transition: all var(--transition-fast);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    box-sizing: border-box;
 }
 
 .button:hover {
@@ -172,6 +177,27 @@
 .button.danger:hover {
     background-color: var(--color-error);
     color: white;
+}
+
+.aboutRow {
+    align-items: flex-start;
+}
+
+.aboutInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.versionInfo {
+    color: var(--text-muted);
+    font-size: 12px;
+    margin-top: 2px;
+    background: var(--background-modifier-border);
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    width: fit-content;
 }
 
 @keyframes fadeIn {
