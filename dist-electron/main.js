@@ -12585,7 +12585,17 @@ function requireProviderFactory() {
   const KeygenProvider_1 = requireKeygenProvider();
   const PrivateGitHubProvider_1 = requirePrivateGitHubProvider();
   function isUrlProbablySupportMultiRangeRequests(url) {
-    return !url.includes("s3.amazonaws.com");
+    try {
+      const parsed = new URL(url);
+      const hostname = parsed.hostname;
+      if (hostname === "s3.amazonaws.com" || hostname.endsWith(".s3.amazonaws.com")) {
+        return false;
+      }
+      return true;
+    } catch {
+      // Fallback to previous heuristic if URL parsing fails
+      return !url.includes("s3.amazonaws.com");
+    }
   }
   function createClient(data, updater, runtimeOptions) {
     if (typeof data === "string") {
