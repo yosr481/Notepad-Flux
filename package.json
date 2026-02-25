@@ -157,7 +157,8 @@
       {
         "provider": "github",
         "owner": "yosr481",
-        "repo": "Notepad-Flux"
+        "repo": "Notepad-Flux",
+        "releaseType": "release"
       }
     ]
   },
