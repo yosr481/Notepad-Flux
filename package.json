@@ -1,7 +1,7 @@
 {
   "name": "notepad-flux",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.2.4",
   "type": "module",
   "main": "dist-electron/main.js",
   "description": "Notepad Flux - A minimal markdown editor",
@@ -70,7 +70,9 @@
     "icon": "public/icons/desktop/icon.png",
     "asar": true,
     "compression": "maximum",
-    "releaseNotesFile": "release-notes.md",
+    "releaseInfo": {
+      "releaseNotesFile": "release-notes.md"
+    },
     "directories": {
       "output": "release"
     },
