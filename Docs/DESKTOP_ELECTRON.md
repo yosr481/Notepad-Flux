@@ -112,7 +112,7 @@ Linux:
 
 Publishing:
 
-- Provider: GitHub releases (owner: yosr481, repo: Notepad_Flux)
+- Provider: GitHub releases (owner: yosr481, repo: Notepad-Flux)
 
 ---
 
