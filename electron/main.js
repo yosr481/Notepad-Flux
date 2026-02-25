@@ -47,7 +47,7 @@ const safeHandle = (channel, handler) => {
             return await handler(event, ...args)
         } catch (error) {
             console.error(`Error in IPC handler for ${channel}:`, error)
-            throw new Error('An internal system error occurred. Please try again.')
+            throw new Error('An internal system error occurred. Please try again.', { cause: error })
         }
     })
 }
@@ -188,7 +188,7 @@ function createWindow() {
         },
     })
 
-    win.webContents.setWindowOpenHandler(({ url }) => {
+    win.webContents.setWindowOpenHandler(() => {
         return {
             action: 'allow',
             overrideBrowserWindowOptions: {

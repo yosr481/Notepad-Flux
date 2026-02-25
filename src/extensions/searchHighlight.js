@@ -33,7 +33,7 @@ const searchMatchHighlight = StateField.define({
                 const regex = new RegExp(searchText, query.caseSensitive ? '' : 'i');
                 matches = regex.test(selectedText);
             } catch (e) {
-                matches = false;
+                // Ignore invalid regex
             }
         } else {
             if (query.caseSensitive) {
