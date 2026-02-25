@@ -10,7 +10,7 @@ try {
     
     // Match the first version section: everything between the first ## and the second ## (or end of file)
     // Format: ## [1.2.2] - 2026-02-25
-    const regex = /## \[.*?\] - .*?\n([\s\S]*?)(?=\n## \[|$)/;
+    const regex = /## \[.*?\] - .*?\r?\n([\s\S]*?)(?=\r?\n## \[|$)/;
     const match = changelog.match(regex);
     
     if (match && match[1]) {
