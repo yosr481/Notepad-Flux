@@ -14857,7 +14857,8 @@ function requireMacUpdater() {
         const fileUrl = `/${(0, crypto_1.randomBytes)(64).toString("hex")}.zip`;
         this.server.on("request", (request, response) => {
           const requestUrl = request.url;
-          log.info(`${requestUrl} requested`);
+          const safeRequestUrl = typeof requestUrl === "string" ? requestUrl.replace(/[\r\n]/g, "") : String(requestUrl);
+          log.info(`${safeRequestUrl} requested`);
           if (requestUrl === "/") {
             if (!request.headers.authorization || request.headers.authorization.indexOf("Basic ") === -1) {
               response.statusCode = 401;
@@ -14882,7 +14883,7 @@ function requireMacUpdater() {
             return;
           }
           if (!requestUrl.startsWith(fileUrl)) {
-            log.warn(`${requestUrl} requested, but not supported`);
+            log.warn(`${safeRequestUrl} requested, but not supported`);
             response.writeHead(404);
             response.end();
             return;
