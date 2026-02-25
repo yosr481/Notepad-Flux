@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-02-25
+
+### Security
+- **Sanitization:** Consolidated all input sanitization to use `DOMPurify`, replacing various ad-hoc regular expressions and external libraries.
+- **Repository Maintenance:** Correctly excluded build artifacts (`dist-electron/`) from the repository to improve security scanning accuracy and reduce bloat.
+
 ## [1.2.2] - 2026-02-25
 
 ### Fixed
