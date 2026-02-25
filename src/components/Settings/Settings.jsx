@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
+import { version } from '../../../package.json';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
@@ -105,20 +106,19 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                 {/* About */}
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>About</h3>
-                    <div className={styles.row}>
-                        <div>
-                            <div className={styles.label}>Notepad Flux{appVersion ? ` — Version ${appVersion}` : ''}</div>
+                    <div className={`${styles.row} ${styles.aboutRow}`}>
+                        <div className={styles.aboutInfo}>
+                            <div className={styles.label}>Notepad Flux</div>
                             <div className={styles.description}>A minimal, distraction-free markdown editor</div>
+                            <div className={styles.versionInfo}>
+                                {appVersion ? `v${appVersion}` : `v${version}`}
+                            </div>
                         </div>
                         <a
                             className={styles.button}
-                            href="https://github.com/yosr481/Notepad_Flux/releases"
+                            href="https://github.com/yosr481/Notepad-Flux/releases"
                             target="_blank"
                             rel="noreferrer"
-                            onClick={(e) => {
-                                e.preventDefault();
-                                window.open('https://github.com/yosr481/Notepad_Flux/releases', '_blank');
-                            }}
                         >
                             View Releases
                         </a>

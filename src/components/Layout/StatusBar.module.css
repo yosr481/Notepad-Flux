@@ -50,11 +50,26 @@
     line-height: 1;
 }
 
+.statusVersion {
+    padding-right: 8px;
+    height: 14px;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    color: var(--text-muted);
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.primaryItem {
+    margin-right: auto;
+    border-left: none;
+    padding-left: 0;
+}
+
 .statusItem:first-child {
     border-left: none;
-    margin-right: auto;
     padding-left: 0;
-    /* Push others to right */
 }
 
 /* Interactive elements in status bar (if any) */

@@ -1,12 +1,17 @@
 import React from 'react';
 import styles from './StatusBar.module.css';
 
-const StatusBar = ({ stats }) => {
+const StatusBar = ({ stats, appVersion }) => {
     const { line, col, wordCount, charCount } = stats;
 
     return (
         <div className={styles.statusBar}>
-            <div className={styles.statusItem}>
+            {appVersion && (
+                <div className={styles.statusVersion}>
+                    v{appVersion}
+                </div>
+            )}
+            <div className={`${styles.statusItem} ${styles.primaryItem}`}>
                 Ln {line}, Col {col}
             </div>
             <div className={styles.statusItem}>
