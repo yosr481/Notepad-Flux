@@ -9,3 +9,11 @@ export const sanitizeHTML = (html) => {
         SAFE_FOR_TEMPLATES: true
     });
 };
+
+export const sanitizeText = (text) => {
+    if (typeof text !== 'string') return text;
+    return DOMPurify.sanitize(text, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: []
+    });
+};
