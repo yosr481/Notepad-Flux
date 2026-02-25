@@ -1,7 +1,7 @@
 {
   "name": "notepad-flux",
   "private": true,
-  "version": "1.2.1",
+  "version": "1.2.2",
   "type": "module",
   "main": "dist-electron/main.js",
   "description": "Notepad Flux - A minimal markdown editor",
@@ -157,7 +157,7 @@
       {
         "provider": "github",
         "owner": "yosr481",
-        "repo": "Notepad_Flux"
+        "repo": "Notepad-Flux"
       }
     ]
   },
