@@ -70,6 +70,7 @@
     "icon": "public/icons/desktop/icon.png",
     "asar": true,
     "compression": "maximum",
+    "releaseNotesFile": "release-notes.md",
     "directories": {
       "output": "release"
     },

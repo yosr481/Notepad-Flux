@@ -27,16 +27,10 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build & Release (Windows)
-        if: matrix.os == 'windows-latest'
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run build
+      - name: Extract Release Notes
+        run: node scripts/extract-changelog.js
 
-      - name: Build & Release (Linux)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Build & Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          npm run build
+        run: npm run build
