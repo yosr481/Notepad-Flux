@@ -2,16 +2,9 @@ import React, { useState } from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
-import { useUpdate } from '../../context/UpdateContext';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
-    const { status, progress, updateInfo, isManualCheck, lastCheckTime, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
-    const isUpdateAvailable = status === 'available';
-    const isDownloading = status === 'downloading';
-    const isDownloaded = status === 'downloaded';
-    const isChecking = status === 'checking';
-    const isNotAvailable = status === 'not-available';
 
     if (!isOpen) return null;
 
@@ -121,51 +114,14 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                                 {appVersion ? `v${appVersion}` : `v${version}`}
                             </div>
                         </div>
-                        <div className={styles.updateActions}>
-                            <a
-                                className={styles.button}
-                                href="https://github.com/yosr481/Notepad-Flux/releases"
-                                target="_blank"
-                                rel="noreferrer"
-                            >
-                                View Releases
-                            </a>
-                                <button
-                                    className={styles.button}
-                                    onClick={() => {
-                                        if (isDownloaded) installUpdate();
-                                        else if (isUpdateAvailable) downloadUpdate();
-                                        else checkForUpdates(true);
-                                    }}
-                                    disabled={(!window.electronAPI?.updater && !import.meta.env.DEV) || isChecking || isDownloading}
-                                >
-                                {isChecking && 'Checking for Updates...'}
-                                {isDownloading && `Downloading... ${progress}%`}
-                                {isDownloaded && 'Update Now'}
-                                {!isChecking && !isDownloading && !isDownloaded && isUpdateAvailable && 'Update Now'}
-                                {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && 'Check for Updates'}
-                            </button>
-                            {isUpdateAvailable && updateInfo && (
-                                <div className={styles.updateAvailable}>
-                                    v{updateInfo.version} available
-                                </div>
-                            )}
-                            {isNotAvailable && (
-                                <div className={styles.updateStatus}>
-                                    {isManualCheck ? 'Up to date' : (lastCheckTime ? `Last checked: ${lastCheckTime}` : 'Up to date')}
-                                </div>
-                            )}
-                            {status === 'error' && (
-                                <div className={`${styles.updateStatus} ${styles.errorText}`}>
-                                    Failed to check for updates
-                                </div>
-                            )}
-                            {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && !isNotAvailable && (
-                                <div className={styles.updateStatus}>
-                                    {(window.electronAPI?.updater || import.meta.env.DEV) ? (isManualCheck ? 'Up to date' : (lastCheckTime ? `Last checked: ${lastCheckTime}` : 'Not checked yet')) : 'Updates available in desktop app only'}
-                                </div>
-                            )}
-                        </div>
+                        <a
+                            className={styles.button}
+                            href="https://github.com/yosr481/Notepad-Flux/releases"
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            View Releases
+                        </a>
                     </div>
                 </div>
             </div>

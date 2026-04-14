@@ -117,92 +117,32 @@ autoUpdater.logger.transports.file.level = 'info'
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
-function sendUpdateEvent(channel, data) {
-    if (win) {
-        win.webContents.send(channel, data)
+autoUpdater.on('update-available', async (info) => {
+    const { response } = await dialog.showMessageBox({
+        type: 'info',
+        buttons: ['Download Now', 'Later'],
+        title: 'Update Available',
+        message: `A new version (${info.version}) of Notepad Flux is available. Would you like to download it now?`,
+    })
+    if (response === 0) {
+        autoUpdater.downloadUpdate()
     }
-}
+})
 
-const isDev = !!process.env.VITE_DEV_SERVER_URL
-
-// Mock updater for dev environment
-const mockUpdater = {
-    check: async () => {
-        sendUpdateEvent('updater:checking', null)
-        setTimeout(() => {
-            // Simulate update available after 1s
-            sendUpdateEvent('updater:available', { version: '1.9.9', releaseNotes: 'Mock update' })
-        }, 1500)
-    },
-    download: async () => {
-        let progress = 0
-        const interval = setInterval(() => {
-            progress += 10
-            sendUpdateEvent('updater:progress', { percent: progress })
-            if (progress >= 100) {
-                clearInterval(interval)
-                sendUpdateEvent('updater:downloaded', { version: '1.9.9' })
-            }
-        }, 500)
-    },
-    install: async () => {
-        console.log('[MOCK] Restarting app to install update...')
-        app.relaunch()
-        app.exit()
+autoUpdater.on('update-downloaded', async () => {
+    const { response } = await dialog.showMessageBox({
+        type: 'info',
+        buttons: ['Restart and Install', 'Later'],
+        title: 'Update Ready',
+        message: 'The update has been downloaded and is ready to be installed. Would you like to restart the application now?',
+    })
+    if (response === 0) {
+        autoUpdater.quitAndInstall()
     }
-}
-
-autoUpdater.on('checking-for-update', () => {
-    sendUpdateEvent('updater:checking', null)
-})
-
-autoUpdater.on('update-available', (info) => {
-    sendUpdateEvent('updater:available', info)
-})
-
-autoUpdater.on('update-not-available', () => {
-    sendUpdateEvent('updater:not-available', null)
-})
-
-autoUpdater.on('download-progress', (progressObj) => {
-    sendUpdateEvent('updater:progress', progressObj)
-})
-
-autoUpdater.on('update-downloaded', (info) => {
-    sendUpdateEvent('updater:downloaded', info)
 })
 
 autoUpdater.on('error', (err) => {
     console.error('Auto Updater error:', err)
-    sendUpdateEvent('updater:error', err?.message || 'Unknown error')
-})
-
-safeHandle('updater:check', async () => {
-    if (isDev) return mockUpdater.check()
-    try {
-        await autoUpdater.checkForUpdates()
-        return { success: true }
-    } catch (err) {
-        console.error('Failed to check for updates:', err)
-        throw err
-    }
-})
-
-safeHandle('updater:download', async () => {
-    if (isDev) return mockUpdater.download()
-    try {
-        await autoUpdater.downloadUpdate()
-        return { success: true }
-    } catch (err) {
-        console.error('Failed to download update:', err)
-        throw err
-    }
-})
-
-safeHandle('updater:install', async () => {
-    if (isDev) return mockUpdater.install()
-    autoUpdater.quitAndInstall()
-    return { success: true }
 })
 
 safeHandle('get-app-version', async () => {
@@ -339,12 +279,5 @@ app.whenReady().then(() => {
         autoUpdater.checkForUpdates().catch(err => {
             console.error('Failed to check for updates:', err)
         })
-
-        // Periodic check every 4 hours
-        setInterval(() => {
-            autoUpdater.checkForUpdates().catch(err => {
-                console.error('Failed to periodic check for updates:', err)
-            })
-        }, 4 * 60 * 60 * 1000)
     }
 })

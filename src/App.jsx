@@ -7,11 +7,9 @@ import ContextMenu from './components/Layout/ContextMenu';
 import FindReplacePanel from './components/Layout/FindReplacePanel';
 import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
-import UpdatePopup from './components/Layout/UpdatePopup';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 import { useSession } from './context/SessionContext';
-import { UpdateProvider } from './context/UpdateContext';
 import { version } from '../package.json';
 
 import Settings from './components/Settings/Settings';
@@ -216,8 +214,7 @@ function App() {
     };
 
     return (
-        <UpdateProvider>
-            <div className={styles.appContainer} data-theme={settings.theme} onClick={() => setContextMenu(null)}>
+        <div className={styles.appContainer} data-theme={settings.theme} onClick={() => setContextMenu(null)}>
             <div className={styles.topBar}>
                 <Tabs
                     tabs={tabs}
@@ -314,10 +311,7 @@ function App() {
                     onClose={() => setToast({ message: '', show: false })}
                 />
             )}
-
-            <UpdatePopup />
         </div>
-        </UpdateProvider>
     );
 }
 
