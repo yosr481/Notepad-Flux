@@ -216,6 +216,19 @@ function createWindow() {
         }
     })
 
+    win.webContents.on('will-navigate', (event, navigationUrl) => {
+        const parsedUrl = new URL(navigationUrl)
+        const isDev = !!process.env.VITE_DEV_SERVER_URL
+        if (isDev && navigationUrl.startsWith(process.env.VITE_DEV_SERVER_URL)) {
+            return
+        }
+        if (parsedUrl.protocol === 'file:') {
+            return
+        }
+        event.preventDefault()
+        shell.openExternal(navigationUrl)
+    })
+
     win.once('ready-to-show', () => {
         win.show()
         if (splash) {
