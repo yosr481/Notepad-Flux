@@ -71,7 +71,7 @@
     "asar": true,
     "compression": "maximum",
     "releaseInfo": {
-      "releaseNotesFile": "release-notes.md"
+      "releaseNotesFile": "CHANGELOG.md"
     },
     "directories": {
       "output": "release"
