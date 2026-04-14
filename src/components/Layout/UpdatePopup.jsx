@@ -4,10 +4,13 @@ import styles from './UpdatePopup.module.css';
 import { useUpdate } from '../../context/UpdateContext';
 
 export default function UpdatePopup() {
-    const { status, progress, updateInfo, error, isManualCheck, downloadUpdate, installUpdate, dismissUpdate } = useUpdate();
+    const { status, progress, updateInfo, error, isManualCheck, lastCheckTime, downloadUpdate, installUpdate, dismissUpdate } = useUpdate();
 
     const isHidden = status === 'idle' || status === 'not-available' || (status === 'checking' && !isManualCheck);
 
+    // If we're already checking and it's a manual check, but the user is already looking at it somewhere else
+    // or we just want to avoid double feedback, we can refine this.
+    // For now, let's just make it less intrusive if it's just 'checking'.
     if (isHidden) return null;
 
     return (

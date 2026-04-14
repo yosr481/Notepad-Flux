@@ -6,7 +6,7 @@ import { useUpdate } from '../../context/UpdateContext';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
-    const { status, progress, updateInfo, isManualCheck, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
+    const { status, progress, updateInfo, isManualCheck, lastCheckTime, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
     const isUpdateAvailable = status === 'available';
     const isDownloading = status === 'downloading';
     const isDownloaded = status === 'downloaded';
@@ -152,12 +152,17 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                             )}
                             {isNotAvailable && (
                                 <div className={styles.updateStatus}>
-                                    Up to date
+                                    {isManualCheck ? 'Up to date' : (lastCheckTime ? `Last checked: ${lastCheckTime}` : 'Up to date')}
+                                </div>
+                            )}
+                            {status === 'error' && (
+                                <div className={`${styles.updateStatus} ${styles.errorText}`}>
+                                    Failed to check for updates
                                 </div>
                             )}
                             {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && !isNotAvailable && (
                                 <div className={styles.updateStatus}>
-                                    {(window.electronAPI || import.meta.env.DEV) ? 'Last checked: ' + new Date().toLocaleTimeString() : 'Updates available in desktop app only'}
+                                    {(window.electronAPI?.updater || import.meta.env.DEV) ? (isManualCheck ? 'Up to date' : (lastCheckTime ? `Last checked: ${lastCheckTime}` : 'Not checked yet')) : 'Updates available in desktop app only'}
                                 </div>
                             )}
                         </div>

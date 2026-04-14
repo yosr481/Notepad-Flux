@@ -209,6 +209,10 @@
     font-size: var(--font-size-s);
 }
 
+.errorText {
+    color: var(--color-error);
+}
+
 .button:disabled {
     opacity: 0.5;
     cursor: not-allowed;
