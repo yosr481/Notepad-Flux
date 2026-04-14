@@ -6,11 +6,12 @@ import { useUpdate } from '../../context/UpdateContext';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
-    const { status, progress, updateInfo, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
+    const { status, progress, updateInfo, isManualCheck, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
     const isUpdateAvailable = status === 'available';
     const isDownloading = status === 'downloading';
     const isDownloaded = status === 'downloaded';
     const isChecking = status === 'checking';
+    const isNotAvailable = status === 'not-available';
 
     if (!isOpen) return null;
 
@@ -129,15 +130,15 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                             >
                                 View Releases
                             </a>
-                            <button
-                                className={styles.button}
-                                onClick={() => {
-                                    if (isDownloaded) installUpdate();
-                                    else if (isUpdateAvailable) downloadUpdate();
-                                    else checkForUpdates();
-                                }}
-                                disabled={!window.electronAPI?.updater || isChecking || isDownloading}
-                            >
+                                <button
+                                    className={styles.button}
+                                    onClick={() => {
+                                        if (isDownloaded) installUpdate();
+                                        else if (isUpdateAvailable) downloadUpdate();
+                                        else checkForUpdates(true);
+                                    }}
+                                    disabled={(!window.electronAPI?.updater && !import.meta.env.DEV) || isChecking || isDownloading}
+                                >
                                 {isChecking && 'Checking for Updates...'}
                                 {isDownloading && `Downloading... ${progress}%`}
                                 {isDownloaded && 'Update Now'}
@@ -149,9 +150,14 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                                     v{updateInfo.version} available
                                 </div>
                             )}
-                            {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && (
+                            {isNotAvailable && (
                                 <div className={styles.updateStatus}>
-                                    {window.electronAPI ? 'Up to date' : 'Updates available in desktop app only'}
+                                    Up to date
+                                </div>
+                            )}
+                            {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && !isNotAvailable && (
+                                <div className={styles.updateStatus}>
+                                    {(window.electronAPI || import.meta.env.DEV) ? 'Last checked: ' + new Date().toLocaleTimeString() : 'Updates available in desktop app only'}
                                 </div>
                             )}
                         </div>

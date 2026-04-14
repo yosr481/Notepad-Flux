@@ -1,5 +1,6 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
+import log from 'electron-log'
 import { join, resolve, isAbsolute, sep } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
@@ -111,12 +112,43 @@ safeHandle('save-file', async (event, { filePath, content }) => {
 
 
 // --------- Auto Updater ---------
+autoUpdater.logger = log
+autoUpdater.logger.transports.file.level = 'info'
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
 function sendUpdateEvent(channel, data) {
     if (win) {
         win.webContents.send(channel, data)
+    }
+}
+
+const isDev = !!process.env.VITE_DEV_SERVER_URL
+
+// Mock updater for dev environment
+const mockUpdater = {
+    check: async () => {
+        sendUpdateEvent('updater:checking', null)
+        setTimeout(() => {
+            // Simulate update available after 1s
+            sendUpdateEvent('updater:available', { version: '1.9.9', releaseNotes: 'Mock update' })
+        }, 1500)
+    },
+    download: async () => {
+        let progress = 0
+        const interval = setInterval(() => {
+            progress += 10
+            sendUpdateEvent('updater:progress', { percent: progress })
+            if (progress >= 100) {
+                clearInterval(interval)
+                sendUpdateEvent('updater:downloaded', { version: '1.9.9' })
+            }
+        }, 500)
+    },
+    install: async () => {
+        console.log('[MOCK] Restarting app to install update...')
+        app.relaunch()
+        app.exit()
     }
 }
 
@@ -146,6 +178,7 @@ autoUpdater.on('error', (err) => {
 })
 
 safeHandle('updater:check', async () => {
+    if (isDev) return mockUpdater.check()
     try {
         await autoUpdater.checkForUpdates()
         return { success: true }
@@ -156,6 +189,7 @@ safeHandle('updater:check', async () => {
 })
 
 safeHandle('updater:download', async () => {
+    if (isDev) return mockUpdater.download()
     try {
         await autoUpdater.downloadUpdate()
         return { success: true }
@@ -166,6 +200,7 @@ safeHandle('updater:download', async () => {
 })
 
 safeHandle('updater:install', async () => {
+    if (isDev) return mockUpdater.install()
     autoUpdater.quitAndInstall()
     return { success: true }
 })
@@ -304,5 +339,12 @@ app.whenReady().then(() => {
         autoUpdater.checkForUpdates().catch(err => {
             console.error('Failed to check for updates:', err)
         })
+
+        // Periodic check every 4 hours
+        setInterval(() => {
+            autoUpdater.checkForUpdates().catch(err => {
+                console.error('Failed to periodic check for updates:', err)
+            })
+        }, 4 * 60 * 60 * 1000)
     }
 })
