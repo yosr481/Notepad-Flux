@@ -151,7 +151,7 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                             )}
                             {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && (
                                 <div className={styles.updateStatus}>
-                                    {window.electronAPI?.updater ? 'Up to date' : 'Updates available in desktop app only'}
+                                    {window.electronAPI ? 'Up to date' : 'Updates available in desktop app only'}
                                 </div>
                             )}
                         </div>

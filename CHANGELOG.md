@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.10] - 2026-04-14
+
+### Fixed
+- **Settings Update Status:** Fixed incorrect "Updates available in desktop app only" message showing in the installed desktop app when up to date. Now correctly shows "Up to date" in desktop app and "Updates available in desktop app only" in browser.
+
 ## [1.2.9] - 2026-04-14
 
 ### Fixed
