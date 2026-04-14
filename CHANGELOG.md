@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-04-14
+
+### Features
+- **Updater:** Implement robust update system with manual/auto checks and dev mocking. Added periodic checks every 4 hours and improved UI feedback in Settings and Popups.
+
+### Style
+- **UI:** Improve menu bar dragging behavior by adding `-webkit-app-region` properties.
+
+### Chores / Internals
+- **Deps:** Add `electron-log` for better update logging and troubleshooting.
+
 ## [1.2.10] - 2026-04-14
 
 ### Fixed
