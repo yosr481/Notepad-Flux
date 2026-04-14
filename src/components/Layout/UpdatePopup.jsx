@@ -4,9 +4,9 @@ import styles from './UpdatePopup.module.css';
 import { useUpdate } from '../../context/UpdateContext';
 
 export default function UpdatePopup() {
-    const { status, progress, updateInfo, error, downloadUpdate, installUpdate, dismissUpdate } = useUpdate();
+    const { status, progress, updateInfo, error, isManualCheck, downloadUpdate, installUpdate, dismissUpdate } = useUpdate();
 
-    const isHidden = status === 'idle';
+    const isHidden = status === 'idle' || status === 'not-available' || (status === 'checking' && !isManualCheck);
 
     if (isHidden) return null;
 
