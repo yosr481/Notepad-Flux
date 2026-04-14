@@ -235,3 +235,9 @@
     background-color: var(--background-hover);
     color: var(--text-normal);
 }
+
+.dragHandle {
+    min-width: 32px;
+    width: 92px;
+    -webkit-app-region: drag;
+}
