@@ -50,3 +50,4 @@ logs/**/*.log
 *.swp
 *.swo
 .output.txt
+.agents/

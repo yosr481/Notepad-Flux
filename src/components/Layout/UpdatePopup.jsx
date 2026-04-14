@@ -1,12 +1,12 @@
 import React from 'react';
-import { Download, ArrowCircleDown, CheckCircle, XCircle, Spinner } from 'phosphor-react';
+import { Download, ArrowCircleDown, CheckCircle, XCircle, WarningCircle, Spinner } from 'phosphor-react';
 import styles from './UpdatePopup.module.css';
 import { useUpdate } from '../../context/UpdateContext';
 
 export default function UpdatePopup() {
     const { status, progress, updateInfo, error, downloadUpdate, installUpdate, dismissUpdate } = useUpdate();
 
-    const isHidden = status === 'idle' || status === 'error' || status === 'checking';
+    const isHidden = status === 'idle';
 
     if (isHidden) return null;
 
@@ -15,17 +15,21 @@ export default function UpdatePopup() {
             {/* Header */}
             <div className={styles.header}>
                 <div className={styles.iconWrapper}>
+                    {status === 'checking' && <Spinner size={24} weight="duotone" className={styles.spinner} />}
                     {status === 'available' && <Download size={24} weight="duotone" />}
                     {status === 'downloading' && <ArrowCircleDown size={24} weight="duotone" />}
                     {status === 'downloaded' && <CheckCircle size={24} weight="duotone" />}
+                    {status === 'error' && <WarningCircle size={24} weight="duotone" className={styles.errorIcon} />}
                 </div>
                 <div className={styles.titleRow}>
                     <span className={styles.title}>
+                        {status === 'checking' && 'Checking for Updates'}
                         {status === 'available' && 'Update Available'}
                         {status === 'downloading' && 'Downloading Update'}
                         {status === 'downloaded' && 'Update Ready to Install'}
+                        {status === 'error' && 'Update Check Failed'}
                     </span>
-                    {status !== 'downloading' && (
+                    {status !== 'downloading' && status !== 'checking' && (
                         <button className={styles.closeButton} onClick={dismissUpdate} aria-label="Dismiss update">
                             <XCircle size={18} />
                         </button>
@@ -35,6 +39,14 @@ export default function UpdatePopup() {
 
             {/* Content */}
             <div className={styles.content}>
+                {status === 'checking' && (
+                    <>
+                        <p className={styles.description}>
+                            Please wait while we check for available updates...
+                        </p>
+                    </>
+                )}
+
                 {status === 'available' && updateInfo && (
                     <>
                         <p className={styles.versionInfo}>
@@ -81,6 +93,19 @@ export default function UpdatePopup() {
                             </button>
                             <button className={styles.buttonSecondary} onClick={dismissUpdate}>
                                 Later
+                            </button>
+                        </div>
+                    </>
+                )}
+
+                {status === 'error' && (
+                    <>
+                        <p className={styles.errorText}>
+                            {error || 'Unable to check for updates. Please try again later.'}
+                        </p>
+                        <div className={styles.actions}>
+                            <button className={styles.buttonSecondary} onClick={dismissUpdate}>
+                                Dismiss
                             </button>
                         </div>
                     </>
