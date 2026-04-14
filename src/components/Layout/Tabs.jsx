@@ -93,6 +93,36 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
         }
     };
 
+    const handleWheel = (e) => {
+        if (listRef.current) {
+            e.preventDefault();
+            listRef.current.scrollLeft += e.deltaY;
+            setTimeout(checkScroll, 100);
+        }
+    };
+
+    const handleMiddleMouseDown = (e) => {
+        if (e.button === 1) {
+            e.preventDefault();
+            const startY = e.clientY;
+            const startScroll = listRef.current.scrollLeft;
+
+            const onMove = (moveEvent) => {
+                if (listRef.current) {
+                    listRef.current.scrollLeft = startScroll - (moveEvent.clientY - startY);
+                }
+            };
+
+            const onUp = () => {
+                document.removeEventListener('mousemove', onMove);
+                document.removeEventListener('mouseup', onUp);
+            };
+
+            document.addEventListener('mousemove', onMove);
+            document.addEventListener('mouseup', onUp);
+        }
+    };
+
     const handleDragEnd = (event) => {
         const { active, over } = event;
 
@@ -102,7 +132,7 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
     };
 
     return (
-        <div className={styles.tabsContainer}>
+        <div className={styles.tabsContainer} onMouseDown={handleMiddleMouseDown}>
             <img
                 src="icons/web/favicon-32x32.png"
                 alt="App Icon"
@@ -124,6 +154,7 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                     className={styles.tabsList}
                     ref={listRef}
                     onScroll={checkScroll}
+                    onWheel={handleWheel}
                 >
                     <SortableContext
                         items={tabs.map(t => t.id)}
@@ -152,6 +183,8 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
             <button className={styles.newTabButton} onClick={onNewTab} title="New Tab (Ctrl+N)">
                 +
             </button>
+
+            <div className={styles.dragHandle} />
         </div>
     );
 };

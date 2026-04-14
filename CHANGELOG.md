@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2026-04-14
+
+### Added
+- **Tab Bar Drag Handle:** Added invisible drag handle between scroll arrows and new tab button, allowing window dragging from the tab bar area.
+- **Tab Wheel Scroll:** Mouse wheel now scrolls tabs horizontally when hovering the tab list.
+- **Middle Mouse Scroll:** Click and drag with the middle mouse button to scroll through tabs.
+
+### Changed
+- **README:** Updated release link to point to the releases page instead of a specific tag.
+
+### Fixed
+- **Settings Update Button:** Update button now always visible in Settings About section (grayed out when not in Electron). Status label shows "Up to date" or "Updates available in desktop app only".
+- **Settings Draggable Header:** Settings header now supports window dragging across the entire top bar, not just the corner.
+
 ## [1.2.7] - 2026-04-14
 
 ### Added
