@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.1] - 2026-04-14
+
+### Bug Fixes
+- **Updates:** Fixed missing feedback during and after manual update checks in the Settings menu.
+- **Updates:** Added `lastCheckTime` to accurately reflect the actual last check time instead of current time.
+- **Updates:** Distinguished between manual and automatic update checks, showing "Up to date" immediately after a manual check.
+- **Updates:** Added error message display in Settings if update check fails.
+
 ## [1.3.0] - 2026-04-14
 
 ### Features

@@ -16,11 +16,13 @@ export function UpdateProvider({ children }) {
     const [updateInfo, setUpdateInfo] = useState(null);
     const [error, setError] = useState(null);
     const [isManualCheck, setIsManualCheck] = useState(false);
+    const [lastCheckTime, setLastCheckTime] = useState(null);
 
     const checkForUpdates = useCallback(async (manual = false) => {
         setIsManualCheck(manual);
         setStatus('checking');
         setError(null);
+        setLastCheckTime(new Date().toLocaleTimeString());
 
         if (import.meta.env.DEV) {
             console.log('[DEV] Mock update check initiated (manual:', manual, ')');
@@ -108,6 +110,7 @@ export function UpdateProvider({ children }) {
         const cleanup = window.electronAPI.updater.onEvents({
             onChecking: () => {
                 setStatus('checking');
+                setLastCheckTime(new Date().toLocaleTimeString());
             },
             onUpdateAvailable: (info) => {
                 setStatus('available');
@@ -147,6 +150,7 @@ export function UpdateProvider({ children }) {
         updateInfo,
         error,
         isManualCheck,
+        lastCheckTime,
         checkForUpdates,
         downloadUpdate,
         installUpdate,
