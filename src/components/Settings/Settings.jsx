@@ -129,25 +129,30 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                             >
                                 View Releases
                             </a>
-                            {window.electronAPI?.updater && (
-                                <>
-                                    <button
-                                        className={styles.button}
-                                        onClick={isDownloaded ? installUpdate : isUpdateAvailable ? downloadUpdate : checkForUpdates}
-                                        disabled={isChecking || isDownloading}
-                                    >
-                                        {isChecking && 'Checking for Updates...'}
-                                        {isDownloading && `Downloading... ${progress}%`}
-                                        {isDownloaded && 'Update Now'}
-                                        {!isChecking && !isDownloading && !isDownloaded && isUpdateAvailable && 'Update Now'}
-                                        {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && 'Check for Updates'}
-                                    </button>
-                                    {isUpdateAvailable && updateInfo && (
-                                        <div className={styles.updateAvailable}>
-                                            v{updateInfo.version} available
-                                        </div>
-                                    )}
-                                </>
+                            <button
+                                className={styles.button}
+                                onClick={() => {
+                                    if (isDownloaded) installUpdate();
+                                    else if (isUpdateAvailable) downloadUpdate();
+                                    else checkForUpdates();
+                                }}
+                                disabled={!window.electronAPI?.updater || isChecking || isDownloading}
+                            >
+                                {isChecking && 'Checking for Updates...'}
+                                {isDownloading && `Downloading... ${progress}%`}
+                                {isDownloaded && 'Update Now'}
+                                {!isChecking && !isDownloading && !isDownloaded && isUpdateAvailable && 'Update Now'}
+                                {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && 'Check for Updates'}
+                            </button>
+                            {isUpdateAvailable && updateInfo && (
+                                <div className={styles.updateAvailable}>
+                                    v{updateInfo.version} available
+                                </div>
+                            )}
+                            {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && (
+                                <div className={styles.updateStatus}>
+                                    {window.electronAPI?.updater ? 'Up to date' : 'Updates available in desktop app only'}
+                                </div>
                             )}
                         </div>
                     </div>
