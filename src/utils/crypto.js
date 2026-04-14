@@ -49,7 +49,7 @@ async function getEncryptionKey() {
             // Not in Electron environment (e.g. browser tests)
             localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
         }
-    } else if (keyData && !secureKeyData && window.electronAPI?.safeStorage) {
+    } else if (!secureKeyData && window.electronAPI?.safeStorage) {
         // Migration: keyData exists in plaintext, try to secure it
         try {
             const isAvailable = await window.electronAPI.safeStorage.isAvailable();

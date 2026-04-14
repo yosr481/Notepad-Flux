@@ -195,16 +195,14 @@ export const useCommands = (showToast) => {
                 }
             }
 
-            if (file) {
-                createTab({
-                    title: file.name,
-                    content: file.content,
-                    filePath: file.name,
-                    fileHandle: file.handle,
-                    isDirty: false
-                });
-                addRecentFile(file.name, file.name, file.handle);
-            }
+            createTab({
+                title: file.name,
+                content: file.content,
+                filePath: file.name,
+                fileHandle: file.handle,
+                isDirty: false
+            });
+            addRecentFile(file.name, file.name, file.handle);
         } catch (error) {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);

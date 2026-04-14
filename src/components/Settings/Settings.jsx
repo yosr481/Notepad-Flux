@@ -2,9 +2,15 @@ import React, { useState } from 'react';
 import { ArrowLeft } from 'phosphor-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
+import { useUpdate } from '../../context/UpdateContext';
 
 const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
     const [errors, setErrors] = useState({});
+    const { status, progress, updateInfo, checkForUpdates, downloadUpdate, installUpdate } = useUpdate();
+    const isUpdateAvailable = status === 'available';
+    const isDownloading = status === 'downloading';
+    const isDownloaded = status === 'downloaded';
+    const isChecking = status === 'checking';
 
     if (!isOpen) return null;
 
@@ -114,14 +120,36 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                                 {appVersion ? `v${appVersion}` : `v${version}`}
                             </div>
                         </div>
-                        <a
-                            className={styles.button}
-                            href="https://github.com/yosr481/Notepad-Flux/releases"
-                            target="_blank"
-                            rel="noreferrer"
-                        >
-                            View Releases
-                        </a>
+                        <div className={styles.updateActions}>
+                            <a
+                                className={styles.button}
+                                href="https://github.com/yosr481/Notepad-Flux/releases"
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                View Releases
+                            </a>
+                            {window.electronAPI?.updater && (
+                                <>
+                                    <button
+                                        className={styles.button}
+                                        onClick={isDownloaded ? installUpdate : isUpdateAvailable ? downloadUpdate : checkForUpdates}
+                                        disabled={isChecking || isDownloading}
+                                    >
+                                        {isChecking && 'Checking for Updates...'}
+                                        {isDownloading && `Downloading... ${progress}%`}
+                                        {isDownloaded && 'Update Now'}
+                                        {!isChecking && !isDownloading && !isDownloaded && isUpdateAvailable && 'Update Now'}
+                                        {!isChecking && !isDownloading && !isDownloaded && !isUpdateAvailable && 'Check for Updates'}
+                                    </button>
+                                    {isUpdateAvailable && updateInfo && (
+                                        <div className={styles.updateAvailable}>
+                                            v{updateInfo.version} available
+                                        </div>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

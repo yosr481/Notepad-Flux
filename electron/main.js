@@ -114,34 +114,60 @@ safeHandle('save-file', async (event, { filePath, content }) => {
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
-autoUpdater.on('update-available', async (info) => {
-    const { response } = await dialog.showMessageBox({
-        type: 'info',
-        buttons: ['Download Now', 'Later'],
-        title: 'Update Available',
-        message: `A new version (${info.version}) of Notepad Flux is available. Would you like to download it now?`,
-    })
-
-    if (response === 0) {
-        autoUpdater.downloadUpdate()
+function sendUpdateEvent(channel, data) {
+    if (win) {
+        win.webContents.send(channel, data)
     }
+}
+
+autoUpdater.on('checking-for-update', () => {
+    sendUpdateEvent('updater:checking', null)
 })
 
-autoUpdater.on('update-downloaded', async (info) => {
-    const { response } = await dialog.showMessageBox({
-        type: 'info',
-        buttons: ['Restart and Install', 'Later'],
-        title: 'Update Ready',
-        message: 'The update has been downloaded and is ready to be installed. Would you like to restart the application now?',
-    })
+autoUpdater.on('update-available', (info) => {
+    sendUpdateEvent('updater:available', info)
+})
 
-    if (response === 0) {
-        autoUpdater.quitAndInstall()
-    }
+autoUpdater.on('update-not-available', () => {
+    sendUpdateEvent('updater:not-available', null)
+})
+
+autoUpdater.on('download-progress', (progressObj) => {
+    sendUpdateEvent('updater:progress', progressObj)
+})
+
+autoUpdater.on('update-downloaded', (info) => {
+    sendUpdateEvent('updater:downloaded', info)
 })
 
 autoUpdater.on('error', (err) => {
     console.error('Auto Updater error:', err)
+    sendUpdateEvent('updater:error', err?.message || 'Unknown error')
+})
+
+safeHandle('updater:check', async () => {
+    try {
+        await autoUpdater.checkForUpdates()
+        return { success: true }
+    } catch (err) {
+        console.error('Failed to check for updates:', err)
+        throw err
+    }
+})
+
+safeHandle('updater:download', async () => {
+    try {
+        await autoUpdater.downloadUpdate()
+        return { success: true }
+    } catch (err) {
+        console.error('Failed to download update:', err)
+        throw err
+    }
+})
+
+safeHandle('updater:install', async () => {
+    autoUpdater.quitAndInstall()
+    return { success: true }
 })
 
 safeHandle('get-app-version', async () => {

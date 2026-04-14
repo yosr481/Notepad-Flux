@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.2.7] - 2026-04-14
+
+### Added
+- **In-App Auto-Update UI:** Replaced native OS dialogs with a custom bottom-right popup for update notifications. Features download progress bar, version info, and action buttons (Download, Restart to Update, Later).
+- **Settings Integration:** Added "Check for Updates" / "Update Now" button in the Settings About section. Always visible, shows current update status and progress.
+
+### Changed
+- **Auto-Update Architecture:** Refactored Electron main process to forward all `autoUpdater` events to the renderer via IPC, enabling full in-app control of the update flow.
+
+### Fixed
+- **CodeQL Warnings:** Removed redundant always-true conditionals in `useCommands.js` and `crypto.js` flagged by CodeQL code scanning (js/trivial-conditional).
+
 ## [1.2.6] - 2026-04-14
 
 ### Security
