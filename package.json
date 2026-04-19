@@ -57,7 +57,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "fake-indexeddb": "^6.2.5",
     "globals": "^17.4.0",
-    "jsdom": "28.1.0",
+    "jsdom": "29.0.2",
     "license-checker-rseidelsohn": "^4.4.2",
     "vite": "^7.3.1",
     "vite-plugin-electron": "^0.29.0",
