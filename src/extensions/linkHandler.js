@@ -1,6 +1,16 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 
+// Scheme allowlist for URLs pulled straight from document content.
+// Anything not http/https/mailto (file:, smb:, javascript:, custom protocols) is refused.
+export const isSafeExternalUrl = (url) => {
+    try {
+        return ["http:", "https:", "mailto:"].includes(new URL(url).protocol);
+    } catch {
+        return false;
+    }
+};
+
 // Tooltip to show "Ctrl + Click to open"
 export const linkTooltip = hoverTooltip((view, pos, side) => {
     const { state } = view;
@@ -66,7 +76,11 @@ export const linkClickHandler = EditorView.domEventHandlers({
             url = url.replace(/^\(/, '').replace(/\)$/, '');
 
             if (url) {
-                window.open(url, '_blank');
+                if (isSafeExternalUrl(url)) {
+                    window.open(url, '_blank');
+                } else {
+                    console.warn('Blocked unsafe link scheme:', url);
+                }
                 event.preventDefault();
             }
         } else if (linkNode.name === "Link") {
@@ -76,7 +90,11 @@ export const linkClickHandler = EditorView.domEventHandlers({
             // Simple regex to extract url from [text](url) or <url>
             const match = text.match(/\((.*?)\)$/) || text.match(/^<(.*)>$/);
             if (match) {
-                window.open(match[1], '_blank');
+                if (isSafeExternalUrl(match[1])) {
+                    window.open(match[1], '_blank');
+                } else {
+                    console.warn('Blocked unsafe link scheme:', match[1]);
+                }
                 event.preventDefault();
             }
         }
