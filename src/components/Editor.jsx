@@ -16,7 +16,7 @@ import { textDirection } from '../extensions/textDirection';
 import { obsidianTheme } from '../theme';
 import styles from './Editor.module.css';
 
-const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
+const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const stateCache = useRef(new Map());
@@ -128,11 +128,13 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
       const cursor = query.getCursor(state.doc);
       let total = 0;
       let current = 0;
-      let currentPos = state.selection.main.from;
+      const currentPos = state.selection.main.from;
 
+      // "current" is the match the cursor sits in / that findNext landed on:
+      // the first match whose start is at or after the cursor position.
       while (!cursor.next().done) {
         total++;
-        if (cursor.value.from <= currentPos) {
+        if (current === 0 && cursor.value.from >= currentPos) {
           current = total;
         }
       }
@@ -362,6 +364,18 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
       view.destroy();
     };
   }, []);
+
+  // Prune cached state/scroll for tabs that have been closed
+  useEffect(() => {
+    if (!tabIds) return;
+    const live = new Set(tabIds);
+    for (const id of stateCache.current.keys()) {
+      if (!live.has(id)) stateCache.current.delete(id);
+    }
+    for (const id of scrollCache.current.keys()) {
+      if (!live.has(id)) scrollCache.current.delete(id);
+    }
+  }, [tabIds]);
 
   // Handle Tab Switching and Content Updates
   useEffect(() => {

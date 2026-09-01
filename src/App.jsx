@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import Editor from './components/Editor';
 import MenuBar from './components/Layout/MenuBar';
 import Tabs from './components/Layout/Tabs';
@@ -47,12 +47,26 @@ function App() {
         return () => mediaQuery.removeEventListener('change', handler);
     }, []);
 
-    const showToast = (message) => {
+    const showToast = useCallback((message) => {
         setToast({ message, show: true });
-        setTimeout(() => {
-            setToast({ message: '', show: false });
-        }, 3000);
-    };
+    }, []);
+
+    const hideToast = useCallback(() => {
+        setToast({ message: '', show: false });
+    }, []);
+
+    const handleFindInEditor = useCallback(
+        (text, options) => editorRef.current?.find(text, options) || { current: 0, total: 0 },
+        []
+    );
+    const handleReplaceInEditor = useCallback(
+        (text) => editorRef.current?.replace(text),
+        []
+    );
+    const handleReplaceAllInEditor = useCallback(
+        (searchText, replaceText, options) => editorRef.current?.replaceAll(searchText, replaceText, options) || 0,
+        []
+    );
 
     const {
         tabs,
@@ -258,6 +272,7 @@ function App() {
                 <Editor
                     ref={editorRef}
                     activeTabId={activeTabId}
+                    tabIds={tabs.map(t => t.id)}
                     initialContent={activeTab.content}
                     initialCursor={activeTab.cursor || 0}
                     initialScroll={activeTab.scroll || 0}
@@ -282,9 +297,9 @@ function App() {
                 <FindReplacePanel
                     initialMode={findReplaceMode}
                     onClose={() => setShowFindReplace(false)}
-                    onFind={(text, options) => editorRef.current?.find(text, options) || { current: 0, total: 0 }}
-                    onReplace={(text) => editorRef.current?.replace(text)}
-                    onReplaceAll={(searchText, replaceText, options) => editorRef.current?.replaceAll(searchText, replaceText, options) || 0}
+                    onFind={handleFindInEditor}
+                    onReplace={handleReplaceInEditor}
+                    onReplaceAll={handleReplaceAllInEditor}
                 />
             )}
 
@@ -306,9 +321,10 @@ function App() {
 
             {toast.show && (
                 <Toast
+                    key={toast.message}
                     message={toast.message}
                     duration={3000}
-                    onClose={() => setToast({ message: '', show: false })}
+                    onClose={hideToast}
                 />
             )}
         </div>

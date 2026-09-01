@@ -19,7 +19,10 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
         }
 
         setErrors(prev => ({ ...prev, [key]: error }));
-        updateSettings({ [key]: isNaN(num) ? 0 : num });
+
+        if (error) return;
+
+        updateSettings({ [key]: num });
     };
 
     return (
