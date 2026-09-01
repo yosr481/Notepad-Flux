@@ -11,7 +11,20 @@ import { platform } from 'node:process'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
+// ponytail: allowedPaths grows unbounded for the process lifetime (one entry per
+// picked file). Ceiling is fine for a desktop notepad session; upgrade path is
+// per-session pruning (drop a path when its tab closes) if it ever matters.
 const allowedPaths = new Set()
+
+// Scheme allowlist for URLs handed to the OS. Only http/https/mailto; anything
+// else (file:, smb:, javascript:, custom protocols) is refused.
+const isSafeExternalUrl = (url) => {
+    try {
+        return ['http:', 'https:', 'mailto:'].includes(new URL(url).protocol)
+    } catch {
+        return false
+    }
+}
 
 // Single-instance lock: a second launch focuses the existing window instead of
 // starting a second process that fights over the same userData dir + autoUpdater.
@@ -122,7 +135,7 @@ safeHandle('save-file', async (event, { filePath, content }) => {
     }
 
     await writeFile(filePath, content, 'utf-8')
-    return { filePath }
+    return { filePath, canceled: false }
 })
 
 
@@ -165,6 +178,10 @@ safeHandle('get-app-version', async () => {
 })
 
 safeHandle('open-external', async (event, url) => {
+    if (!isSafeExternalUrl(url)) {
+        console.warn('Blocked open-external for unsafe URL scheme:', url)
+        return
+    }
     return await shell.openExternal(url)
 })
 
@@ -226,10 +243,20 @@ function createWindow() {
     })
 
     win.webContents.setWindowOpenHandler(({ url }) => {
-        if (url.startsWith('http')) {
-            shell.openExternal(url)
+        const devUrl = process.env.VITE_DEV_SERVER_URL
+        const isOwnOrigin = (devUrl && url.startsWith(devUrl)) || url.startsWith('file:')
+
+        if (!isOwnOrigin) {
+            if (url.startsWith('http:') || url.startsWith('https:')) {
+                shell.openExternal(url)
+            } else {
+                log.warn(`Blocked window.open for disallowed URL: ${url}`)
+            }
             return { action: 'deny' }
         }
+
+        // App's own origin (dev server in dev, file: index in prod) — real Electron window.
+        // "New Window" menu opens window.location.href, which lands here.
         return {
             action: 'allow',
             overrideBrowserWindowOptions: {
