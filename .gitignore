@@ -39,6 +39,7 @@ Thumbs.db
 # Internal docs and tooling
 .agent/
 .claude/
+.serena/
 Docs/internal/
 
 # Logs
