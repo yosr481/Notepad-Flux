@@ -267,7 +267,8 @@ const buildDecorations = (state) => {
     // Sort decorations by 'from' position to satisfy RangeSetBuilder requirements
     decorations.sort((a, b) => {
         if (a.from !== b.from) return a.from - b.from;
-        if (a.value.startSide !== b.value.startSide) return a.value.startSide - b.value.startSide;
+        const sideDiff = (a.value.startSide ?? 0) - (b.value.startSide ?? 0);
+        if (sideDiff !== 0) return sideDiff;
         return a.to - b.to;
     });
 

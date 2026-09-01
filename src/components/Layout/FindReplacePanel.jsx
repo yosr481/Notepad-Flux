@@ -25,7 +25,7 @@ const FindReplacePanel = ({ onClose, onFind, onReplace, onReplaceAll, initialMod
             setCurrentMatch(0);
             setTotalMatches(0);
         }
-    }, [findText, caseSensitive, useRegex]);
+    }, [findText, caseSensitive, useRegex, onFind]);
 
     const handleFindNext = () => {
         const result = onFind(findText, { caseSensitive, useRegex, direction: 'next' });
