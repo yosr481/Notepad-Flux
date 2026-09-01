@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fileSystem } from '../fileSystem';
+import { fileSystem, sanitizeFilename } from '../fileSystem';
 import { dialogs } from '../dialogs';
 
 // Mock dialogs
@@ -47,6 +47,20 @@ describe('File System Utility', () => {
         });
     });
 
-    // We can add more tests for saveFile, saveFileAs logic 
+    it('openFileFromPath should be a function', () => {
+        expect(typeof fileSystem.openFileFromPath).toBe('function');
+    });
+
+    // We can add more tests for saveFile, saveFileAs logic
     // including legacy fallback (download link) if IS_SUPPORTED is false.
+});
+
+describe('sanitizeFilename', () => {
+    it('strips forward slashes so a filename cannot carry a path', () => {
+        expect(sanitizeFilename('../../etc/passwd')).not.toContain('/');
+    });
+
+    it('strips backslashes', () => {
+        expect(sanitizeFilename('a\\b')).not.toContain('\\');
+    });
 });

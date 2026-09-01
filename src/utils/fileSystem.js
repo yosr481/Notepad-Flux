@@ -10,7 +10,7 @@ if (typeof require !== 'undefined') {
 
 export const sanitizeFilename = (filename) => {
     // eslint-disable-next-line no-control-regex
-    const invalidChars = /[<>:"|?*\x00-\x1f]/g;
+    const invalidChars = /[<>:"|?*/\\\x00-\x1f]/g;
 
     let sanitized = filename.replace(invalidChars, '');
 
@@ -326,5 +326,7 @@ export const fileSystem = {
     exportFile: (content, suggestedName, types) => getDriver().exportFile(content, suggestedName, types),
 
     openFileFromHandle: (handle) => getDriver().openFileFromHandle(handle),
+
+    openFileFromPath: (filePath) => getDriver().openFileFromPath(filePath),
 
 };
