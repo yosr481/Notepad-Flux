@@ -13,6 +13,21 @@ const __dirname = dirname(__filename)
 
 const allowedPaths = new Set()
 
+// Single-instance lock: a second launch focuses the existing window instead of
+// starting a second process that fights over the same userData dir + autoUpdater.
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+    app.quit()
+} else {
+    app.on('second-instance', () => {
+        if (win && !win.isDestroyed()) {
+            if (win.isMinimized()) win.restore()
+            win.show()
+            win.focus()
+        }
+    })
+}
+
 const getPersistentDataPath = () => {
     const home = homedir()
     if (platform === 'win32') {
@@ -170,7 +185,24 @@ process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
 let win = null
 let splash = null
 
+const dismissSplash = () => {
+    if (splash && !splash.isDestroyed()) {
+        splash.close()
+    }
+    splash = null
+}
+
 function createWindow() {
+    // Fallback: if the renderer never reaches ready-to-show AND never fails
+    // (e.g. a hung load), don't leave the user staring at a frameless splash forever.
+    const showTimeout = setTimeout(() => {
+        if (splash) {
+            log.warn('ready-to-show not fired within 15s; forcing window visible')
+            dismissSplash()
+            if (win && !win.isDestroyed()) win.show()
+        }
+    }, 15000)
+
     win = new BrowserWindow({
         width: 1200,
         height: 800,
@@ -231,10 +263,25 @@ function createWindow() {
     })
 
     win.once('ready-to-show', () => {
+        clearTimeout(showTimeout)
         win.show()
-        if (splash) {
-            splash.close()
-        }
+        dismissSplash()
+    })
+
+    // If the renderer fails to load, the splash would otherwise hang indefinitely
+    // (ready-to-show never fires) and the app looks frozen with no window.
+    win.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+        if (!isMainFrame) return
+        if (errorCode === -3) return // ERR_ABORTED — benign (e.g. navigation cancelled)
+        clearTimeout(showTimeout)
+        log.error(`Renderer failed to load (${errorCode} ${errorDescription}) ${validatedURL}`)
+        dismissSplash()
+        dialog.showErrorBox(
+            'Notepad Flux failed to start',
+            `The application window could not load (${errorDescription || errorCode}).`
+        )
+        if (win && !win.isDestroyed()) win.destroy()
+        app.quit()
     })
 
     Menu.setApplicationMenu(null)
@@ -262,7 +309,7 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
-app.whenReady().then(() => {
+if (gotTheLock) app.whenReady().then(() => {
     splash = new BrowserWindow({
         width: 300,
         height: 300,

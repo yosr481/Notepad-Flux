@@ -64,14 +64,42 @@ async function getEncryptionKey() {
         }
     }
 
-    const rawKey = new Uint8Array(atob(keyData).split('').map(c => c.charCodeAt(0)));
-    return await crypto.subtle.importKey(
-        'raw',
-        rawKey,
-        { name: 'AES-GCM' },
-        false,
-        ['encrypt', 'decrypt']
-    );
+    try {
+        const rawKey = new Uint8Array(atob(keyData).split('').map(c => c.charCodeAt(0)));
+        return await crypto.subtle.importKey(
+            'raw',
+            rawKey,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    } catch (e) {
+        // Corrupt key material would otherwise throw here and wedge every
+        // encrypt/decrypt call (including session load on startup). Regenerate;
+        // tabs encrypted with the old key become unreadable (handled by decrypt).
+        console.error('Encryption key corrupt — regenerating:', e);
+        const randomKey = crypto.getRandomValues(new Uint8Array(32));
+        const fresh = btoa(String.fromCharCode(...randomKey));
+        try {
+            localStorage.removeItem(SECURE_KEY_NAME);
+            localStorage.removeItem(ENCRYPTION_KEY_NAME);
+            if (window.electronAPI?.safeStorage && await window.electronAPI.safeStorage.isAvailable()) {
+                localStorage.setItem(SECURE_KEY_NAME, await window.electronAPI.safeStorage.encrypt(fresh));
+            } else {
+                localStorage.setItem(ENCRYPTION_KEY_NAME, fresh);
+            }
+        } catch (persistErr) {
+            console.error('Failed to persist regenerated key:', persistErr);
+        }
+        const rawKey = new Uint8Array(atob(fresh).split('').map(c => c.charCodeAt(0)));
+        return await crypto.subtle.importKey(
+            'raw',
+            rawKey,
+            { name: 'AES-GCM' },
+            false,
+            ['encrypt', 'decrypt']
+        );
+    }
 }
 
 export async function encrypt(text) {
@@ -113,7 +141,8 @@ export async function decrypt(encryptedBase64) {
         return new TextDecoder().decode(decrypted);
     } catch (e) {
         console.error('Decryption failed:', e);
-        // If decryption fails, it might be plaintext (migration case) or corrupted
-        return encryptedBase64;
+        // Never hand ciphertext back as if it were content — that renders as
+        // base64 gibberish and can be re-saved over the real data. Drop it.
+        return '';
     }
 }
