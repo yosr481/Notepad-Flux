@@ -166,12 +166,9 @@ export const SessionProvider = ({ children }) => {
     const closeTab = useCallback((id) => {
         setTabs(prev => {
             const newTabs = prev.filter(t => t.id !== id);
-            if (newTabs.length === 0) {
-                // Prevent empty list, but if we really want to close the last one and create new...
-                // For now, keep behavior: don't allow closing last tab effectively, or handle it upstream.
-                // But if we DO close it, we should delete from storage.
-                return prev.filter(t => t.id !== id);
-            }
+            // Never remove the last tab (L3): the old code returned the filtered
+            // (empty) array here, which defeated the guard.
+            if (newTabs.length === 0) return prev;
             return newTabs;
         });
 
@@ -283,7 +280,42 @@ export const SessionProvider = ({ children }) => {
         }
     }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
 
-    // Save session before window closes
+    // Write-through flush: persist every pending debounced tab save + metadata
+    // immediately, without waiting for the 1s debounce. Used when the window is
+    // about to lose focus / be hidden, so edits survive a fast close (H1).
+    const flushPendingSaves = useCallback(() => {
+        if (!isPrimaryWindow || !isSessionLoaded) return;
+
+        for (const [id, timer] of saveTimers.current) {
+            clearTimeout(timer);
+            const tab = tabs.find(t => t.id === id);
+            if (tab) storage.saveTab(tab);
+        }
+        saveTimers.current.clear();
+
+        storage.saveMetadata({
+            activeTabId,
+            recentFiles,
+            settings,
+            tabOrder: tabs.map(t => t.id)
+        });
+    }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
+
+    useEffect(() => {
+        const onHide = () => {
+            if (document.visibilityState === 'hidden') flushPendingSaves();
+        };
+        document.addEventListener('visibilitychange', onHide);
+        window.addEventListener('blur', flushPendingSaves);
+        return () => {
+            document.removeEventListener('visibilitychange', onHide);
+            window.removeEventListener('blur', flushPendingSaves);
+        };
+    }, [flushPendingSaves]);
+
+    // Save session before window closes (last-resort best-effort; beforeunload is
+    // synchronous so IndexedDB writes may not land — flushPendingSaves above is
+    // the reliable path).
     useEffect(() => {
         const handleBeforeUnload = () => {
             if (isPrimaryWindow && isSessionLoaded) {
