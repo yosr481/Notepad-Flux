@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { useSession } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
@@ -23,13 +23,19 @@ export const useCommands = (showToast) => {
         isPrimaryWindow
     } = useSession();
 
+    // Mirror the live tab state so multi-close loops (closeOtherTabs /
+    // closeTabsToRight / closeWindow) re-evaluate length guards and active-tab
+    // selection against current state instead of the stale render-time closure (M4).
+    const liveState = useRef({ tabs, activeTabId });
+    liveState.current = { tabs, activeTabId };
+
     const newTab = () => {
         createTab();
     };
 
     const closeTab = async (id, options = {}) => {
         const { skipPrompt = false } = options;
-        const tab = tabs.find(t => t.id === id);
+        const tab = liveState.current.tabs.find(t => t.id === id);
         if (!tab) return;
 
         if (!skipPrompt && tab.isDirty) {
@@ -66,13 +72,17 @@ export const useCommands = (showToast) => {
             }
         }
 
-        if (tabs.length === 1) {
+        // Re-read live state: a dirty-save prompt above may have yielded long
+        // enough for other closes to land.
+        const { tabs: curTabs, activeTabId: curActiveTabId } = liveState.current;
+
+        if (curTabs.length === 1) {
             createTab();
             closeTabInContext(id);
         } else {
-            if (activeTabId === id) {
-                const index = tabs.findIndex(t => t.id === id);
-                const nextTab = tabs[index + 1] || tabs[index - 1];
+            if (curActiveTabId === id) {
+                const index = curTabs.findIndex(t => t.id === id);
+                const nextTab = curTabs[index + 1] || curTabs[index - 1];
                 if (nextTab) {
                     setActiveTabId(nextTab.id);
                 }
@@ -82,20 +92,27 @@ export const useCommands = (showToast) => {
     };
 
     const closeOtherTabs = async (id) => {
-        const tabsToClose = tabs.filter(t => t.id !== id);
+        const tabsToClose = liveState.current.tabs.filter(t => t.id !== id);
         for (const tab of tabsToClose) {
             await closeTab(tab.id);
         }
+        // The only survivor is `id`; make it active regardless of how the
+        // per-tab selection inside closeTab raced (M4).
+        setActiveTabId(id);
     };
 
     const closeTabsToRight = async (id) => {
-        const index = tabs.findIndex(t => t.id === id);
+        const index = liveState.current.tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
-        const tabsToClose = tabs.slice(index + 1);
+        const keptIds = new Set(liveState.current.tabs.slice(0, index + 1).map(t => t.id));
+        const activeAtStart = liveState.current.activeTabId;
+        const tabsToClose = liveState.current.tabs.slice(index + 1);
         for (const tab of tabsToClose) {
             await closeTab(tab.id);
         }
+        // If the active tab was one of the closed ones, fall back to `id` (M4).
+        if (!keptIds.has(activeAtStart)) setActiveTabId(id);
     };
 
     const openFile = async () => {
@@ -322,13 +339,13 @@ export const useCommands = (showToast) => {
         if (!isPrimaryWindow) {
             // Iterate tabs and prompt/save/close one by one until only one default tab remains
             // Take a snapshot of current order to iterate deterministically
-            let toProcess = [...tabs];
+            let toProcess = [...liveState.current.tabs];
             for (let i = 0; i < toProcess.length; i++) {
-                // Refresh current tabs length on each iteration
-                if (tabs.length <= 1) break; // leave one default tab
+                // Refresh current tabs length on each iteration (live state, M4)
+                if (liveState.current.tabs.length <= 1) break; // leave one default tab
                 const tab = toProcess[i];
                 // If this tab has already been closed due to side effects, skip
-                const current = tabs.find(t => t.id === tab.id);
+                const current = liveState.current.tabs.find(t => t.id === tab.id);
                 if (!current) continue;
 
                 if (current.isDirty) {
