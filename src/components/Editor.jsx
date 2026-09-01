@@ -184,7 +184,7 @@ const Editor = forwardRef(({ activeTabId, onStatsUpdate, initialContent = '', in
 
       const view = viewRef.current;
       const state = view.state;
-      const line = state.doc.line(Math.min(lineNumber, state.doc.lines));
+      const line = state.doc.line(Math.max(1, Math.min(lineNumber, state.doc.lines)));
 
       view.dispatch({
         selection: { anchor: line.from },
