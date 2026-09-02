@@ -13,8 +13,8 @@ Branch: `fix/audit-remediation`.
 | 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | done | 1 | ec76733 |
-| 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |
-| 10 | electron path hardening: realpathSync in isPathSafe; narrow userData allowlist | P1 | P1-12, P1-13 | queued | 0 | |
+| 9 | close paths (renderer): flush live editor content before close-save; save-failure toast + requestPermission; synchronous beforeunload dirty guard for ALL windows | P1 | P1-7, P1-8, P1-6a | in-review | 1 | |
+| 10 | electron: realpathSync in isPathSafe; narrow userData allowlist; win.on('close') dirty-guard IPC (P1-6b, moved from Task 9); architect in-round | P1 | P1-12, P1-13, P1-6b | queued | 0 | |
 | 11 | ~~sanitize allowlist~~ — MERGED INTO TASK 2 | P2 | P2-sanitize | merged | 0 | — |
 | 12 | Electron PDF export: Buffer.from(blob); dialog filters by extension | P2 | P2-pdf | queued | 0 | |
 | 13 | requestIdleCallback guard + double-rAF/flushSync before capture | P2 | P2-ric | queued | 0 | |

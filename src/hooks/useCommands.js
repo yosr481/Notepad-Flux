@@ -34,7 +34,7 @@ export const useCommands = (showToast) => {
     };
 
     const closeTab = async (id, options = {}) => {
-        const { skipPrompt = false } = options;
+        const { skipPrompt = false, editorRef } = options;
         const tab = liveState.current.tabs.find(t => t.id === id);
         if (!tab) return;
 
@@ -45,7 +45,9 @@ export const useCommands = (showToast) => {
             });
             if (choice === 'cancel') return;
             if (choice === 'save') {
-                const content = tab.content;
+                const content = (editorRef?.current && id === liveState.current.activeTabId)
+                    ? editorRef.current.getCurrentContent()
+                    : tab.content;
                 try {
                     if (tab.fileHandle) {
                         await fileSystem.saveFile(tab.fileHandle, content);
@@ -67,6 +69,7 @@ export const useCommands = (showToast) => {
                     }
                 } catch (error) {
                     console.error("Failed to save file on close", error);
+                    showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
                     return;
                 }
             }
@@ -91,17 +94,17 @@ export const useCommands = (showToast) => {
         }
     };
 
-    const closeOtherTabs = async (id) => {
+    const closeOtherTabs = async (id, editorRef) => {
         const tabsToClose = liveState.current.tabs.filter(t => t.id !== id);
         for (const tab of tabsToClose) {
-            await closeTab(tab.id);
+            await closeTab(tab.id, { editorRef });
         }
         // The only survivor is `id`; make it active regardless of how the
         // per-tab selection inside closeTab raced (M4).
         setActiveTabId(id);
     };
 
-    const closeTabsToRight = async (id) => {
+    const closeTabsToRight = async (id, editorRef) => {
         const index = liveState.current.tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
@@ -109,7 +112,7 @@ export const useCommands = (showToast) => {
         const activeAtStart = liveState.current.activeTabId;
         const tabsToClose = liveState.current.tabs.slice(index + 1);
         for (const tab of tabsToClose) {
-            await closeTab(tab.id);
+            await closeTab(tab.id, { editorRef });
         }
         // If the active tab was one of the closed ones, fall back to `id` (M4).
         if (!keptIds.has(activeAtStart)) setActiveTabId(id);
@@ -146,6 +149,7 @@ export const useCommands = (showToast) => {
                 editorRef?.current?.markSaved?.();
             } catch (error) {
                 console.error("Failed to save file", error);
+                showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
             }
         } else if (!fileSystem.isSupported() && tab.filePath) {
             try {
@@ -156,6 +160,7 @@ export const useCommands = (showToast) => {
                 }
             } catch (error) {
                 console.error("Failed to save file", error);
+                showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
             }
         } else {
             saveFileAs(editorRef);
@@ -183,6 +188,7 @@ export const useCommands = (showToast) => {
             }
         } catch (error) {
             console.error("Failed to save file as", error);
+            showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
     };
 
@@ -338,7 +344,7 @@ export const useCommands = (showToast) => {
         });
     };
 
-    const closeWindow = async () => {
+    const closeWindow = async (editorRef) => {
         if (!isPrimaryWindow) {
             // Iterate tabs and prompt/save/close one by one until only one default tab remains
             // Take a snapshot of current order to iterate deterministically
@@ -358,16 +364,19 @@ export const useCommands = (showToast) => {
                     });
                     if (choice === 'cancel') return; // abort entire close
                     if (choice === 'save') {
+                        const content = (editorRef?.current && current.id === liveState.current.activeTabId)
+                            ? editorRef.current.getCurrentContent()
+                            : current.content;
                         try {
                             if (current.fileHandle) {
-                                await fileSystem.saveFile(current.fileHandle, current.content);
+                                await fileSystem.saveFile(current.fileHandle, content);
                                 updateTab(current.id, { isDirty: false });
                             } else if (!fileSystem.isSupported() && current.filePath) {
-                                const result = await fileSystem.saveFileAs(current.content, current.filePath);
+                                const result = await fileSystem.saveFileAs(content, current.filePath);
                                 if (!result) return; // aborted save-as
                                 updateTab(current.id, { isDirty: false });
                             } else {
-                                const result = await fileSystem.saveFileAs(current.content, current.title);
+                                const result = await fileSystem.saveFileAs(content, current.title);
                                 if (!result) return; // aborted save-as
                                 updateTab(current.id, {
                                     title: result.name,
@@ -378,13 +387,14 @@ export const useCommands = (showToast) => {
                             }
                         } catch (err) {
                             console.error('Failed to save', err);
+                            showToast?.(`Could not save "${current.title}": ${err?.message || 'unknown error'}`);
                             return; // abort close on error
                         }
                     }
                     // if 'dontsave', proceed without saving
                 }
 
-                await closeTab(current.id, { skipPrompt: true });
+                await closeTab(current.id, { skipPrompt: true, editorRef });
             }
         }
         window.close();

@@ -65,6 +65,15 @@ const WebNativeDriver = {
 
     saveFile: async (handle, content) => {
         try {
+            if (handle.queryPermission) {
+                let perm = await handle.queryPermission({ mode: 'readwrite' });
+                if (perm !== 'granted' && handle.requestPermission) {
+                    perm = await handle.requestPermission({ mode: 'readwrite' });
+                }
+                if (perm !== 'granted') {
+                    throw new Error('Permission to write the file was denied');
+                }
+            }
             const writable = await handle.createWritable();
             await writable.write(content);
             await writable.close();

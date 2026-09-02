@@ -16,7 +16,6 @@ import Settings from './components/Settings/Settings';
 
 function App() {
     const editorRef = React.useRef(null);
-    const closingRef = React.useRef(false);
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
     const [appVersion, setAppVersion] = useState(version);
@@ -94,33 +93,20 @@ function App() {
         updateTab,
         reorderTabs,
         recentFiles,
-        closeWindow,
-        isPrimaryWindow
+        closeWindow
     } = useCommands(showToast);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (!isPrimaryWindow) {
-                if (closingRef.current) return;
-
-                const hasDirtyTabs = tabs.some(t => t.isDirty);
-                if (hasDirtyTabs) {
-                    e.preventDefault();
-                    setTimeout(async () => {
-                        closingRef.current = true;
-                        try {
-                            await closeWindow();
-                        } finally {
-                            closingRef.current = false;
-                        }
-                    }, 0);
-                }
+            if (tabs.some(t => t.isDirty)) {
+                e.preventDefault();
+                e.returnValue = '';
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [isPrimaryWindow, tabs, closeWindow]);
+    }, [tabs]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
@@ -142,11 +128,11 @@ function App() {
             options: [
                 {
                     label: 'Close Other Tabs',
-                    onClick: () => closeOtherTabs(id)
+                    onClick: () => closeOtherTabs(id, editorRef)
                 },
                 {
                     label: 'Close Tabs to the Right',
-                    onClick: () => closeTabsToRight(id)
+                    onClick: () => closeTabsToRight(id, editorRef)
                 }
             ]
         });
@@ -169,7 +155,7 @@ function App() {
                 saveFile(editorRef);
             } else if (e.ctrlKey && e.key === 'w') {
                 e.preventDefault();
-                closeTab(activeTabId);
+                closeTab(activeTabId, { editorRef });
             } else if (e.ctrlKey && e.key === 'Tab') {
                 e.preventDefault();
                 switchTab(e.shiftKey ? 'prev' : 'next');
@@ -241,7 +227,7 @@ function App() {
                     tabs={tabs}
                     activeTabId={activeTabId}
                     onTabClick={setActiveTabId}
-                    onTabClose={closeTab}
+                    onTabClose={(id) => closeTab(id, { editorRef })}
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
                     onReorder={reorderTabs}
@@ -267,7 +253,7 @@ function App() {
                     onExportToPDF={exportToPDF}
                     onExportToHTML={exportToHTML}
                     onPrint={print}
-                    onCloseTab={() => closeTab(activeTabId)}
+                    onCloseTab={() => closeTab(activeTabId, { editorRef })}
                     onCloseWindow={() => closeWindow(editorRef)}
                     onExit={() => closeWindow(editorRef)}
                     onOpenSettings={() => setShowSettings(true)}
