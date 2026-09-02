@@ -5,7 +5,7 @@ Branch: `fix/audit-remediation`.
 
 | # | Task | Sev | Findings | Status | Rounds | Commit |
 |---|------|-----|----------|--------|--------|--------|
-| 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock | P0 | P0-1, P0-2, P1-9, P1-10 | queued | 0 | |
+| 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | (pending) |
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub | P0 | P0-3 | queued | 0 | |
 | 3 | primary-window failover: queued lock + promotion | P0 | P0-4 | queued | 0 | |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | queued | 0 | |
@@ -35,3 +35,6 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 1** (3 rounds). crypto.js: `NFv1:` sentinel on ciphertext; `decrypt` throws on tampered/wrong-key sentinel blob instead of silently returning `''`; chunked `uint8ToBase64` (200k-char safe, kills P0-2 RangeError); module-scope `cachedKey` memo; key create/migrate under `navigator.locks` `notepad-flux-key`. storage.js: per-row decrypt isolation in `loadSession` (one bad tab no longer drops the whole session), degraded tab tagged `_decryptFailed` + `saveTab` skip-guard so `saveSession`-on-close can't re-encrypt `''` over intact ciphertext. Bug(high) caught by architect R2 (silent disk wipe on close) → fixed R3. Intentional security-property reversal recorded: non-sentinel legacy path now returns undecryptable input unchanged (old `''` also destroyed real legacy plaintext). Tests: `crypto.hardening.test.js` (16, new), `crypto.test.js` (2 stale assertions rewritten by tactical), `storage.test.js` (+1 isolation test). 59 total green.
+  - For later tasks: `decrypt` is now a throwing function on the `NFv1:` path — any NEW caller must handle rejection. `_decryptFailed` is an in-memory-only tab flag; don't rely on it surviving a round-trip.

@@ -21,6 +21,11 @@ export const storage = {
     },
 
     async saveTab(tab) {
+        // A tab that failed to decrypt on load carries an empty content placeholder.
+        // Persisting it would re-encrypt '' over the still-intact ciphertext on disk.
+        // Skip until the user actually puts content in it (then the overwrite is their choice).
+        if (tab._decryptFailed && !tab.content) return;
+
         const db = await this.initDB();
         const encryptedContent = await encrypt(tab.content);
         const encryptedTab = {
@@ -55,19 +60,36 @@ export const storage = {
         const db = await this.initDB();
 
         const encryptedTabs = await db.getAll(STORE_TABS);
-        const tabs = await Promise.all((encryptedTabs || []).map(async tab => ({
-            ...tab,
-            content: await decrypt(tab.content)
-        })));
+        const tabs = await Promise.all((encryptedTabs || []).map(async tab => {
+            try {
+                const decryptedContent = await decrypt(tab.content);
+                return {
+                    ...tab,
+                    content: decryptedContent
+                };
+            } catch (e) {
+                console.error(`Failed to decrypt tab ${tab.id}:`, e);
+                return {
+                    ...tab,
+                    content: '',
+                    _decryptFailed: true
+                };
+            }
+        }));
 
         const getDecryptedMetadata = async (key) => {
             const encryptedValue = await db.get(STORE_METADATA, key);
             if (!encryptedValue) return null;
-            const decryptedValue = await decrypt(encryptedValue);
             try {
-                return JSON.parse(decryptedValue);
+                const decryptedValue = await decrypt(encryptedValue);
+                try {
+                    return JSON.parse(decryptedValue);
+                } catch {
+                    return decryptedValue;
+                }
             } catch (e) {
-                return decryptedValue;
+                console.error(`Failed to decrypt metadata key ${key}:`, e);
+                return null;
             }
         };
 
