@@ -14,7 +14,7 @@ Branch: `fix/audit-remediation`.
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | done | 1 | ec76733 |
 | 9 | close paths (renderer): flush live editor content before close-save; save-failure toast + requestPermission; synchronous beforeunload dirty guard for ALL windows | P1 | P1-7, P1-8, P1-6a | done | 1 | 79832cc |
-| 10 | electron: extract+test isPathSafe with realpathSync (P1-12); drop userData root from allowlist (P1-13); architect in-round | P1 | P1-12, P1-13 | in-review | 1 | |
+| 10 | electron: extract+test isPathSafe with realpathSync (P1-12); drop userData root from allowlist (P1-13); architect in-round | P1 | P1-12, P1-13 | done | 1 | fd96d81 |
 | 11 | ~~sanitize allowlist~~ — MERGED INTO TASK 2 | P2 | P2-sanitize | merged | 0 | — |
 | 12 | Electron PDF export: Buffer.from(blob); dialog filters by extension | P2 | P2-pdf | queued | 0 | |
 | 13 | requestIdleCallback guard + double-rAF/flushSync before capture | P2 | P2-ric | queued | 0 | |
@@ -35,6 +35,8 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 10** (1 round; tactical + architect, needs-revision for dead imports → fixed inline). electron/pathSafety.js (new): `createIsPathSafe({allowedPaths, realpath})` — DI'd realpath makes the security predicate testable without loading electron. Canonicalises request + each allowlist entry via `fs.realpathSync` before compare (kills symlink-escape P1-12); non-existent save target falls back to parent-dir realpath; stale allowlist entry skipped, no crash. main.js: `allowedPaths.add(resolve(userDataPath))` DELETED (P1-13 — userData tree held the plaintext AES key + IndexedDB + Preferences, reachable via file IPC). Known TOCTOU corner (handlers use raw path not realpath'd) marked ponytail. First main-process unit tests in the repo (34). 209 green.
 
 - **Task 9** (1 round; tactical-only, needs-revision for one dead var → fixed inline). fileSystem.js: `WebNativeDriver.saveFile` gates on `queryPermission`/`requestPermission({mode:'readwrite'})` before `createWritable`, throws if denied. useCommands.js: `showToast` on every save/close-save failure (was bare console.error); `closeTab({editorRef})` + `closeWindow(editorRef)` save `editorRef.current.getCurrentContent()` for the ACTIVE tab (debounce-lag fix), `tab.content` otherwise; `closeOtherTabs`/`closeTabsToRight` take + forward `editorRef`. App.jsx: `beforeunload` now synchronous `preventDefault()`+`returnValue=''` for ANY dirty window (was `!isPrimaryWindow`-gated + broken async setTimeout); `closingRef` removed; editorRef threaded to all close entry points. Tactical repaired the P1-7 test block's missing `window.close` spy. 175 green. Electron `win.on('close')` guard = Task 10.
 
