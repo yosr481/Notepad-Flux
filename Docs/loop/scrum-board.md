@@ -1,38 +1,19 @@
-# Build loop — audit remediation
+# Build loop — audit remediation (rebatched 2026-09-02)
 
-Queue = all audit findings, ordered by severity. Baseline: `main` @ aeafaf9, 13 test files / 42 tests green.
-Branch: `fix/audit-remediation`.
+Baseline `main` @ aeafaf9 (42 tests). Branch `fix/audit-remediation`. Now at 209 tests, HEAD fd96d81.
+Tasks 1-10 (all P0 + all P1) DONE — see Log. Remaining work consolidated into 7 rounds to cut usage.
+Each round: one tactical test-write dispatch + one writer dispatch. Reviews are SPARSE (user directive):
+tactical review only on B, D, G; architect review only on B and G. Other rounds gated by full-suite-green + orchestrator diff read.
 
-| # | Task | Sev | Findings | Status | Rounds | Commit |
-|---|------|-----|----------|--------|--------|--------|
-| 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | 50c8304 |
-| 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
-| 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
-| 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
-| 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
-| 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
-| 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
-| 8 | gate tabOrder write on id-list join | P1 | P1-5 | done | 1 | ec76733 |
-| 9 | close paths (renderer): flush live editor content before close-save; save-failure toast + requestPermission; synchronous beforeunload dirty guard for ALL windows | P1 | P1-7, P1-8, P1-6a | done | 1 | 79832cc |
-| 10 | electron: extract+test isPathSafe with realpathSync (P1-12); drop userData root from allowlist (P1-13); architect in-round | P1 | P1-12, P1-13 | done | 1 | fd96d81 |
-| 11 | ~~sanitize allowlist~~ — MERGED INTO TASK 2 | P2 | P2-sanitize | merged | 0 | — |
-| 12 | Electron PDF export: Buffer.from(blob); dialog filters by extension | P2 | P2-pdf | queued | 0 | |
-| 13 | requestIdleCallback guard + double-rAF/flushSync before capture | P2 | P2-ric | queued | 0 | |
-| 14 | debounce saveMetadata; coalesce with tab-order write | P2 | P2-meta | queued | 0 | |
-| 15 | storage: atomic tabs+metadata txn; reserve schemaVersion | P2 | P2-atomic | queued | 0 | |
-| 16 | goToLine lower bound (verify P1 fix); ctrl-click scheme check (verify) | P2 | P2-gotoline, P2-ctrlclick | queued | 0 | |
-| 17 | CI/release: test gate in release.yml; extract-changelog em-dash; drop UNLICENSED; node align; npm ci; version-sync assert | P2 | P2-ci | queued | 0 | |
-| 18 | wire "Clear Session Data" button | P2 | P2-settings | queued | 0 | |
-| 19 | extract extensions/selection.js (4x isCursorTouching + isCursorOnLine) | P3 | P3-selection | queued | 0 | |
-| 20 | extract inlineMarkdownToHtml util (3x parser) | P3 | P3-inline | queued | 0 | |
-| 21 | extract makeDebouncedDecorationPlugin factory (2x block) | P3 | P3-debounce | queued | 0 | |
-| 22 | extract persistTab() (triplicated save ladder) + canSaveInPlace() | P3 | P3-persist | queued | 0 | |
-| 23 | dead-code sweep: unused imports/widgets/css/stubs; collapse theme blocks; hoist syntaxTree in textDirection | P3 | P3-dead | queued | 0 | |
-| 24 | split SessionContext into settings/tab-state/actions contexts (user pick A3); memoize useCommands return | P3 | P3-memo | queued | 0 | |
-| 25 | test backfill: isPathSafe, crypto failure modes, listKeymap, convertTableToHTML, extract-changelog, livePreview reveal | P3 | P3-tests | queued | 0 | |
-| 26 | reconcile GEMINI.md; double-rAF scroll restore | P3 | P3-misc | queued | 0 | |
-
-Statuses: queued → tests-written → in-progress → in-review → done
+| Round | Scope (findings) | Files | Review |
+|---|---|---|---|
+| A | **Electron export/IPC** — PDF Blob→Uint8Array before IPC + binary writeFile + extension-aware save-dialog filters/defaultPath (`electron/dialogFilters.js`) [P2-pdf]; verify+fix ctrl-click scheme check [P2-ctrlclick] and goToLine lower bound [P2-gotoline] | fileSystem.js, electron/main.js, electron/dialogFilters.js, linkHandler.js, Editor.jsx | orchestrator only |
+| B | **Persistence hardening** — debounce `saveMetadata` [P2-meta]; atomic tabs+metadata single txn + reserve `schemaVersion` key [P2-atomic] | storage.js, SessionContext.jsx | tactical + architect |
+| C | **Render-capture + settings** — `requestIdleCallback` polyfill/guard + double-rAF before html2canvas/print [P2-ric]; in-app `<ConfirmDialog>` (U1) + wire "Clear Session Data" through it [P2-settings] | useCommands.js, Settings.jsx, new ConfirmDialog | orchestrator only |
+| D | **CI/release** — test job gate in release.yml; `extract-changelog` em-dash + wire release-notes.md; dependency-review drop UNLICENSED; Node 18/20 align + `engines`; `npm ci` in license-check; version-sync CI assert | .github/workflows/*, scripts/extract-changelog.js, package.json | tactical |
+| E | **Extension dedup** — `extensions/selection.js` (4× isCursorTouching + isCursorOnLine) [P3]; `inlineMarkdownToHtml` util (3× parser) [P3]; `makeDebouncedDecorationPlugin` factory (2× block, incl. Task 7's dispatch fix) [P3] | extensions/* | orchestrator only |
+| F | **Cleanup** — extract `persistTab()` + `canSaveInPlace()` [P3]; dead-code sweep (unused imports/widgets/css/stubs, `phosphor-react` drop→lucide, collapse 2 theme blocks, hoist syntaxTree in textDirection) [P3]; reconcile/drop GEMINI.md; double-rAF tab-switch scroll restore [P3] | useCommands.js, widgets.js, theme.js, textDirection.js, package.json, Editor.jsx, GEMINI.md | orchestrator only |
+| G | **Context split + tests** — split SessionContext → settings / tab-state / actions contexts (user pick A3); memoize `useCommands` return; `editorRef` as a `useCommands` hook arg (batched-architect nit); backfill tests (crypto failure modes already done, listKeymap Enter/Tab, convertTableToHTML, extract-changelog fixture, livePreview cursor-reveal) [P3] | context/*, useCommands.js, App.jsx, +tests | tactical + architect |
 
 ## Log
 
