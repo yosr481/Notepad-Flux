@@ -140,7 +140,9 @@ export const useCommands = (showToast) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        const content = editorRef?.current?.getCurrentContent() || tab.content;
+        // `|| tab.content` would treat a deliberately-cleared doc ('') as "use the
+        // stale copy" and save old text back. Only fall back when there's no editor.
+        const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
         if (tab.fileHandle) {
             try {
@@ -171,7 +173,9 @@ export const useCommands = (showToast) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        const content = editorRef?.current?.getCurrentContent() || tab.content;
+        // `|| tab.content` would treat a deliberately-cleared doc ('') as "use the
+        // stale copy" and save old text back. Only fall back when there's no editor.
+        const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
         try {
             const result = await fileSystem.saveFileAs(content, tab.title);
