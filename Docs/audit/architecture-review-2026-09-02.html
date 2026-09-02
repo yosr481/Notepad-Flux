@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notepad Flux — Architecture Review</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10.9.1/dist/mermaid.min.js"></script>
+<style>
+  :root { color-scheme: light; }
+  body { background:#f4f5f7; color:#1a1a1a; }
+  .card { background:#ffffff; border:1px solid #d8dbe0; }
+  .before { background:#fdecea; border:1px solid #e6b7b0; color:#5c1a12; }
+  .after  { background:#e8f5ec; border:1px solid #a9d5b8; color:#123a1f; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+  .badge-strong { background:#0b5d1e; color:#ffffff; }
+  .badge-worth  { background:#8a5a00; color:#ffffff; }
+  .badge-spec   { background:#3a3f47; color:#ffffff; }
+  .pill { background:#eceef1; color:#2a2d33; border:1px solid #d0d3d8; }
+  .node { background:#eef1f5; border:1px solid #b9c0cb; color:#1a1a1a; }
+  .node-hot { background:#fde2b3; border:1px solid #d99a2b; color:#3a2600; }
+  .node-deep { background:#cbe8d5; border:1px solid #5aa877; color:#0f3320; }
+  h1,h2,h3 { color:#111317; }
+  a { color:#0b52c9; }
+</style>
+</head>
+<body class="p-6 md:p-10">
+<div class="max-w-5xl mx-auto">
+
+  <header class="mb-8">
+    <h1 class="text-3xl font-bold">Notepad Flux — Architecture Review</h1>
+    <p class="mt-2 text-sm" style="color:#4a4f57">
+      Deepening opportunities: turning shallow modules into deep ones for testability and AI-navigability.
+      Scope was pulled toward the hot spots in recent history — the <span class="mono">fix/audit-remediation</span>
+      branch and the build-loop queue in <span class="mono">Docs/loop/scrum-board.md</span>.
+    </p>
+    <p class="mt-1 text-xs" style="color:#6a6f77">
+      Checks at review time: <span class="mono">npm run lint</span> — 0 errors / 28 pre-existing warnings.
+      <span class="mono">vitest</span> — 100/102 pass; the 2 reds are Task&nbsp;4's pre-written TDD tests (expected).
+      No <span class="mono">CONTEXT.md</span> or ADRs in repo — domain terms below are taken from <span class="mono">CLAUDE.md</span>.
+    </p>
+  </header>
+
+  <section class="card rounded-lg p-5 mb-8">
+    <h2 class="text-lg font-semibold mb-3">Where the friction concentrates</h2>
+    <pre class="mermaid">
+flowchart LR
+  App[App.jsx] --> UC[useCommands.js\ncommand layer]
+  App --> ED[Editor.jsx]
+  UC --> SC[SessionContext.jsx]
+  UC --> FS[fileSystem.js\n3 drivers]
+  UC --> EX[export.js]
+  SC --> ST[storage.js]
+  ST --> CR[crypto.js]
+  ED --> LP[livePreview.js]
+  ED --> LKP[linkPreview.js]
+  ED --> IMG[imagePreview.js]
+  ED --> WID[widgets.js]
+  classDef hot fill:#fde2b3,stroke:#d99a2b,color:#3a2600;
+  classDef warm fill:#fde7cf,stroke:#e0b463,color:#3a2600;
+  class SC hot;
+  class UC,FS warm;
+  class LP,LKP,IMG warm;
+    </pre>
+    <p class="text-sm mt-3" style="color:#4a4f57">
+      <span class="mono">SessionContext.jsx</span> is touched by audit tasks 1, 3, 4, 8, 9, 14, 15, 24 —
+      every P0 in the queue lands there. <span class="mono">useCommands.js</span> + <span class="mono">fileSystem.js</span>
+      carry a save ladder that is copy-pasted 4×. The three CodeMirror preview extensions each re-implement
+      the editor's central "reveal syntax when the cursor touches it" rule.
+    </p>
+  </section>
+
+  <!-- CANDIDATE 1 -->
+  <article class="card rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xl font-bold">1 · Pull the Session Store out of the React context</h2>
+      <span class="badge-strong text-xs font-bold px-2 py-1 rounded">Strong</span>
+    </div>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Files:</span>
+      <span class="mono">src/context/SessionContext.jsx</span> (504 lines),
+      <span class="mono">src/services/storage.js</span></p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Problem.</span>
+      One file holds five unrelated jobs: (a) React state for <span class="mono">tabs / activeTabId / settings / recentFiles</span>,
+      (b) the Web&nbsp;Locks "primary window" election, (c) the promotion + disk-merge algorithm, (d) a debounced-save
+      timer map, (e) <span class="mono">beforeunload</span>/<span class="mono">visibilitychange</span> flush and
+      <span class="mono">tabOrder</span> metadata writes. Six <span class="mono">useEffect</span>s. Three refs
+      (<span class="mono">currentTabsRef</span>, <span class="mono">currentActiveTabIdRef</span>, <span class="mono">saveTimers</span>)
+      exist only to dodge stale closures in the <span class="mono">[]</span>-dep election effect. The persistence
+      rules — "when may I write", "what wins on merge", "cancel the pending timer before deleteTab" — are smeared
+      across <span class="mono">createTab</span>, <span class="mono">closeTab</span>, <span class="mono">updateTab</span>,
+      <span class="mono">saveTabDebounced</span>, <span class="mono">onPromoted</span>, <span class="mono">flushPendingSaves</span>
+      and <span class="mono">saveSession</span>. There is no interface for any of it — the only test surface is the
+      whole provider driven through <span class="mono">act()</span> + fake locks + <span class="mono">fake-indexeddb</span>.
+      The GOTCHAS list in <span class="mono">dispatch.md</span> ("stale closure in the election effect", "decrypt throws now")
+      is a symptom: each entry cost a review round because the logic has no local home.</p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Solution.</span>
+      Extract a framework-free <span class="font-semibold">Session Store</span> module: it owns the IndexedDB writes,
+      the debounce map, the primary-window lock lifecycle, and the promotion/merge. Interface roughly
+      <span class="mono">open() · putTab(tab) · deleteTab(id) · flush() · onPromote(cb) · subscribe(cb)</span>.
+      The "pristine tab" predicate, the disk-merge, and "cancel pending save for id" become pure functions inside it.
+      <span class="mono">SessionContext.jsx</span> shrinks to a thin React adapter: hold <span class="mono">tabs</span>/<span class="mono">activeTabId</span>
+      in state, forward mutations to the store, re-render on <span class="mono">subscribe</span>.</p>
+
+    <p class="text-sm mb-3"><span class="font-semibold">Benefits.</span>
+      <span class="font-semibold">Locality</span> — the write rules sit in one module beside the data they guard,
+      not in seven callbacks. <span class="font-semibold">Leverage</span> — queued tasks 8 (gate tabOrder write),
+      9 (close-path save-failure toast), 14 (debounce saveMetadata), 15 (atomic tabs+metadata txn) each become an
+      edit to one module with a real test surface. <span class="font-semibold">Tests</span> — merge, pristine-detection
+      and debounce-cancel become plain function tests: no <span class="mono">act()</span>, no jsdom, no fake locks.</p>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <div class="before rounded p-3">
+        <p class="text-xs font-bold mb-2">BEFORE — one shallow-wide module, logic smeared</p>
+        <div class="space-y-1 text-xs mono">
+          <div class="node-hot rounded px-2 py-1">SessionContext.jsx · 504 lines</div>
+          <div class="pl-3 space-y-1">
+            <div class="node rounded px-2 py-1">useState ×6 + useRef ×3 + useEffect ×6</div>
+            <div class="node rounded px-2 py-1">lock election + onPromoted merge (90 lines)</div>
+            <div class="node rounded px-2 py-1">saveTabDebounced · flushPendingSaves · saveSession</div>
+            <div class="node rounded px-2 py-1">write-rule fragments in createTab/closeTab/updateTab</div>
+          </div>
+          <div class="mt-2">test surface: whole provider via act() + fakeLocks + fake-idb</div>
+        </div>
+      </div>
+      <div class="after rounded p-3">
+        <p class="text-xs font-bold mb-2">AFTER — thin adapter over a deep store</p>
+        <div class="space-y-1 text-xs mono">
+          <div class="node rounded px-2 py-1">SessionContext.jsx · ~120 lines (React glue)</div>
+          <div class="pl-3">
+            <div class="node-deep rounded px-2 py-1">sessionStore.js — open/putTab/deleteTab/flush/onPromote</div>
+            <div class="pl-3 mt-1 space-y-1">
+              <div class="node rounded px-2 py-1">pure: mergeDiskAndLocal(disk, local)</div>
+              <div class="node rounded px-2 py-1">pure: isPristine(tab) · cancelPending(id)</div>
+            </div>
+          </div>
+          <div class="mt-2">test surface: call the functions directly</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-3 text-xs rounded p-2" style="background:#fff4d6;border:1px solid #e0c05a;color:#3a2c00">
+      Overlaps queued <span class="mono">Task 24</span> ("split SessionContext into settings/tab-state/actions contexts").
+      This goes deeper: 24 splits the React contexts by concern; this pulls the non-React engine out entirely so the
+      split contexts have something testable to sit on. Do this first, then 24 is trivial.
+    </div>
+  </article>
+
+  <!-- CANDIDATE 2 -->
+  <article class="card rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xl font-bold">2 · Deep "Save Policy" module; trim the shallow drivers</h2>
+      <span class="badge-worth text-xs font-bold px-2 py-1 rounded">Worth exploring</span>
+    </div>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Files:</span>
+      <span class="mono">src/utils/fileSystem.js</span> (332 lines, 3 drivers × ~7 methods),
+      <span class="mono">src/hooks/useCommands.js</span> (<span class="mono">saveFile</span>, <span class="mono">saveFileAs</span>,
+      <span class="mono">closeTab</span> save-branch, <span class="mono">closeWindow</span> save-branch)</p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Problem.</span>
+      <span class="mono">fileSystem.js</span> is three driver objects whose methods are near-identical:
+      picker → <span class="mono">createWritable</span> → <span class="mono">write</span> → <span class="mono">close</span>,
+      each wrapped in the same <span class="mono">try/catch</span> with <span class="mono">AbortError → null</span>.
+      The public <span class="mono">fileSystem.*</span> facade is as wide as the impl and just forwards to
+      <span class="mono">getDriver()</span> — a shallow module. The logic that actually has bugs — the ladder
+      "<span class="mono">fileHandle?</span> save in place · else <span class="mono">!isSupported() &amp;&amp; filePath?</span>
+      saveFileAs to path · else saveFileAs to title", then patch <span class="mono">title/filePath/fileHandle/isDirty</span>
+      back onto the tab — is copy-pasted <span class="font-semibold">four times</span> in
+      <span class="mono">useCommands.js</span>. That is exactly what queued <span class="mono">Task 22</span> names
+      ("extract <span class="mono">persistTab()</span> + <span class="mono">canSaveInPlace()</span>").</p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Solution.</span>
+      Collapse each driver to the primitives that genuinely differ (~3: <span class="mono">pickOpen</span>,
+      <span class="mono">pickSave</span>, <span class="mono">writeTo</span>); fold the repeated
+      <span class="mono">AbortError→null</span> + logging into one wrapper. Add one deep module —
+      <span class="font-semibold">Save Policy</span> — exposing
+      <span class="mono">persistTab(tab, content) → { tab, saved }</span> and <span class="mono">canSaveInPlace(tab)</span>.
+      The four call sites shrink to <span class="mono">const { tab, saved } = await persistTab(t, content)</span>.</p>
+
+    <p class="text-sm mb-3"><span class="font-semibold">Benefits.</span>
+      <span class="font-semibold">Locality</span> — the strategy choice and the tab-field patching that follows it live
+      together, so you can see the branches you're choosing between. <span class="font-semibold">Leverage</span> —
+      queued Task 9's "save-failure toast + <span class="mono">requestPermission</span>" is one edit, not four.
+      <span class="font-semibold">Tests</span> — <span class="mono">persistTab</span> is table-testable over
+      <span class="mono">(fileHandle, filePath, isSupported)</span>; today those paths are only reachable by driving the
+      whole command hook with mocked pickers.</p>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <div class="before rounded p-3">
+        <p class="text-xs font-bold mb-2">BEFORE</p>
+        <div class="text-xs mono space-y-1">
+          <div class="node rounded px-2 py-1">fileSystem.js — 3 × 7 wrapped methods (wide facade)</div>
+          <div class="node-hot rounded px-2 py-1">useCommands: save ladder ×4 (saveFile, saveFileAs, closeTab, closeWindow)</div>
+          <div class="node rounded px-2 py-1">each re-patches title/filePath/fileHandle/isDirty by hand</div>
+        </div>
+      </div>
+      <div class="after rounded p-3">
+        <p class="text-xs font-bold mb-2">AFTER</p>
+        <div class="text-xs mono space-y-1">
+          <div class="node rounded px-2 py-1">fileSystem.js — 3 × ~3 primitives + 1 error wrapper</div>
+          <div class="node-deep rounded px-2 py-1">savePolicy.js — persistTab() · canSaveInPlace()</div>
+          <div class="node rounded px-2 py-1">4 call sites → one line each</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- CANDIDATE 3 -->
+  <article class="card rounded-lg p-5 mb-6">
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="text-xl font-bold">3 · One home for the "reveal on cursor" rule + the debounced-decoration skeleton</h2>
+      <span class="badge-worth text-xs font-bold px-2 py-1 rounded">Worth exploring</span>
+    </div>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Files:</span>
+      <span class="mono">src/extensions/livePreview.js</span> (<span class="mono">isCursorTouching</span> /
+      <span class="mono">isCursorOnLine</span>, ~25 call sites),
+      <span class="mono">src/extensions/linkPreview.js</span> (its own copy of <span class="mono">isCursorTouching</span> + its own
+      debounce timer), <span class="mono">src/extensions/imagePreview.js</span> (its own debounce timer),
+      <span class="mono">src/extensions/widgets.js</span></p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Problem.</span>
+      "Show raw markdown when the cursor is on or inside this range, otherwise render it" is the signature behaviour of
+      the whole editor — and it is written three times. <span class="mono">linkPreview.js</span> has a second, subtly
+      different <span class="mono">isCursorTouching</span>. <span class="mono">imagePreview.js</span> and
+      <span class="mono">linkPreview.js</span> each hand-roll the same <span class="mono">ViewPlugin</span> +
+      <span class="mono">this.debounceTimer = setTimeout(...)</span> skeleton, which is what queued
+      <span class="mono">Task 21</span> names ("extract <span class="mono">makeDebouncedDecorationPlugin</span> factory").
+      Adding a fourth preview extension means copying the skeleton again, and there is no single test that pins the
+      reveal rule.</p>
+
+    <p class="text-sm mb-2"><span class="font-semibold">Solution.</span>
+      <span class="mono">src/extensions/selection.js</span> — deep helper exposing
+      <span class="mono">isCursorTouching</span>, <span class="mono">isCursorOnLine</span>, and a small
+      <span class="mono">revealsFor(node, selection)</span>. <span class="mono">makeDebouncedDecorationPlugin({ build, delay })</span>
+      for the <span class="mono">ViewPlugin</span> skeleton. Each extension then supplies only its node matcher and its widget.</p>
+
+    <p class="text-sm mb-3"><span class="font-semibold">Benefits.</span>
+      <span class="font-semibold">Locality</span> — the reveal rule has one definition and one test file.
+      <span class="font-semibold">Leverage</span> — queued Task 6 ("scope decoration build to viewport + changed ranges")
+      becomes a change to the factory, not to every extension.
+      <span class="font-semibold">AI-navigability</span> — "how does reveal-on-cursor work" resolves to one file
+      instead of three near-copies.</p>
+
+    <div class="grid md:grid-cols-2 gap-3">
+      <div class="before rounded p-3">
+        <p class="text-xs font-bold mb-2">BEFORE</p>
+        <div class="text-xs mono space-y-1">
+          <div class="node rounded px-2 py-1">livePreview.js — isCursorTouching / isCursorOnLine</div>
+          <div class="node-hot rounded px-2 py-1">linkPreview.js — 2nd isCursorTouching + own debounce</div>
+          <div class="node-hot rounded px-2 py-1">imagePreview.js — own debounce ViewPlugin</div>
+        </div>
+      </div>
+      <div class="after rounded p-3">
+        <p class="text-xs font-bold mb-2">AFTER</p>
+        <div class="text-xs mono space-y-1">
+          <div class="node-deep rounded px-2 py-1">selection.js — isCursorTouching · isCursorOnLine · revealsFor</div>
+          <div class="node-deep rounded px-2 py-1">makeDebouncedDecorationPlugin({ build, delay })</div>
+          <div class="node rounded px-2 py-1">livePreview / linkPreview / imagePreview — matcher + widget only</div>
+        </div>
+      </div>
+    </div>
+  </article>
+
+  <!-- TOP REC -->
+  <section class="card rounded-lg p-5 mb-4" style="border-left:5px solid #0b5d1e">
+    <h2 class="text-lg font-bold mb-2">Top recommendation — start with Candidate 1</h2>
+    <p class="text-sm" style="color:#333">
+      <span class="mono">SessionContext.jsx</span> is the hottest file in recent history (every P0 in the build-loop
+      queue lands there), the hardest to test (needs <span class="mono">act()</span> + fake locks + fake-indexeddb just
+      to reach the logic), and the one place where a real seam is missing — React state on one side, a persistence
+      engine on the other. Pulling the <span class="font-semibold">Session Store</span> out concentrates the merge /
+      debounce / write-rule complexity into one module with a plain-function test surface, and de-risks queued tasks
+      8, 9, 14, 15 and 24 before they're written. Candidates 2 and 3 are worthwhile and already half-scoped in the
+      queue (Tasks 22, 21, 19) — but they're lower-blast-radius and can follow.
+    </p>
+  </section>
+
+  <p class="text-xs" style="color:#6a6f77">Interfaces are intentionally not designed here — that's the next step, per candidate you pick.</p>
+
+</div>
+<script>mermaid.initialize({ startOnLoad: true, theme: 'neutral' });</script>
+</body>
+</html>

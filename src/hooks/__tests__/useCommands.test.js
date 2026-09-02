@@ -3,6 +3,7 @@ import React from 'react';
 import { renderHook, render, act } from '@testing-library/react';
 import { useCommands } from '../useCommands';
 import * as SessionContext from '../../context/SessionContext';
+import { fileSystem } from '../../utils/fileSystem';
 
 // Mock the context
 vi.mock('../../context/SessionContext', () => ({
@@ -148,5 +149,82 @@ describe('useCommands multi-close operates on live tab state (M4/L3)', () => {
         });
 
         expect(api.tabs.map(t => t.id)).toEqual(['1']);
+    });
+});
+
+describe('useCommands — a successful save clears dirty via editorRef.markSaved (P1-4)', () => {
+    let mockSession;
+
+    beforeEach(() => {
+        mockSession = {
+            tabs: [{ id: '1', title: 'Tab 1', content: 'old', isDirty: true }],
+            activeTabId: '1',
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            setTabs: vi.fn(),
+            recentFiles: [],
+            addRecentFile: vi.fn(),
+            isPrimaryWindow: true,
+        };
+        SessionContext.useSession.mockReturnValue(mockSession);
+    });
+
+    const mkEditorRef = () => ({
+        current: { getCurrentContent: () => 'new text', markSaved: vi.fn() },
+    });
+
+    it('saveFile (fileHandle branch) calls editorRef.current.markSaved() after the write', async () => {
+        mockSession.tabs[0].fileHandle = {};
+        const editorRef = mkEditorRef();
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFile(editorRef);
+        });
+
+        expect(fileSystem.saveFile).toHaveBeenCalled();
+        expect(mockSession.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
+        expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
+    });
+
+    it('saveFileAs calls editorRef.current.markSaved() after the write', async () => {
+        const editorRef = mkEditorRef();
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFileAs(editorRef);
+        });
+
+        expect(mockSession.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
+        expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
+    });
+
+    it('does not call markSaved when saveFileAs is cancelled (no write happened)', async () => {
+        fileSystem.saveFileAs.mockResolvedValueOnce(null);
+        const editorRef = mkEditorRef();
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFileAs(editorRef);
+        });
+
+        expect(editorRef.current.markSaved).not.toHaveBeenCalled();
+    });
+
+    it('does not call markSaved when the write throws', async () => {
+        mockSession.tabs[0].fileHandle = {};
+        fileSystem.saveFile.mockRejectedValueOnce(new Error('disk full'));
+        const editorRef = mkEditorRef();
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFile(editorRef);
+        });
+
+        expect(editorRef.current.markSaved).not.toHaveBeenCalled();
     });
 });

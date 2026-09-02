@@ -9,7 +9,7 @@ Branch: `fix/audit-remediation`.
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
 | 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
-| 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | queued | 0 | |
+| 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | in-review | 1 | |
 | 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |

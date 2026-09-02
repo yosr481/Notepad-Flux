@@ -24,6 +24,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
   const currentTabIdRef = useRef(activeTabId);
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
   const stateUpdateTimer = useRef(null);
+  const savedContentRef = useRef(initialContent);
 
   useImperativeHandle(ref, () => ({
     undo: () => {
@@ -105,41 +106,45 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
     find: (searchText, options = {}) => {
       if (!viewRef.current || !searchText) return { current: 0, total: 0 };
 
-      const view = viewRef.current;
-      const query = new SearchQuery({
-        search: searchText,
-        caseSensitive: options.caseSensitive || false,
-        regexp: options.useRegex || false
-      });
+      try {
+        const view = viewRef.current;
+        const query = new SearchQuery({
+          search: searchText,
+          caseSensitive: options.caseSensitive || false,
+          regexp: options.useRegex || false
+        });
 
-      view.dispatch({ effects: setSearchQuery.of(query) });
+        view.dispatch({ effects: setSearchQuery.of(query) });
 
-      if (options.direction === 'next') {
-        findNext(view);
-      } else if (options.direction === 'previous') {
-        findPrevious(view);
-      } else if (options.direction === 'current') {
-        const { from } = view.state.selection.main;
-        view.dispatch({ selection: { anchor: from, head: from } });
-        findNext(view);
-      }
-
-      const state = view.state;
-      const cursor = query.getCursor(state.doc);
-      let total = 0;
-      let current = 0;
-      const currentPos = state.selection.main.from;
-
-      // "current" is the match the cursor sits in / that findNext landed on:
-      // the first match whose start is at or after the cursor position.
-      while (!cursor.next().done) {
-        total++;
-        if (current === 0 && cursor.value.from >= currentPos) {
-          current = total;
+        if (options.direction === 'next') {
+          findNext(view);
+        } else if (options.direction === 'previous') {
+          findPrevious(view);
+        } else if (options.direction === 'current') {
+          const { from } = view.state.selection.main;
+          view.dispatch({ selection: { anchor: from, head: from } });
+          findNext(view);
         }
-      }
 
-      return { current, total };
+        const state = view.state;
+        const cursor = query.getCursor(state.doc);
+        let total = 0;
+        let current = 0;
+        const currentPos = state.selection.main.from;
+
+        // "current" is the match the cursor sits in / that findNext landed on:
+        // the first match whose start is at or after the cursor position.
+        while (!cursor.next().done) {
+          total++;
+          if (current === 0 && cursor.value.from >= currentPos) {
+            current = total;
+          }
+        }
+
+        return { current, total };
+      } catch {
+        return { current: 0, total: 0 };
+      }
     },
     replace: (replaceText) => {
       if (!viewRef.current) return;
@@ -158,28 +163,32 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
     replaceAll: (searchText, replaceText, options = {}) => {
       if (!viewRef.current || !searchText) return 0;
 
-      const view = viewRef.current;
-      const state = view.state;
-      const query = new SearchQuery({
-        search: searchText,
-        caseSensitive: options.caseSensitive || false,
-        regexp: options.useRegex || false
-      });
+      try {
+        const view = viewRef.current;
+        const state = view.state;
+        const query = new SearchQuery({
+          search: searchText,
+          caseSensitive: options.caseSensitive || false,
+          regexp: options.useRegex || false
+        });
 
-      const cursor = query.getCursor(state.doc);
-      const changes = [];
-      let count = 0;
+        const cursor = query.getCursor(state.doc);
+        const changes = [];
+        let count = 0;
 
-      while (!cursor.next().done) {
-        changes.push({ from: cursor.value.from, to: cursor.value.to, insert: replaceText });
-        count++;
+        while (!cursor.next().done) {
+          changes.push({ from: cursor.value.from, to: cursor.value.to, insert: replaceText });
+          count++;
+        }
+
+        if (changes.length > 0) {
+          view.dispatch({ changes });
+        }
+
+        return count;
+      } catch {
+        return 0;
       }
-
-      if (changes.length > 0) {
-        view.dispatch({ changes });
-      }
-
-      return count;
     },
     goToLine: (lineNumber) => {
       if (!viewRef.current) return;
@@ -224,6 +233,11 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
       });
 
       view.focus();
+    },
+    markSaved: () => {
+      if (viewRef.current) {
+        savedContentRef.current = viewRef.current.state.doc.toString();
+      }
     }
   }));
 
@@ -273,7 +287,8 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
           if (update.docChanged) {
             updateStats(update.view);
             if (onContentChange) {
-              onContentChange(update.state.doc.toString(), true);
+              const text = update.state.doc.toString();
+              onContentChange(text, text !== savedContentRef.current);
             }
           }
 
@@ -350,6 +365,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
     });
 
     viewRef.current = view;
+    savedContentRef.current = initialContent;
 
     // Restore initial scroll
     if (initialScroll > 0) {
@@ -399,6 +415,8 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
             view.scrollDOM.scrollTop = scrollCache.current.get(activeTabId);
           });
         }
+        // Reset baseline to the restored tab's content
+        savedContentRef.current = view.state.doc.toString();
       } else {
         // Create new state with current initialContent
         // (Note: initialContent here is the content of the NEW tab because parent passed it)
@@ -410,6 +428,8 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
             view.scrollDOM.scrollTop = initialScroll;
           });
         }
+        // Reset baseline to the new tab's content
+        savedContentRef.current = initialContent;
       }
 
       currentTabIdRef.current = activeTabId;

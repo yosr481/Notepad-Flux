@@ -143,6 +143,7 @@ export const useCommands = (showToast) => {
             try {
                 await fileSystem.saveFile(tab.fileHandle, content);
                 updateTab(activeTabId, { content, isDirty: false });
+                editorRef?.current?.markSaved?.();
             } catch (error) {
                 console.error("Failed to save file", error);
             }
@@ -151,6 +152,7 @@ export const useCommands = (showToast) => {
                 const result = await fileSystem.saveFileAs(content, tab.filePath);
                 if (result) {
                     updateTab(activeTabId, { content, isDirty: false });
+                    editorRef?.current?.markSaved?.();
                 }
             } catch (error) {
                 console.error("Failed to save file", error);
@@ -177,6 +179,7 @@ export const useCommands = (showToast) => {
                     isDirty: false
                 });
                 addRecentFile(result.name, result.name, result.handle);
+                editorRef?.current?.markSaved?.();
             }
         } catch (error) {
             console.error("Failed to save file as", error);
