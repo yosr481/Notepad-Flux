@@ -2,5 +2,5 @@
 
 Reset to this template after each commit.
 
-## Task N
-(none yet)
+## Task 2
+(none — contract fully specified by tests)

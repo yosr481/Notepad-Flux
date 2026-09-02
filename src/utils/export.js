@@ -1,19 +1,31 @@
 import { marked } from 'marked';
 import { fileSystem } from './fileSystem';
+import { sanitizeHTML } from './sanitize';
+
+const escapeHtml = (s) => {
+    return s.replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[c]));
+};
 
 export const markdownToHtml = (markdown) => {
     return marked(markdown);
 };
 
 export const exportToHtml = async (title, markdown) => {
-    const htmlContent = markdownToHtml(markdown);
+    const htmlContent = sanitizeHTML(marked(markdown));
+    const escapedTitle = escapeHtml(title);
     const fullHtml = `
         <!DOCTYPE html>
         <html lang="en">
         <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>${title}</title>
+            <title>${escapedTitle}</title>
             <style>
                 body { font-family: sans-serif; line-height: 1.6; padding: 2rem; max-width: 800px; margin: 0 auto; }
                 h1, h2, h3, h4, h5, h6 { font-weight: 600; }
@@ -34,26 +46,4 @@ export const exportToHtml = async (title, markdown) => {
             accept: { 'text/html': ['.html'] },
         },
     ]);
-};
-
-export const exportToPdf = async (title, content) => {
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-        <html>
-            <head>
-                <title>Print - ${title}</title>
-                <link rel="stylesheet" href="src/components/Print/Print.module.css">
-            </head>
-            <body>
-                <div id="print-root"></div>
-            </body>
-        </html>
-    `);
-    printWindow.document.close();
-
-    const root = printWindow.document.getElementById('print-root');
-    // We need to render the PrintDocument component into this new window
-    // This is tricky because we can't just import and render a React component here.
-    // Instead, we will use the print() command to render the component in the main window
-    // and use a print stylesheet to format it.
 };
