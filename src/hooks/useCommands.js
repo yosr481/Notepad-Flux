@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { useSession } from '../context/SessionContext';
+import React, { useRef, useMemo, useCallback } from 'react';
+import { useTabState, useSessionActions } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
 import { exportToHtml } from '../utils/export';
@@ -15,20 +15,23 @@ const nextPaint = () => new Promise(resolve => {
 
 const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
 
-export const useCommands = (showToast) => {
+export const useCommands = (showToast, editorRef) => {
     const {
         tabs,
         activeTabId,
+        isPrimaryWindow,
+        recentFiles
+    } = useTabState();
+
+    const {
         setActiveTabId,
         createTab,
         closeTab: closeTabInContext,
         updateTab,
         switchTab,
         reorderTabs,
-        recentFiles,
-        addRecentFile,
-        isPrimaryWindow
-    } = useSession();
+        addRecentFile
+    } = useSessionActions();
 
     // Mirror the live tab state so multi-close loops (closeOtherTabs /
     // closeTabsToRight / closeWindow) re-evaluate length guards and active-tab
@@ -36,7 +39,7 @@ export const useCommands = (showToast) => {
     const liveState = useRef({ tabs, activeTabId });
     liveState.current = { tabs, activeTabId };
 
-    const persistTab = async (tab, content) => {
+    const persistTab = useCallback(async (tab, content) => {
         if (tab.fileHandle) {
             await fileSystem.saveFile(tab.fileHandle, content);
             updateTab(tab.id, { content, isDirty: false });
@@ -56,14 +59,14 @@ export const useCommands = (showToast) => {
             });
         }
         return true;
-    };
+    }, [updateTab]);
 
-    const newTab = () => {
+    const newTab = useCallback(() => {
         createTab();
-    };
+    }, [createTab]);
 
-    const closeTab = async (id, options = {}) => {
-        const { skipPrompt = false, editorRef } = options;
+    const closeTab = useCallback(async (id, options = {}) => {
+        const { skipPrompt = false } = options;
         const tab = liveState.current.tabs.find(t => t.id === id);
         if (!tab) return;
 
@@ -105,19 +108,19 @@ export const useCommands = (showToast) => {
             }
             closeTabInContext(id);
         }
-    };
+    }, [persistTab, createTab, closeTabInContext, setActiveTabId, showToast, editorRef]);
 
-    const closeOtherTabs = async (id, editorRef) => {
+    const closeOtherTabs = useCallback(async (id) => {
         const tabsToClose = liveState.current.tabs.filter(t => t.id !== id);
         for (const tab of tabsToClose) {
-            await closeTab(tab.id, { editorRef });
+            await closeTab(tab.id);
         }
         // The only survivor is `id`; make it active regardless of how the
         // per-tab selection inside closeTab raced (M4).
         setActiveTabId(id);
-    };
+    }, [closeTab, setActiveTabId]);
 
-    const closeTabsToRight = async (id, editorRef) => {
+    const closeTabsToRight = useCallback(async (id) => {
         const index = liveState.current.tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
@@ -125,13 +128,13 @@ export const useCommands = (showToast) => {
         const activeAtStart = liveState.current.activeTabId;
         const tabsToClose = liveState.current.tabs.slice(index + 1);
         for (const tab of tabsToClose) {
-            await closeTab(tab.id, { editorRef });
+            await closeTab(tab.id);
         }
         // If the active tab was one of the closed ones, fall back to `id` (M4).
         if (!keptIds.has(activeAtStart)) setActiveTabId(id);
-    };
+    }, [closeTab, setActiveTabId]);
 
-    const openFile = async () => {
+    const openFile = useCallback(async () => {
         try {
             const file = await fileSystem.openFile();
             if (file) {
@@ -147,9 +150,9 @@ export const useCommands = (showToast) => {
         } catch (error) {
             console.error("Failed to open file", error);
         }
-    };
+    }, [createTab, addRecentFile]);
 
-    const saveFile = async (editorRef) => {
+    const saveFile = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
@@ -166,9 +169,9 @@ export const useCommands = (showToast) => {
             console.error("Failed to save file", error);
             showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
-    };
+    }, [tabs, activeTabId, showToast, persistTab]);
 
-    const saveFileAs = async (editorRef) => {
+    const saveFileAs = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
@@ -193,9 +196,9 @@ export const useCommands = (showToast) => {
             console.error("Failed to save file as", error);
             showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
-    };
+    }, [tabs, activeTabId, showToast, updateTab, addRecentFile]);
 
-    const openRecentFile = async (filePath, fileName, fileHandle) => {
+    const openRecentFile = useCallback(async (filePath, fileName, fileHandle) => {
         try {
             let file = null;
             if (fileHandle && fileSystem.isSupported()) {
@@ -215,7 +218,7 @@ export const useCommands = (showToast) => {
                     file = null;
                 }
             }
-            
+
             if (!file) {
                 file = await fileSystem.openFile();
                 if (!file) {
@@ -236,9 +239,9 @@ export const useCommands = (showToast) => {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
-    };
+    }, [createTab, addRecentFile]);
 
-    const exportToPDF = async () => {
+    const exportToPDF = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -306,9 +309,9 @@ export const useCommands = (showToast) => {
             root.unmount();
             document.body.removeChild(printContainer);
         }
-    };
+    }, [tabs, activeTabId, showToast]);
 
-    const exportToHTML = async () => {
+    const exportToHTML = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -325,9 +328,9 @@ export const useCommands = (showToast) => {
             console.error("Failed to export to HTML", error);
             showToast('Failed to export to HTML.');
         }
-    };
+    }, [tabs, activeTabId, showToast]);
 
-    const print = () => {
+    const print = useCallback(() => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -345,9 +348,9 @@ export const useCommands = (showToast) => {
             root.unmount();
             document.body.removeChild(printContainer);
         });
-    };
+    }, [tabs, activeTabId]);
 
-    const closeWindow = async (editorRef) => {
+    const closeWindow = useCallback(async () => {
         if (!isPrimaryWindow) {
             // Iterate tabs and prompt/save/close one by one until only one default tab remains
             // Take a snapshot of current order to iterate deterministically
@@ -382,13 +385,13 @@ export const useCommands = (showToast) => {
                     // if 'dontsave', proceed without saving
                 }
 
-                await closeTab(current.id, { skipPrompt: true, editorRef });
+                await closeTab(current.id, { skipPrompt: true });
             }
         }
         window.close();
-    };
+    }, [isPrimaryWindow, persistTab, closeTab, showToast, editorRef]);
 
-    return {
+    return useMemo(() => ({
         newTab,
         openFile,
         openRecentFile,
@@ -407,7 +410,6 @@ export const useCommands = (showToast) => {
         tabs,
         reorderTabs,
         recentFiles,
-        closeWindow,
-        isPrimaryWindow
-    };
+        closeWindow
+    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs]);
 };

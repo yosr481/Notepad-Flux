@@ -125,33 +125,24 @@ describe('App wiring — close paths thread the live editor ref (P1-7)', () => {
         vi.clearAllMocks();
     });
 
-    it('Tabs onTabClose calls closeTab(id, { editorRef })', () => {
+    it('Tabs onTabClose calls closeTab(id)', () => {
         renderApp();
         fireEvent.click(screen.getByTestId('tabs-close'));
 
-        expect(mockCtl.closeTab).toHaveBeenCalledWith(
-            'tab-1',
-            expect.objectContaining({ editorRef: expect.anything() })
-        );
+        expect(mockCtl.closeTab).toHaveBeenCalledWith('tab-1');
     });
 
-    it('Ctrl+W calls closeTab(activeTabId, { editorRef })', () => {
+    it('Ctrl+W calls closeTab(activeTabId)', () => {
         renderApp();
         window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'w', bubbles: true }));
 
-        expect(mockCtl.closeTab).toHaveBeenCalledWith(
-            'tab-1',
-            expect.objectContaining({ editorRef: expect.anything() })
-        );
+        expect(mockCtl.closeTab).toHaveBeenCalledWith('tab-1');
     });
 
-    it('MenuBar onCloseTab calls closeTab(activeTabId, { editorRef })', () => {
+    it('MenuBar onCloseTab calls closeTab(activeTabId)', () => {
         renderApp();
         fireEvent.click(screen.getByTestId('menu-close-tab'));
 
-        expect(mockCtl.closeTab).toHaveBeenCalledWith(
-            'tab-1',
-            expect.objectContaining({ editorRef: expect.anything() })
-        );
+        expect(mockCtl.closeTab).toHaveBeenCalledWith('tab-1');
     });
 });

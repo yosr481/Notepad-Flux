@@ -1,5 +1,5 @@
 import { keymap } from "@codemirror/view";
-import { indentMore } from "@codemirror/commands";
+import { indentMore, indentLess } from "@codemirror/commands";
 
 const isListLine = (state, line) => {
     const text = line.text;
@@ -99,7 +99,27 @@ const handleTab = (view) => {
     return false;
 };
 
+const handleShiftTab = (view) => {
+    const { state } = view;
+    const { doc, selection } = state;
+    const pos = selection.main.head;
+    const line = doc.lineAt(pos);
+
+    if (isListLine(state, line)) {
+        // Check if line has indentation to remove
+        const leadingWhitespace = line.text.match(/^\s*/)[0];
+        if (leadingWhitespace.length === 0) {
+            // No indentation -> let default handler take over
+            return false;
+        }
+        // Outdent by one indentUnit
+        return indentLess(view);
+    }
+    return false;
+};
+
 export const listKeymap = keymap.of([
     { key: "Enter", run: handleEnter },
-    { key: "Tab", run: handleTab }
+    { key: "Tab", run: handleTab },
+    { key: "Shift-Tab", run: handleShiftTab }
 ]);

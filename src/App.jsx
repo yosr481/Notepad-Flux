@@ -9,7 +9,7 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
-import { useSession } from './context/SessionContext';
+import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
 import Settings from './components/Settings/Settings';
@@ -32,7 +32,9 @@ function App() {
         charCount: 0
     });
 
-    const { settings, updateSettings, restoreWarning, clearRestoreWarning } = useSession();
+    const { settings, updateSettings } = useSettings();
+    const { restoreWarning } = useTabState();
+    const { clearRestoreWarning } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -75,8 +77,6 @@ function App() {
     );
 
     const {
-        tabs,
-        activeTabId,
         setActiveTabId,
         newTab,
         openFile,
@@ -93,8 +93,10 @@ function App() {
         updateTab,
         reorderTabs,
         recentFiles,
-        closeWindow
-    } = useCommands(showToast);
+        closeWindow,
+        tabs,
+        activeTabId
+    } = useCommands(showToast, editorRef);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
@@ -128,11 +130,11 @@ function App() {
             options: [
                 {
                     label: 'Close Other Tabs',
-                    onClick: () => closeOtherTabs(id, editorRef)
+                    onClick: () => closeOtherTabs(id)
                 },
                 {
                     label: 'Close Tabs to the Right',
-                    onClick: () => closeTabsToRight(id, editorRef)
+                    onClick: () => closeTabsToRight(id)
                 }
             ]
         });
@@ -155,7 +157,7 @@ function App() {
                 saveFile(editorRef);
             } else if (e.ctrlKey && e.key === 'w') {
                 e.preventDefault();
-                closeTab(activeTabId, { editorRef });
+                closeTab(activeTabId);
             } else if (e.ctrlKey && e.key === 'Tab') {
                 e.preventDefault();
                 switchTab(e.shiftKey ? 'prev' : 'next');
@@ -227,7 +229,7 @@ function App() {
                     tabs={tabs}
                     activeTabId={activeTabId}
                     onTabClick={setActiveTabId}
-                    onTabClose={(id) => closeTab(id, { editorRef })}
+                    onTabClose={(id) => closeTab(id)}
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
                     onReorder={reorderTabs}
@@ -253,9 +255,9 @@ function App() {
                     onExportToPDF={exportToPDF}
                     onExportToHTML={exportToHTML}
                     onPrint={print}
-                    onCloseTab={() => closeTab(activeTabId, { editorRef })}
-                    onCloseWindow={() => closeWindow(editorRef)}
-                    onExit={() => closeWindow(editorRef)}
+                    onCloseTab={() => closeTab(activeTabId)}
+                    onCloseWindow={() => closeWindow()}
+                    onExit={() => closeWindow()}
                     onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />
@@ -307,8 +309,6 @@ function App() {
             <Settings
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}
-                settings={settings}
-                updateSettings={updateSettings}
                 appVersion={appVersion}
             />
 

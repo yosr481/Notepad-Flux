@@ -8,7 +8,8 @@ import { dialogs } from '../../utils/dialogs';
 
 // Mock the context
 vi.mock('../../context/SessionContext', () => ({
-    useSession: vi.fn()
+    useTabState: vi.fn(),
+    useSessionActions: vi.fn()
 }));
 
 // Mock utils
@@ -29,24 +30,30 @@ vi.mock('../../utils/dialogs', () => ({
 }));
 
 describe('useCommands Hook', () => {
-    let mockSession;
+    let mockTabState;
+    let mockActions;
 
     beforeEach(() => {
-        mockSession = {
+        mockTabState = {
             tabs: [{ id: '1', title: 'Tab 1', content: '', isDirty: false }],
             activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
             setActiveTabId: vi.fn(),
             createTab: vi.fn(),
-            closeTab: vi.fn(), // context's closeTab matching nomenclature
+            closeTab: vi.fn(),
             updateTab: vi.fn(),
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
             setTabs: vi.fn(),
-            recentFiles: [],
-            addRecentFile: vi.fn(),
-            isPrimaryWindow: true
+            addRecentFile: vi.fn()
         };
-        SessionContext.useSession.mockReturnValue(mockSession);
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
     });
 
     it('newTab should call createTab from context', () => {
@@ -56,7 +63,7 @@ describe('useCommands Hook', () => {
             result.current.newTab();
         });
 
-        expect(mockSession.createTab).toHaveBeenCalled();
+        expect(mockActions.createTab).toHaveBeenCalled();
     });
 
     it('closeTab should call context closeTab if not dirty', async () => {
@@ -66,12 +73,12 @@ describe('useCommands Hook', () => {
             await result.current.closeTab('1');
         });
 
-        expect(mockSession.closeTab).toHaveBeenCalledWith('1');
+        expect(mockActions.closeTab).toHaveBeenCalledWith('1');
     });
 
     it('closeTab should update tab if dirty and saved', async () => {
-        mockSession.tabs[0].isDirty = true;
-        mockSession.tabs[0].content = 'New Content';
+        mockTabState.tabs[0].isDirty = true;
+        mockTabState.tabs[0].content = 'New Content';
 
         const { result } = renderHook(() => useCommands());
 
@@ -79,8 +86,8 @@ describe('useCommands Hook', () => {
             await result.current.closeTab('1');
         });
 
-        expect(mockSession.updateTab).toHaveBeenCalled();
-        expect(mockSession.closeTab).toHaveBeenCalledWith('1');
+        expect(mockActions.updateTab).toHaveBeenCalled();
+        expect(mockActions.closeTab).toHaveBeenCalledWith('1');
     });
 });
 
@@ -93,9 +100,15 @@ describe('useCommands multi-close operates on live tab state (M4/L3)', () => {
             const [tabs, setTabs] = React.useState(initialTabs);
             const [activeTabId, setActiveTabId] = React.useState(initialActiveId);
 
-            SessionContext.useSession.mockReturnValue({
+            SessionContext.useTabState.mockReturnValue({
                 tabs,
                 activeTabId,
+                isPrimaryWindow: true,
+                isSessionLoaded: true,
+                recentFiles: [],
+                restoreWarning: null
+            });
+            SessionContext.useSessionActions.mockReturnValue({
                 setActiveTabId,
                 createTab: vi.fn(),
                 // mirrors the fixed context closeTab: never drop the last tab (L3)
@@ -104,9 +117,7 @@ describe('useCommands multi-close operates on live tab state (M4/L3)', () => {
                 switchTab: vi.fn(),
                 reorderTabs: vi.fn(),
                 setTabs,
-                recentFiles: [],
-                addRecentFile: vi.fn(),
-                isPrimaryWindow: true,
+                addRecentFile: vi.fn()
             });
 
             api.commands = useCommands();
@@ -154,12 +165,19 @@ describe('useCommands multi-close operates on live tab state (M4/L3)', () => {
 });
 
 describe('useCommands — a successful save clears dirty via editorRef.markSaved (P1-4)', () => {
-    let mockSession;
+    let mockTabState;
+    let mockActions;
 
     beforeEach(() => {
-        mockSession = {
+        mockTabState = {
             tabs: [{ id: '1', title: 'Tab 1', content: 'old', isDirty: true }],
             activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
             setActiveTabId: vi.fn(),
             createTab: vi.fn(),
             closeTab: vi.fn(),
@@ -167,11 +185,10 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
             setTabs: vi.fn(),
-            recentFiles: [],
-            addRecentFile: vi.fn(),
-            isPrimaryWindow: true,
+            addRecentFile: vi.fn()
         };
-        SessionContext.useSession.mockReturnValue(mockSession);
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
     });
 
     const mkEditorRef = () => ({
@@ -179,7 +196,7 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
     });
 
     it('saveFile (fileHandle branch) calls editorRef.current.markSaved() after the write', async () => {
-        mockSession.tabs[0].fileHandle = {};
+        mockTabState.tabs[0].fileHandle = {};
         const editorRef = mkEditorRef();
         const { result } = renderHook(() => useCommands());
 
@@ -188,7 +205,7 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalled();
-        expect(mockSession.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
+        expect(mockActions.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
         expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
     });
 
@@ -200,7 +217,7 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
             await result.current.saveFileAs(editorRef);
         });
 
-        expect(mockSession.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
+        expect(mockActions.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
         expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
     });
 
@@ -217,7 +234,7 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
     });
 
     it('does not call markSaved when the write throws', async () => {
-        mockSession.tabs[0].fileHandle = {};
+        mockTabState.tabs[0].fileHandle = {};
         fileSystem.saveFile.mockRejectedValueOnce(new Error('disk full'));
         const editorRef = mkEditorRef();
         const { result } = renderHook(() => useCommands());
@@ -231,7 +248,8 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
 });
 
 describe('useCommands — save failures surface a toast (P1-8b)', () => {
-    let mockSession;
+    let mockTabState;
+    let mockActions;
     let showToast;
 
     beforeEach(() => {
@@ -242,20 +260,25 @@ describe('useCommands — save failures surface a toast (P1-8b)', () => {
         dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
 
         showToast = vi.fn();
-        mockSession = {
+        mockTabState = {
             tabs: [{ id: '1', title: 'MyDoc', content: 'old', isDirty: true, fileHandle: {} }],
             activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
             setActiveTabId: vi.fn(),
             createTab: vi.fn(),
             closeTab: vi.fn(),
             updateTab: vi.fn(),
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
-            recentFiles: [],
-            addRecentFile: vi.fn(),
-            isPrimaryWindow: true,
+            addRecentFile: vi.fn()
         };
-        SessionContext.useSession.mockReturnValue(mockSession);
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
     });
 
     const mkEditorRef = () => ({ current: { getCurrentContent: () => 'old', markSaved: vi.fn() } });
@@ -273,8 +296,8 @@ describe('useCommands — save failures surface a toast (P1-8b)', () => {
 
     it('saveFile: on the fallback (download) branch throw, showToast is called with the tab title', async () => {
         fileSystem.isSupported.mockReturnValue(false);
-        mockSession.tabs[0].fileHandle = undefined;
-        mockSession.tabs[0].filePath = 'MyDoc.md';
+        mockTabState.tabs[0].fileHandle = undefined;
+        mockTabState.tabs[0].filePath = 'MyDoc.md';
         fileSystem.saveFileAs.mockRejectedValueOnce(new Error('nope'));
         const { result } = renderHook(() => useCommands(showToast));
 
@@ -286,7 +309,7 @@ describe('useCommands — save failures surface a toast (P1-8b)', () => {
     });
 
     it('saveFileAs: on a throw, showToast is called with a message naming the tab title', async () => {
-        mockSession.tabs[0].fileHandle = undefined;
+        mockTabState.tabs[0].fileHandle = undefined;
         fileSystem.saveFileAs.mockRejectedValueOnce(new Error('nope'));
         const { result } = renderHook(() => useCommands(showToast));
 
@@ -309,7 +332,8 @@ describe('useCommands — save failures surface a toast (P1-8b)', () => {
 });
 
 describe('useCommands — close-save throw shows a toast AND aborts the close (P1-8b)', () => {
-    let mockSession;
+    let mockTabState;
+    let mockActions;
     let showToast;
     let closeSpy;
 
@@ -321,23 +345,28 @@ describe('useCommands — close-save throw shows a toast AND aborts the close (P
         dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
 
         showToast = vi.fn();
-        mockSession = {
+        mockTabState = {
             tabs: [
                 { id: '1', title: 'DirtyDoc', content: 'old', isDirty: true, fileHandle: {} },
                 { id: '2', title: 'Tab 2', content: '', isDirty: false },
             ],
             activeTabId: '1',
+            isPrimaryWindow: false,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
             setActiveTabId: vi.fn(),
             createTab: vi.fn(),
             closeTab: vi.fn(),
             updateTab: vi.fn(),
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
-            recentFiles: [],
-            addRecentFile: vi.fn(),
-            isPrimaryWindow: false, // closeWindow only runs its per-tab loop for non-primary windows
+            addRecentFile: vi.fn()
         };
-        SessionContext.useSession.mockReturnValue(mockSession);
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
         closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
     });
 
@@ -355,8 +384,8 @@ describe('useCommands — close-save throw shows a toast AND aborts the close (P
         });
 
         expect(showToast).toHaveBeenCalledWith(expect.stringContaining('DirtyDoc'));
-        expect(mockSession.closeTab).not.toHaveBeenCalled();
-        expect(mockSession.createTab).not.toHaveBeenCalled();
+        expect(mockActions.closeTab).not.toHaveBeenCalled();
+        expect(mockActions.createTab).not.toHaveBeenCalled();
     });
 
     it('closeWindow: save throw -> showToast called and window.close is NOT reached', async () => {
@@ -374,7 +403,8 @@ describe('useCommands — close-save throw shows a toast AND aborts the close (P
 });
 
 describe('useCommands — close-save flushes the live editor for the active tab (P1-7)', () => {
-    let mockSession;
+    let mockTabState;
+    let mockActions;
     let showToast;
     let closeSpy;
 
@@ -387,52 +417,59 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
 
         showToast = vi.fn();
-        mockSession = {
+        mockTabState = {
             tabs: [
                 { id: '1', title: 'Active', content: 'stale', isDirty: true, fileHandle: {} },
                 { id: '2', title: 'Other', content: 'stale2', isDirty: true, fileHandle: {} },
             ],
             activeTabId: '1',
+            isPrimaryWindow: false,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
             setActiveTabId: vi.fn(),
             createTab: vi.fn(),
             closeTab: vi.fn(),
             updateTab: vi.fn(),
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
-            recentFiles: [],
-            addRecentFile: vi.fn(),
-            isPrimaryWindow: false,
+            addRecentFile: vi.fn()
         };
-        SessionContext.useSession.mockReturnValue(mockSession);
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
     });
 
     afterEach(() => {
         closeSpy.mockRestore();
     });
 
+    // ROUND G: editorRef is now the 2nd arg to useCommands, not threaded through
+    // closeTab options / the multi-close params. One stable ref per test.
     const liveRef = () => ({ current: { getCurrentContent: () => 'LIVE' } });
 
-    it('closeTab(active, {editorRef}): saves editorRef.current.getCurrentContent() ("LIVE"), not tab.content', async () => {
-        const { result } = renderHook(() => useCommands(showToast));
+    it('closeTab(active): saves editorRef.current.getCurrentContent() ("LIVE"), not tab.content', async () => {
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeTab('1', { editorRef: liveRef() });
+            await result.current.closeTab('1');
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');
     });
 
-    it('closeTab(non-active, {editorRef}): still saves that tab.content ("stale2"), never the live content', async () => {
-        const { result } = renderHook(() => useCommands(showToast));
+    it('closeTab(non-active): still saves that tab.content ("stale2"), never the live content', async () => {
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeTab('2', { editorRef: liveRef() });
+            await result.current.closeTab('2');
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'stale2');
     });
 
-    it('closeTab(active) with no editorRef: falls back to tab.content ("stale")', async () => {
+    it('closeTab(active) with no editorRef on the hook: falls back to tab.content ("stale")', async () => {
         const { result } = renderHook(() => useCommands(showToast));
 
         await act(async () => {
@@ -442,59 +479,59 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'stale');
     });
 
-    it('closeTab(active, {editorRef}) with no fileHandle: passes "LIVE" to saveFileAs', async () => {
-        mockSession.tabs[0].fileHandle = undefined;
-        const { result } = renderHook(() => useCommands(showToast));
+    it('closeTab(active) with no fileHandle: passes "LIVE" to saveFileAs', async () => {
+        mockTabState.tabs[0].fileHandle = undefined;
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeTab('1', { editorRef: liveRef() });
+            await result.current.closeTab('1');
         });
 
         expect(fileSystem.saveFileAs).toHaveBeenCalledWith('LIVE', expect.anything());
     });
 
-    it('closeWindow(editorRef): flushes the live content for the active tab', async () => {
-        mockSession.tabs[1].isDirty = false; // only the active tab is dirty
-        const { result } = renderHook(() => useCommands(showToast));
+    it('closeWindow(): flushes the live content for the active tab', async () => {
+        mockTabState.tabs[1].isDirty = false; // only the active tab is dirty
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeWindow(liveRef());
+            await result.current.closeWindow();
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');
     });
 
-    it('closeWindow(editorRef): a non-active dirty tab in the loop still saves its own content', async () => {
-        mockSession.tabs[0].isDirty = false; // active tab clean, "Other" dirty
-        const { result } = renderHook(() => useCommands(showToast));
+    it('closeWindow(): a non-active dirty tab in the loop still saves its own content', async () => {
+        mockTabState.tabs[0].isDirty = false; // active tab clean, "Other" dirty
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeWindow(liveRef());
+            await result.current.closeWindow();
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'stale2');
         expect(fileSystem.saveFile).not.toHaveBeenCalledWith(expect.anything(), 'LIVE');
     });
 
-    it('closeOtherTabs(id, editorRef) forwards editorRef so the active tab it closes is flushed', async () => {
+    it('closeOtherTabs(id) flushes the active tab it closes via the hook editorRef', async () => {
         // active tab '1' is one of the tabs closeOtherTabs('2') will close
-        const { result } = renderHook(() => useCommands(showToast));
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeOtherTabs('2', liveRef());
+            await result.current.closeOtherTabs('2');
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');
     });
 
-    it('closeTabsToRight(id, editorRef) forwards editorRef so the active tab it closes is flushed', async () => {
+    it('closeTabsToRight(id) flushes the active tab it closes via the hook editorRef', async () => {
         // keep '1', close everything to its right; make '2' the active dirty tab
-        mockSession.activeTabId = '2';
-        mockSession.tabs[0].isDirty = false;
-        const { result } = renderHook(() => useCommands(showToast));
+        mockTabState.activeTabId = '2';
+        mockTabState.tabs[0].isDirty = false;
+        const { result } = renderHook(() => useCommands(showToast, liveRef()));
 
         await act(async () => {
-            await result.current.closeTabsToRight('1', liveRef());
+            await result.current.closeTabsToRight('1');
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');

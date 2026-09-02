@@ -3,11 +3,12 @@ import { ArrowLeft } from 'lucide-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
 import { dialogs } from '../../utils/dialogs';
-import { useSession } from '../../context/SessionContext';
+import { useSettings, useSessionActions } from '../../context/SessionContext';
 
-const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
+const Settings = ({ isOpen, onClose, appVersion }) => {
     const [errors, setErrors] = useState({});
-    const { clearSessionData } = useSession();
+    const { settings, updateSettings } = useSettings();
+    const { clearSessionData } = useSessionActions();
 
     if (!isOpen) return null;
 

@@ -302,61 +302,84 @@ const livePreviewField = StateField.define({
     provide: field => EditorView.decorations.from(field)
 });
 
-function convertTableToHTML(text) {
+export function convertTableToHTML(text) {
     const rows = text.trim().split('\n');
-    if (rows.length === 0) return "";
+    if (rows.length < 2) return "<div class='cm-table-empty'>Empty Table</div>";
 
-    let html = "<table>";
-    let hasContent = false;
     let alignments = [];
 
     // Check for delimiter row at index 1
-    if (rows.length >= 2) {
-        const potentialDelimiter = rows[1].trim();
-        // Matches | :---: | --- | formatting
-        // Must contain - or : and only valid delimiter chars
-        if (/^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-')) {
-            const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
-            alignments = cleanDelimiter.split('|').map(s => {
-                s = s.trim();
-                if (s.startsWith(':') && s.endsWith(':')) return 'center';
-                if (s.endsWith(':')) return 'right';
-                if (s.startsWith(':')) return 'left';
-                return null;
-            });
+    const potentialDelimiter = rows[1].trim();
+    // Matches | :---: | --- | formatting
+    // Must contain - or : and only valid delimiter chars
+    const isValidDelimiter = /^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-');
+    if (isValidDelimiter) {
+        const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
+        alignments = cleanDelimiter.split('|').map(s => {
+            s = s.trim();
+            if (s.startsWith(':') && s.endsWith(':')) return 'center';
+            if (s.endsWith(':')) return 'right';
+            if (s.startsWith(':')) return 'left';
+            return null;
+        });
+    }
+
+    // If no valid delimiter row, return empty table
+    if (!isValidDelimiter) {
+        return "<div class='cm-table-empty'>Empty Table</div>";
+    }
+
+    let headerContent = "";
+    let bodyContent = "";
+
+    for (let i = 0; i < rows.length; i++) {
+        // Skip delimiter row
+        if (i === 1) continue;
+
+        const row = rows[i];
+        const cleanRow = row.trim().replace(/^\|/, '').replace(/\|$/, '');
+        if (!cleanRow.trim()) continue; // Skip empty rows
+
+        const isHeader = i === 0;
+        const cellTag = isHeader ? "th" : "td";
+
+        let rowHtml = "<tr>";
+        const cells = cleanRow.split('|');
+        for (let j = 0; j < cells.length; j++) {
+            const content = cells[j].trim();
+            const parsed = parseCellContent(content);
+            let alignAttr = "";
+            if (alignments[j]) {
+                alignAttr = ` style="text-align: ${alignments[j]}"`;
+            }
+            rowHtml += `<${cellTag}${alignAttr}>${parsed}</${cellTag}>`;
+        }
+        rowHtml += "</tr>";
+
+        if (isHeader) {
+            headerContent += rowHtml;
+        } else {
+            bodyContent += rowHtml;
         }
     }
 
-    rows.forEach((row, index) => {
-        // Skip delimiter row (usually index 1)
-        if (index === 1 && alignments.length > 0) return;
+    // Return empty table div if no header rows
+    if (!headerContent) {
+        return "<div class='cm-table-empty'>Empty Table</div>";
+    }
 
-        // Fallback for skipping if we failed to parse but it looks like one
-        if (index === 1 && /^\|?[\s\-:|]+\|?$/.test(row.trim())) return;
-
-        // Remove outer pipes if they exist
-        const cleanRow = row.trim().replace(/^\|/, '').replace(/\|$/, '');
-        if (!cleanRow.trim()) return; // Skip empty rows
-
-        const cells = cleanRow.split('|');
-
-        const isHeader = index === 0;
-
-        html += "<tr>";
-        cells.forEach((cell, i) => {
-            const tag = isHeader ? "th" : "td";
-            let alignAttr = "";
-            if (alignments[i]) {
-                alignAttr = ` style="text-align: ${alignments[i]}"`;
-            }
-            html += `<${tag}${alignAttr}>${parseCellContent(cell.trim())}</${tag}>`;
-        });
-        html += "</tr>";
-        hasContent = true;
-    });
+    let html = "<table>" +
+              "<thead>" +
+              headerContent +
+              "</thead>";
+    if (bodyContent) {
+        html += "<tbody>" +
+                bodyContent +
+                "</tbody>";
+    }
     html += "</table>";
 
-    return hasContent ? html : "<div class='cm-table-empty'>Empty Table</div>";
+    return html;
 }
 
 // ponytail: PAD margins outside viewport; constructs larger than PAD starting above viewport may lose decorations until scrolled into range

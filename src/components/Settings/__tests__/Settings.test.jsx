@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 import Settings from '../Settings';
 import { dialogs } from '../../../utils/dialogs';
-import { useSession } from '../../../context/SessionContext';
+import * as SessionContext from '../../../context/SessionContext';
 
 vi.mock('lucide-react', () => ({
     ArrowLeft: () => <span data-testid="back-icon">back</span>
@@ -13,7 +13,8 @@ vi.mock('../../../utils/dialogs', () => ({
 }));
 
 vi.mock('../../../context/SessionContext', () => ({
-    useSession: vi.fn(() => ({ clearSessionData: vi.fn() }))
+    useSettings: vi.fn(),
+    useSessionActions: vi.fn()
 }));
 
 const baseSettings = {
@@ -27,6 +28,13 @@ describe('Settings handleNumberChange', () => {
 
     beforeEach(() => {
         updateSettings = vi.fn();
+        SessionContext.useSettings.mockReturnValue({
+            settings: baseSettings,
+            updateSettings
+        });
+        SessionContext.useSessionActions.mockReturnValue({
+            clearSessionData: vi.fn()
+        });
     });
 
     const renderSettings = () =>
@@ -34,8 +42,6 @@ describe('Settings handleNumberChange', () => {
             <Settings
                 isOpen={true}
                 onClose={vi.fn()}
-                settings={baseSettings}
-                updateSettings={updateSettings}
                 appVersion="0.0.0"
             />
         );
@@ -87,7 +93,11 @@ describe('Settings — Clear Session Data button', () => {
 
     beforeEach(() => {
         clearSessionData = vi.fn();
-        useSession.mockReturnValue({ clearSessionData });
+        SessionContext.useSettings.mockReturnValue({
+            settings: baseSettings,
+            updateSettings: vi.fn()
+        });
+        SessionContext.useSessionActions.mockReturnValue({ clearSessionData });
         dialogs.confirm.mockReset();
     });
 
@@ -96,8 +106,6 @@ describe('Settings — Clear Session Data button', () => {
             <Settings
                 isOpen={true}
                 onClose={vi.fn()}
-                settings={baseSettings}
-                updateSettings={vi.fn()}
                 appVersion="0.0.0"
             />
         );

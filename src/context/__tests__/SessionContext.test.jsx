@@ -82,7 +82,10 @@ describe('SessionContext.closeTab (L3)', () => {
 //      - result = base, then for each meaningful local tab:
 //          id already in result  -> local entry replaces it (local edit wins)
 //          id not in result      -> local entry is appended
-//      - each meaningful local tab is persisted via storage.saveTab()
+//      - ROUND G: the merged session is persisted through ONE
+//        storage.saveSnapshot({ tabs: <merged meaningful tabs>,
+//        metadata: { activeTabId, recentFiles, settings, tabOrder } }) call,
+//        NOT a per-tab storage.saveTab() loop + a separate storage.saveMetadata().
 //    So a never-edited secondary contributes nothing (its pristine tab-1 is
 //    dropped) and must NOT bulk-persist that pristine array before adopting.
 //
@@ -169,8 +172,9 @@ describe('SessionContext primary-window failover (P0-4 / A1 / A2)', () => {
         await waitFor(() => expect(navigator.locks.__queueLength(LOCK_NAME)).toBe(1));
 
         const loadsBefore = storage.loadSession.mock.calls.length;
-        const persistsBefore =
-            storage.saveTab.mock.calls.length + storage.saveMetadata.mock.calls.length;
+        // ROUND G: onPromoted persists atomically via storage.saveSnapshot now,
+        // not a saveTab loop + saveMetadata. Track that call instead.
+        const snapshotsBefore = storage.saveSnapshot.mock.calls.length;
 
         await act(async () => {
             navigator.locks.__release(LOCK_NAME);
@@ -181,11 +185,9 @@ describe('SessionContext primary-window failover (P0-4 / A1 / A2)', () => {
         expect(storage.loadSession.mock.calls.length).toBeGreaterThan(loadsBefore);
         // adopted the on-disk tabs
         await waitFor(() => expect(apiB.tabs.map(t => t.id)).toEqual(['disk-a', 'disk-b']));
-        // and persisted something once promoted
+        // and persisted once promoted — through a single saveSnapshot
         await waitFor(() =>
-            expect(
-                storage.saveTab.mock.calls.length + storage.saveMetadata.mock.calls.length
-            ).toBeGreaterThan(persistsBefore)
+            expect(storage.saveSnapshot.mock.calls.length).toBeGreaterThan(snapshotsBefore)
         );
     });
 
@@ -237,11 +239,51 @@ describe('SessionContext primary-window failover (P0-4 / A1 / A2)', () => {
         });
         // the pristine default tab is still dropped, only the real local tab survives
         expect(apiB.tabs.map(t => t.id)).not.toContain('tab-1');
+        // ROUND G: the local tab is persisted inside the atomic saveSnapshot payload,
+        // not via a standalone storage.saveTab call.
         await waitFor(() =>
-            expect(storage.saveTab).toHaveBeenCalledWith(
-                expect.objectContaining({ id: localId, content: 'local draft' })
+            expect(storage.saveSnapshot).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tabs: expect.arrayContaining([
+                        expect.objectContaining({ id: localId, content: 'local draft' }),
+                    ]),
+                })
             )
         );
+    });
+
+    // ROUND G — onPromoted persists the merged session atomically via saveSnapshot.
+    it('onPromoted persists the merged session through a single storage.saveSnapshot (not a saveTab loop + saveMetadata)', async () => {
+        storage.loadSession.mockResolvedValue(diskSession());
+
+        const { apiA, apiB } = renderWindows(2);
+        await waitFor(() => expect(apiA.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(navigator.locks.__queueLength(LOCK_NAME)).toBe(1));
+
+        act(() => { apiB.createTab({ content: 'draft' }); });
+        await waitFor(() => expect(apiB.tabs.some(t => t.content === 'draft')).toBe(true));
+
+        storage.saveTab.mockClear();
+        storage.saveMetadata.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        await act(async () => {
+            navigator.locks.__release(LOCK_NAME);
+        });
+        await waitFor(() => expect(apiB.isPrimaryWindow).toBe(true));
+
+        await waitFor(() => expect(storage.saveSnapshot).toHaveBeenCalled());
+        const snap = storage.saveSnapshot.mock.calls.at(-1)[0];
+        expect(snap.tabs.map(t => t.id)).toEqual(expect.arrayContaining(['disk-a', 'disk-b']));
+        expect(snap.tabs.map(t => t.id)).not.toContain('tab-1'); // pristine default dropped
+        expect(snap.metadata).toEqual(expect.objectContaining({
+            activeTabId: expect.anything(),
+            recentFiles: expect.any(Array),
+            settings: expect.any(Object),
+            tabOrder: expect.any(Array),
+        }));
+        // no per-tab saveTab loop in the promotion path anymore
+        expect(storage.saveTab).not.toHaveBeenCalled();
     });
 
     // #7 — A2: restoreWarning surfaces failed-to-decrypt tabs.
@@ -633,7 +675,8 @@ describe('SessionContext metadata-save debounce (P2-meta)', () => {
 //    non-primary window never calls saveSnapshot.
 //  * storage.saveTab / storage.saveMetadata remain exported and are still used
 //    by the per-tab debounce and the structural paths (createTab, closeTab,
-//    tabOrder effect, onPromoted) — not asserted dead here.
+//    tabOrder effect) — not asserted dead here. (ROUND G: onPromoted no longer
+//    uses them; it persists via storage.saveSnapshot.)
 
 describe('SessionContext snapshot persistence (P2-atomic)', () => {
     beforeEach(() => {

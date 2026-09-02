@@ -1,15 +1,47 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
 import { sanitizeFilename } from '../utils/fileSystem';
 
+const SettingsContext = createContext();
+const TabStateContext = createContext();
+const ActionsContext = createContext();
+
 const SessionContext = createContext();
 
-export const useSession = () => {
-    const context = useContext(SessionContext);
+export const useSettings = () => {
+    const context = useContext(SettingsContext);
     if (!context) {
-        throw new Error('useSession must be used within a SessionProvider');
+        throw new Error('useSettings must be used within a SessionProvider');
     }
     return context;
+};
+
+export const useTabState = () => {
+    const context = useContext(TabStateContext);
+    if (!context) {
+        throw new Error('useTabState must be used within a SessionProvider');
+    }
+    return context;
+};
+
+export const useSessionActions = () => {
+    const context = useContext(ActionsContext);
+    if (!context) {
+        throw new Error('useSessionActions must be used within a SessionProvider');
+    }
+    return context;
+};
+
+export const useSession = () => {
+    const settings = useContext(SettingsContext);
+    const tabState = useContext(TabStateContext);
+    const actions = useContext(ActionsContext);
+
+    if (!settings || !tabState || !actions) {
+        throw new Error('useSession must be used within a SessionProvider');
+    }
+
+    return useMemo(() => ({ ...settings, ...tabState, ...actions }), [settings, tabState, actions]);
 };
 
 export const SessionProvider = ({ children }) => {
@@ -32,12 +64,14 @@ export const SessionProvider = ({ children }) => {
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
+    const currentRecentFilesRef = useRef(recentFiles);
+    const currentSettingsRef = useRef(settings);
 
-    // Keep currentTabsRef in sync with tabs state
-    useEffect(() => {
-        currentTabsRef.current = tabs;
-        currentActiveTabIdRef.current = activeTabId;
-    }, [tabs, activeTabId]);
+    // Keep refs in sync with state (render body, no effect needed)
+    currentTabsRef.current = tabs;
+    currentActiveTabIdRef.current = activeTabId;
+    currentRecentFilesRef.current = recentFiles;
+    currentSettingsRef.current = settings;
 
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
@@ -236,17 +270,15 @@ export const SessionProvider = ({ children }) => {
                     setActiveTabId(localActiveId);
                 }
 
-                // Persist meaningful local tabs
-                for (const localTab of meaningfulLocalTabs) {
-                    await storage.saveTab(localTab);
-                }
-
-                // Persist metadata
-                await storage.saveMetadata({
-                    activeTabId: diskSession.activeTabId || mergedTabs[0]?.id,
-                    recentFiles: diskSession.recentFiles || [],
-                    settings: diskSession.settings || {},
-                    tabOrder: mergedTabs.map(t => t.id)
+                // Persist merged session atomically via saveSnapshot
+                await storage.saveSnapshot({
+                    tabs: mergedTabs,
+                    metadata: {
+                        activeTabId: diskSession.activeTabId || mergedTabs[0]?.id,
+                        recentFiles: diskSession.recentFiles || [],
+                        settings: diskSession.settings || {},
+                        tabOrder: mergedTabs.map(t => t.id)
+                    }
                 });
             } catch (err) {
                 console.error('Failed to promote to primary window:', err);
@@ -297,10 +329,10 @@ export const SessionProvider = ({ children }) => {
             storage.saveTab(newTab);
             storage.saveMetadata({
                 activeTabId: newId,
-                tabOrder: [...tabs.map(t => t.id), newId]
+                tabOrder: [...currentTabsRef.current.map(t => t.id), newId]
             });
         }
-    }, [tabs, isPrimaryWindow, isSessionLoaded]);
+    }, [isPrimaryWindow, isSessionLoaded]);
 
     const closeTab = useCallback((id) => {
         // Decide synchronously from the live tab list (the setTabs updater runs
@@ -362,7 +394,7 @@ export const SessionProvider = ({ children }) => {
 
     const switchTab = useCallback((direction) => {
         setTabs(currentTabs => {
-            const currentIndex = currentTabs.findIndex(t => t.id === activeTabId);
+            const currentIndex = currentTabs.findIndex(t => t.id === currentActiveTabIdRef.current);
             if (currentIndex === -1) return currentTabs;
 
             let nextIndex;
@@ -374,7 +406,7 @@ export const SessionProvider = ({ children }) => {
             setActiveTabId(currentTabs[nextIndex].id);
             return currentTabs;
         });
-    }, [activeTabId]);
+    }, []);
 
     const reorderTabs = useCallback((activeId, overId) => {
         setTabs((items) => {
@@ -423,18 +455,18 @@ export const SessionProvider = ({ children }) => {
 
         try {
             await storage.saveSnapshot({
-                tabs,
+                tabs: currentTabsRef.current,
                 metadata: {
-                    activeTabId,
-                    recentFiles,
-                    settings,
-                    tabOrder: tabs.map(t => t.id)
+                    activeTabId: currentActiveTabIdRef.current,
+                    recentFiles: currentRecentFilesRef.current,
+                    settings: currentSettingsRef.current,
+                    tabOrder: currentTabsRef.current.map(t => t.id)
                 }
             });
         } catch (err) {
             console.error('Failed to save session:', err);
         }
-    }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
+    }, [isPrimaryWindow, isSessionLoaded]);
 
     // Write-through flush: persist every pending debounced tab save + metadata
     // immediately, without waiting for the debounce. Used when the window is
@@ -455,15 +487,15 @@ export const SessionProvider = ({ children }) => {
 
         // Persist via snapshot
         storage.saveSnapshot({
-            tabs,
+            tabs: currentTabsRef.current,
             metadata: {
-                activeTabId,
-                recentFiles,
-                settings,
-                tabOrder: tabs.map(t => t.id)
+                activeTabId: currentActiveTabIdRef.current,
+                recentFiles: currentRecentFilesRef.current,
+                settings: currentSettingsRef.current,
+                tabOrder: currentTabsRef.current.map(t => t.id)
             }
         });
-    }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
+    }, [isPrimaryWindow, isSessionLoaded]);
 
     useEffect(() => {
         const onHide = () => {
@@ -503,9 +535,21 @@ export const SessionProvider = ({ children }) => {
         window.location.reload();
     }, []);
 
-    const value = {
+    const settingsValue = useMemo(() => ({
+        settings,
+        updateSettings
+    }), [settings, updateSettings]);
+
+    const tabStateValue = useMemo(() => ({
         tabs,
         activeTabId,
+        isPrimaryWindow,
+        isSessionLoaded,
+        recentFiles,
+        restoreWarning
+    }), [tabs, activeTabId, isPrimaryWindow, isSessionLoaded, recentFiles, restoreWarning]);
+
+    const actionsValue = useMemo(() => ({
         setActiveTabId,
         createTab,
         closeTab,
@@ -513,21 +557,19 @@ export const SessionProvider = ({ children }) => {
         switchTab,
         setTabs,
         reorderTabs,
-        recentFiles,
         addRecentFile,
-        isPrimaryWindow,
-        isSessionLoaded,
-        settings,
-        updateSettings,
         saveSession,
-        restoreWarning,
-        clearRestoreWarning,
-        clearSessionData
-    };
+        clearSessionData,
+        clearRestoreWarning
+    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
 
     return (
-        <SessionContext.Provider value={value}>
-            {children}
-        </SessionContext.Provider>
+        <SettingsContext.Provider value={settingsValue}>
+            <TabStateContext.Provider value={tabStateValue}>
+                <ActionsContext.Provider value={actionsValue}>
+                    {children}
+                </ActionsContext.Provider>
+            </TabStateContext.Provider>
+        </SettingsContext.Provider>
     );
 };

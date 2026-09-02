@@ -23,7 +23,8 @@ import * as SessionContext from '../../context/SessionContext';
  */
 
 vi.mock('../../context/SessionContext', () => ({
-    useSession: vi.fn(),
+    useTabState: vi.fn(),
+    useSessionActions: vi.fn(),
 }));
 
 vi.mock('../../utils/fileSystem', () => ({
@@ -65,20 +66,27 @@ vi.mock('jspdf', () => ({
     },
 }));
 
-const makeSession = () => ({
-    tabs: [{ id: '1', title: 'Doc One', content: '# hello', isDirty: false }],
-    activeTabId: '1',
-    setActiveTabId: vi.fn(),
-    createTab: vi.fn(),
-    closeTab: vi.fn(),
-    updateTab: vi.fn(),
-    switchTab: vi.fn(),
-    reorderTabs: vi.fn(),
-    setTabs: vi.fn(),
-    recentFiles: [],
-    addRecentFile: vi.fn(),
-    isPrimaryWindow: true,
-});
+const makeSession = () => {
+    const tabState = {
+        tabs: [{ id: '1', title: 'Doc One', content: '# hello', isDirty: false }],
+        activeTabId: '1',
+        isPrimaryWindow: true,
+        isSessionLoaded: true,
+        recentFiles: [],
+        restoreWarning: null
+    };
+    const actions = {
+        setActiveTabId: vi.fn(),
+        createTab: vi.fn(),
+        closeTab: vi.fn(),
+        updateTab: vi.fn(),
+        switchTab: vi.fn(),
+        reorderTabs: vi.fn(),
+        setTabs: vi.fn(),
+        addRecentFile: vi.fn()
+    };
+    return { tabState, actions };
+};
 
 describe('useCommands.js source — no requestIdleCallback', () => {
     it('does not reference requestIdleCallback anywhere', () => {
@@ -102,7 +110,9 @@ describe('print() — uses nextPaint, still prints and unmounts', () => {
     let printSpy;
 
     beforeEach(() => {
-        SessionContext.useSession.mockReturnValue(makeSession());
+        const { tabState, actions } = makeSession();
+        SessionContext.useTabState.mockReturnValue(tabState);
+        SessionContext.useSessionActions.mockReturnValue(actions);
         printSpy = vi.spyOn(window, 'print').mockImplementation(() => {});
     });
 
@@ -153,7 +163,9 @@ describe('print() — uses nextPaint, still prints and unmounts', () => {
 
 describe('exportToPDF() — uses nextPaint', () => {
     beforeEach(() => {
-        SessionContext.useSession.mockReturnValue(makeSession());
+        const { tabState, actions } = makeSession();
+        SessionContext.useTabState.mockReturnValue(tabState);
+        SessionContext.useSessionActions.mockReturnValue(actions);
         html2canvasMock.mockClear();
     });
 
