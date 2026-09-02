@@ -11,7 +11,7 @@ Branch: `fix/audit-remediation`.
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
 | 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
-| 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | in-progress | 1 | |
+| 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
 | 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |
 | 10 | electron path hardening: realpathSync in isPathSafe; narrow userData allowlist | P1 | P1-12, P1-13 | queued | 0 | |
@@ -35,6 +35,8 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 7** (1 round; no separate review — tactical wrote+verified the fix during test-writing, 2-line change eyeballed = spec). imagePreview.js + linkPreview.js: large-doc debounce timer now `this.pendingView.dispatch({})` instead of `requestMeasure()` — CM re-reads `this.decorations` only on an update cycle, not a measure, so widgets never appeared until an unrelated transaction. Empty tx = no changes/selection/effects = no recompute loop. Tests: imagePreview.test.js (new, 8) + linkPreview.test.js (+8). 149 green. Dedupe of the identical block = Task 21.
 
 - **Task 6** (1 round; tactical + architect both `done` first pass). livePreview.js: `buildDecorations(state, range)` iterates `syntaxTree.iterate({from,to,...})` bounded to a padded viewport instead of the whole doc. New `setLivePreviewViewport` StateEffect + `livePreviewViewportField` hold the range; companion `livePreviewViewportPlugin` publishes `view.viewport ± PAD(2000)` on viewport/doc change (guarded against re-dispatch loop). `livePreviewField` stays a StateField (multi-line Table/HR replace widgets can't come from a ViewPlugin). `create()` fallback = first PREFIX(10000) chars. Exports: `buildDecorations`, `setLivePreviewViewport`. `livePreview` array now len 4, `[0]` still the decoration field. Byte-identical output for docs within viewport+PAD. 133 green.
   - bug(low) accepted: doc opened scrolled mid-document shows one frame of raw markdown before the plugin publishes the real range (no scroll state persisted today, so rarely hit).
