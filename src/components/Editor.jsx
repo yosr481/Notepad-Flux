@@ -4,7 +4,7 @@ import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, undo, redo, selectAll } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { SearchQuery, setSearchQuery, findNext, findPrevious, getSearchQuery, search } from '@codemirror/search';
+import { SearchQuery, setSearchQuery, findNext, findPrevious, search } from '@codemirror/search';
 import { livePreview } from '../extensions/livePreview';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -13,7 +13,8 @@ import { listKeymap } from '../extensions/listKeymap';
 import { indentUnit } from '@codemirror/language';
 import { searchMatchHighlight } from '../extensions/searchHighlight';
 import { textDirection } from '../extensions/textDirection';
-import { obsidianTheme } from '../theme';
+import { fluxHighlightStyle } from '../theme';
+import { syntaxHighlighting } from '@codemirror/language';
 import styles from './Editor.module.css';
 
 const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
@@ -259,25 +260,57 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         listKeymap,
         textDirection,
         indentUnit.of("\t"),
-        obsidianTheme,
+        syntaxHighlighting(fluxHighlightStyle),
         EditorView.theme({
           "&": {
             height: "100%",
             fontFamily: "var(--font-text)",
-            fontSize: "16px",
-            lineHeight: "var(--line-height)",
+            fontSize: "var(--font-size-normal)",
+            lineHeight: "var(--line-height-relaxed)",
             backgroundColor: "var(--background-primary)",
             color: "var(--text-normal)"
           },
           ".cm-scroller": {
             overflow: "auto",
-            padding: "0"
+            padding: "0",
+            fontFamily: "var(--font-text)",
+            lineHeight: "var(--line-height-relaxed)"
           },
           ".cm-content": {
             maxWidth: "var(--line-width)",
             margin: "0 auto",
             padding: "20px 0 30vh 0",
-            caretColor: "var(--text-normal)"
+            caretColor: "var(--color-focus-blue)",
+            fontFamily: "var(--font-text)",
+            paddingBottom: "30vh",
+            lineHeight: "var(--line-height-relaxed)"
+          },
+          "&.cm-focused .cm-cursor": {
+            borderLeftColor: "var(--color-focus-blue)"
+          },
+          "&.cm-focused .cm-selectionBackground, ::selection": {
+            backgroundColor: "var(--text-selection)"
+          },
+          ".cm-gutters": {
+            backgroundColor: "var(--background-primary)",
+            color: "var(--text-muted)",
+            border: "none",
+            paddingRight: "var(--space-16)"
+          },
+          ".cm-activeLine": {
+            backgroundColor: "transparent"
+          },
+          ".cm-activeLineGutter": {
+            backgroundColor: "transparent",
+            color: "var(--text-normal)"
+          },
+          ".cm-searchMatch": {
+            backgroundColor: "var(--text-highlight-bg)",
+            borderRadius: "var(--radius-s)"
+          },
+          ".cm-searchMatch.cm-searchMatch-selected": {
+            backgroundColor: "var(--text-highlight-bg-active)",
+            border: "1px solid var(--text-accent)"
           }
         }),
         EditorView.updateListener.of((update) => {

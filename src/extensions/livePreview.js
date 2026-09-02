@@ -1,7 +1,7 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
-import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, CodeBlockWidget } from "./widgets";
+import { BulletWidget, CheckboxWidget, TableWidget, HRWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 
 const PREFIX = 10000;

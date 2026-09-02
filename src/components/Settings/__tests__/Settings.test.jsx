@@ -4,7 +4,7 @@ import Settings from '../Settings';
 import { dialogs } from '../../../utils/dialogs';
 import { useSession } from '../../../context/SessionContext';
 
-vi.mock('phosphor-react', () => ({
+vi.mock('lucide-react', () => ({
     ArrowLeft: () => <span data-testid="back-icon">back</span>
 }));
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'phosphor-react';
+import { ArrowLeft } from 'lucide-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
 import { dialogs } from '../../utils/dialogs';

@@ -1,57 +1,5 @@
-import { EditorView } from "@codemirror/view";
-import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { HighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
-
-// Flux Design Theme (formerly obsidianBaseTheme)
-export const fluxBaseTheme = EditorView.theme({
-    "&": {
-        color: "var(--text-normal)",
-        backgroundColor: "var(--background-primary)",
-        height: "100%",
-        fontSize: "var(--font-size-normal)",
-        fontFamily: "var(--font-text)"
-    },
-    ".cm-content": {
-        caretColor: "var(--color-focus-blue)",
-        fontFamily: "var(--font-text)",
-        paddingBottom: "30vh",
-        maxWidth: "var(--max-width-editor)",
-        margin: "0",
-        padding: "24px 24px",
-        lineHeight: "var(--line-height-relaxed)"
-    },
-    ".cm-scroller": {
-        fontFamily: "var(--font-text)",
-        lineHeight: "var(--line-height-relaxed)"
-    },
-    "&.cm-focused .cm-cursor": {
-        borderLeftColor: "var(--color-focus-blue)"
-    },
-    "&.cm-focused .cm-selectionBackground, ::selection": {
-        backgroundColor: "var(--text-selection)"
-    },
-    ".cm-gutters": {
-        backgroundColor: "var(--background-primary)", // Seamless gutters
-        color: "var(--text-muted)",
-        border: "none",
-        paddingRight: "var(--space-16)"
-    },
-    ".cm-activeLine": {
-        backgroundColor: "transparent" // Disable default active line implementation to avoid clutter
-    },
-    ".cm-activeLineGutter": {
-        backgroundColor: "transparent",
-        color: "var(--text-normal)"
-    },
-    ".cm-searchMatch": {
-        backgroundColor: "var(--text-highlight-bg)",
-        borderRadius: "var(--radius-s)"
-    },
-    ".cm-searchMatch.cm-searchMatch-selected": {
-        backgroundColor: "var(--text-highlight-bg-active)",
-        border: "1px solid var(--text-accent)"
-    }
-});
 
 // Flux Syntax Highlighting (Live Preview Focused)
 export const fluxHighlightStyle = HighlightStyle.define([
@@ -70,7 +18,7 @@ export const fluxHighlightStyle = HighlightStyle.define([
 
     // Links
     { tag: tags.link, color: "var(--text-accent)", textDecoration: "none" },
-    { tag: tags.url, color: "var(  --text-muted)", textDecoration: "underline" },
+    { tag: tags.url, color: "var(--text-muted)", textDecoration: "underline" },
 
     // Block Elements
     { tag: tags.quote, color: "var(--text-muted)", fontStyle: "italic" },
@@ -99,9 +47,3 @@ export const fluxHighlightStyle = HighlightStyle.define([
     { tag: tags.typeName, color: "var(--syntax-variable)" },
     { tag: tags.propertyName, color: "var(--syntax-property)" }
 ]);
-
-// Export as obsidianTheme for compatibility, but it's now Flux
-export const obsidianTheme = [
-    fluxBaseTheme,
-    syntaxHighlighting(fluxHighlightStyle)
-];

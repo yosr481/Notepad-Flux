@@ -13,6 +13,8 @@ const nextPaint = () => new Promise(resolve => {
     raf(() => raf(resolve));
 });
 
+const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
+
 export const useCommands = (showToast) => {
     const {
         tabs,
@@ -34,6 +36,28 @@ export const useCommands = (showToast) => {
     const liveState = useRef({ tabs, activeTabId });
     liveState.current = { tabs, activeTabId };
 
+    const persistTab = async (tab, content) => {
+        if (tab.fileHandle) {
+            await fileSystem.saveFile(tab.fileHandle, content);
+            updateTab(tab.id, { content, isDirty: false });
+        } else if (!canSaveInPlace() && tab.filePath) {
+            const result = await fileSystem.saveFileAs(content, tab.filePath);
+            if (!result) return false;
+            updateTab(tab.id, { content, isDirty: false });
+        } else {
+            const result = await fileSystem.saveFileAs(content, tab.title);
+            if (!result) return false;
+            updateTab(tab.id, {
+                title: result.name,
+                filePath: result.name,
+                fileHandle: result.handle,
+                content: content,
+                isDirty: false
+            });
+        }
+        return true;
+    };
+
     const newTab = () => {
         createTab();
     };
@@ -54,24 +78,8 @@ export const useCommands = (showToast) => {
                     ? editorRef.current.getCurrentContent()
                     : tab.content;
                 try {
-                    if (tab.fileHandle) {
-                        await fileSystem.saveFile(tab.fileHandle, content);
-                        updateTab(id, { content, isDirty: false });
-                    } else if (!fileSystem.isSupported() && tab.filePath) {
-                        const result = await fileSystem.saveFileAs(content, tab.filePath);
-                        if (!result) return;
-                        updateTab(id, { content, isDirty: false });
-                    } else {
-                        const result = await fileSystem.saveFileAs(content, tab.title);
-                        if (!result) return;
-                        updateTab(id, {
-                            title: result.name,
-                            filePath: result.name,
-                            fileHandle: result.handle,
-                            content: content,
-                            isDirty: false
-                        });
-                    }
+                    const success = await persistTab(tab, content);
+                    if (!success) return;
                 } catch (error) {
                     console.error("Failed to save file on close", error);
                     showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
@@ -149,28 +157,14 @@ export const useCommands = (showToast) => {
         // stale copy" and save old text back. Only fall back when there's no editor.
         const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
-        if (tab.fileHandle) {
-            try {
-                await fileSystem.saveFile(tab.fileHandle, content);
-                updateTab(activeTabId, { content, isDirty: false });
+        try {
+            const success = await persistTab(tab, content);
+            if (success) {
                 editorRef?.current?.markSaved?.();
-            } catch (error) {
-                console.error("Failed to save file", error);
-                showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
             }
-        } else if (!fileSystem.isSupported() && tab.filePath) {
-            try {
-                const result = await fileSystem.saveFileAs(content, tab.filePath);
-                if (result) {
-                    updateTab(activeTabId, { content, isDirty: false });
-                    editorRef?.current?.markSaved?.();
-                }
-            } catch (error) {
-                console.error("Failed to save file", error);
-                showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
-            }
-        } else {
-            saveFileAs(editorRef);
+        } catch (error) {
+            console.error("Failed to save file", error);
+            showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
     };
 
@@ -377,23 +371,8 @@ export const useCommands = (showToast) => {
                             ? editorRef.current.getCurrentContent()
                             : current.content;
                         try {
-                            if (current.fileHandle) {
-                                await fileSystem.saveFile(current.fileHandle, content);
-                                updateTab(current.id, { isDirty: false });
-                            } else if (!fileSystem.isSupported() && current.filePath) {
-                                const result = await fileSystem.saveFileAs(content, current.filePath);
-                                if (!result) return; // aborted save-as
-                                updateTab(current.id, { isDirty: false });
-                            } else {
-                                const result = await fileSystem.saveFileAs(content, current.title);
-                                if (!result) return; // aborted save-as
-                                updateTab(current.id, {
-                                    title: result.name,
-                                    filePath: result.name,
-                                    fileHandle: result.handle,
-                                    isDirty: false
-                                });
-                            }
+                            const success = await persistTab(current, content);
+                            if (!success) return; // aborted save-as
                         } catch (err) {
                             console.error('Failed to save', err);
                             showToast?.(`Could not save "${current.title}": ${err?.message || 'unknown error'}`);
