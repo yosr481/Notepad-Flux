@@ -8,7 +8,7 @@ Branch: `fix/audit-remediation`.
 | 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | 50c8304 |
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
 | 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
-| 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | tests-written | 0 | |
+| 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | queued | 0 | |
 | 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
@@ -35,6 +35,8 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 4** (inline; session rate-limit killed the agent mid-run but its test file writes survived). `closeTab`: `willRemove` computed synchronously from `currentTabsRef.current` (`.some(id) && length>1`) — the `setTabs` updater runs later so an in-updater flag isn't visible to the disk branch. `storage.deleteTab` + pending-`saveTimers` clear now gated on `willRemove`. Fixes P0-5 (last-tab close wiped the disk row) + P2-close-timer (debounced save resurrected the deleted row). Tactical's 5 tests kept as the gate; no separate review round (rate limited). 102 green.
 
 - **Task 3** (4 rounds; 2 substantive, 2 low-sev). SessionContext: secondary windows now issue a queued `navigator.locks.request('notepad-flux-primary', {signal}, onPromoted)`; on primary death the winner promotes — `isSessionLoaded=false` gate + timer-clear over the merge span (stops pristine-clobber), reload disk session as base, merge non-pristine local tabs (local wins) sorted by disk `tabOrder`, persist merged-in tabs + metadata, restore pre-promotion active tab. `adoptSessionMeta` shared by load+promotion paths. A2: `restoreWarning` context value → one-shot App toast, cleared after show. New test infra: `src/test/fakeLocks.js`. 97 green.
   - For later tasks: promotion path holds the lock via `await new Promise` on the abort signal (now guarded for already-aborted). `currentTabsRef`/`currentActiveTabIdRef` mirror state for the `[]`-dep election effect — reuse them, don't add state to that effect's deps.
