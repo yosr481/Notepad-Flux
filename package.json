@@ -7,6 +7,9 @@
   "description": "Notepad Flux - A minimal markdown editor",
   "author": "yosr481 | Yosef I. Rienitz",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build && electron-builder",
@@ -72,7 +75,7 @@
     "asar": true,
     "compression": "maximum",
     "releaseInfo": {
-      "releaseNotesFile": "CHANGELOG.md"
+      "releaseNotesFile": "release-notes.md"
     },
     "directories": {
       "output": "release"
