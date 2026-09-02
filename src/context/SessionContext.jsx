@@ -29,6 +29,7 @@ export const SessionProvider = ({ children }) => {
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
+    const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
 
@@ -57,6 +58,19 @@ export const SessionProvider = ({ children }) => {
         }, 1000);
 
         saveTimers.current.set(tab.id, timer);
+    }, [isPrimaryWindow, isSessionLoaded]);
+
+    const saveMetadataDebounced = useCallback((data) => {
+        if (!isPrimaryWindow || !isSessionLoaded) return;
+
+        if (metadataTimer.current) {
+            clearTimeout(metadataTimer.current);
+        }
+
+        metadataTimer.current = setTimeout(() => {
+            storage.saveMetadata(data);
+            metadataTimer.current = null;
+        }, 400);
     }, [isPrimaryWindow, isSessionLoaded]);
 
     useEffect(() => {
@@ -258,12 +272,10 @@ export const SessionProvider = ({ children }) => {
         };
     }, []);
 
-    // Save metadata when relevant state changes
+    // Save metadata when relevant state changes (debounced to avoid churn)
     useEffect(() => {
-        if (isPrimaryWindow && isSessionLoaded) {
-            storage.saveMetadata({ activeTabId, recentFiles, settings });
-        }
-    }, [activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
+        saveMetadataDebounced({ activeTabId, recentFiles, settings });
+    }, [activeTabId, recentFiles, settings, saveMetadataDebounced]);
 
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
@@ -410,15 +422,14 @@ export const SessionProvider = ({ children }) => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
         try {
-            // Save all tabs content immediately
-            await Promise.all(tabs.map(tab => storage.saveTab(tab)));
-
-            // Save metadata
-            await storage.saveMetadata({
-                activeTabId,
-                recentFiles,
-                settings,
-                tabOrder: tabs.map(t => t.id)
+            await storage.saveSnapshot({
+                tabs,
+                metadata: {
+                    activeTabId,
+                    recentFiles,
+                    settings,
+                    tabOrder: tabs.map(t => t.id)
+                }
             });
         } catch (err) {
             console.error('Failed to save session:', err);
@@ -426,23 +437,31 @@ export const SessionProvider = ({ children }) => {
     }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
 
     // Write-through flush: persist every pending debounced tab save + metadata
-    // immediately, without waiting for the 1s debounce. Used when the window is
+    // immediately, without waiting for the debounce. Used when the window is
     // about to lose focus / be hidden, so edits survive a fast close (H1).
     const flushPendingSaves = useCallback(() => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
-        for (const [id, timer] of saveTimers.current) {
+        // Clear all pending timers
+        for (const timer of saveTimers.current.values()) {
             clearTimeout(timer);
-            const tab = tabs.find(t => t.id === id);
-            if (tab) storage.saveTab(tab);
         }
         saveTimers.current.clear();
 
-        storage.saveMetadata({
-            activeTabId,
-            recentFiles,
-            settings,
-            tabOrder: tabs.map(t => t.id)
+        if (metadataTimer.current) {
+            clearTimeout(metadataTimer.current);
+            metadataTimer.current = null;
+        }
+
+        // Persist via snapshot
+        storage.saveSnapshot({
+            tabs,
+            metadata: {
+                activeTabId,
+                recentFiles,
+                settings,
+                tabOrder: tabs.map(t => t.id)
+            }
         });
     }, [tabs, activeTabId, recentFiles, settings, isPrimaryWindow, isSessionLoaded]);
 

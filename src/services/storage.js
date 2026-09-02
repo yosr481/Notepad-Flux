@@ -6,6 +6,8 @@ const DB_VERSION = 1;
 const STORE_TABS = 'tabs';
 const STORE_METADATA = 'metadata';
 
+export const SCHEMA_VERSION = 1;
+
 export const storage = {
     async initDB() {
         return openDB(DB_NAME, DB_VERSION, {
@@ -18,6 +20,12 @@ export const storage = {
                 }
             },
         });
+    },
+
+    async getSchemaVersion() {
+        const db = await this.initDB();
+        const v = await db.get(STORE_METADATA, 'schemaVersion');
+        return typeof v === 'number' ? v : 0;
     },
 
     async saveTab(tab) {
@@ -42,7 +50,7 @@ export const storage = {
 
     async saveMetadata(data) {
         const db = await this.initDB();
-        
+
         const encryptedData = {};
         for (const [key, value] of Object.entries(data)) {
             const stringifiedValue = JSON.stringify(value);
@@ -53,6 +61,55 @@ export const storage = {
         for (const [key, value] of Object.entries(encryptedData)) {
             await tx.store.put(value, key);
         }
+        await tx.done;
+    },
+
+    async saveSnapshot({ tabs = [], metadata = {} }) {
+        const db = await this.initDB();
+
+        // Check if schemaVersion exists before transaction (outside the txn)
+        const currentVersion = await db.get(STORE_METADATA, 'schemaVersion');
+        const shouldStampVersion = typeof currentVersion !== 'number';
+
+        // Encrypt all tabs first (before transaction)
+        const encryptedTabs = [];
+        for (const tab of tabs) {
+            if (tab._decryptFailed && !tab.content) {
+                // Skip this tab; its prior on-disk row survives
+                continue;
+            }
+            const encryptedContent = await encrypt(tab.content);
+            encryptedTabs.push({
+                ...tab,
+                content: encryptedContent
+            });
+        }
+
+        // Encrypt all metadata values first (before transaction)
+        const encryptedMetadata = {};
+        for (const [key, value] of Object.entries(metadata)) {
+            const stringifiedValue = JSON.stringify(value);
+            encryptedMetadata[key] = await encrypt(stringifiedValue);
+        }
+
+        // Single transaction: write tabs and metadata
+        const tx = db.transaction([STORE_TABS, STORE_METADATA], 'readwrite');
+
+        // Write encrypted tabs
+        for (const tab of encryptedTabs) {
+            await tx.objectStore(STORE_TABS).put(tab);
+        }
+
+        // Write encrypted metadata
+        for (const [key, value] of Object.entries(encryptedMetadata)) {
+            await tx.objectStore(STORE_METADATA).put(value, key);
+        }
+
+        // Stamp schemaVersion if absent (inside the transaction)
+        if (shouldStampVersion) {
+            await tx.objectStore(STORE_METADATA).put(SCHEMA_VERSION, 'schemaVersion');
+        }
+
         await tx.done;
     },
 
@@ -97,6 +154,12 @@ export const storage = {
         const recentFiles = await getDecryptedMetadata('recentFiles') || [];
         const tabOrder = await getDecryptedMetadata('tabOrder') || [];
         const settings = await getDecryptedMetadata('settings');
+
+        // Stamp schemaVersion if absent (lazy idempotent)
+        const currentVersion = await db.get(STORE_METADATA, 'schemaVersion');
+        if (typeof currentVersion !== 'number') {
+            await db.put(STORE_METADATA, SCHEMA_VERSION, 'schemaVersion');
+        }
 
         return {
             tabs: tabs || [],

@@ -10,6 +10,8 @@ vi.mock('../../services/storage', () => ({
         loadSession: vi.fn(async () => ({ tabs: [] })),
         saveTab: vi.fn(),
         saveMetadata: vi.fn(),
+        saveSnapshot: vi.fn(async () => {}),
+        getSchemaVersion: vi.fn(async () => 1),
         deleteTab: vi.fn(),
         clearSession: vi.fn(),
     },
@@ -480,5 +482,273 @@ describe('SessionContext tabOrder write gating (P1-5)', () => {
         expect(calls.length).toBeGreaterThanOrEqual(1);
         const lastOrder = calls[calls.length - 1][0].tabOrder;
         expect(lastOrder.length).toBe(2);
+    });
+});
+
+// ---------------------------------------------------------------------------
+// ROUND B — P2-meta: debounce the reactive metadata-save effect
+// ---------------------------------------------------------------------------
+//
+// Pinned contract (choices the spec left open, stated as decisions):
+//
+//  * The reactive effect (fires on activeTabId / recentFiles / settings
+//    change) routes through a NEW saveMetadataDebounced(data), NOT the raw
+//    storage.saveMetadata. It mirrors saveTabDebounced: a metadataTimer ref,
+//    a trailing-edge debounce, prior timer cleared on each call.
+//  * Debounce window pinned at 400ms. Not fired at 350ms, fired by 450ms.
+//    (Writer must use 400ms exactly, same as saveTabDebounced pins 1000ms.)
+//  * The debounced payload is EXACTLY { activeTabId, recentFiles, settings }
+//    — no tabOrder key. tabOrder keeps its own gated immediate effect (Task 8).
+//  * 3 rapid tab switches => storage.saveMetadata called AT MOST once, after
+//    the window, carrying the LAST value.
+//  * Structural metadata writes stay synchronous / immediate and are NOT
+//    routed through the debounce: createTab's inline
+//    storage.saveMetadata({ activeTabId, tabOrder }), the tabOrder effect,
+//    closeTab, saveSession, flushPendingSaves.
+
+describe('SessionContext metadata-save debounce (P2-meta)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true, writable: true, value: createFakeLockManager(),
+        });
+    });
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        vi.useRealTimers();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+    });
+
+    // Waits out the mount-time debounced metadata write under REAL timers so no
+    // stale real-timer callback leaks into a test that later fakes timers.
+    async function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        await waitFor(() =>
+            expect(storage.saveMetadata).toHaveBeenCalledWith(
+                expect.objectContaining({ activeTabId: expect.anything() })
+            )
+        );
+        return api;
+    }
+
+    it('does not write metadata synchronously on a tab switch, and coalesces 3 rapid switches into one write', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+        vi.useFakeTimers();
+
+        act(() => { api.setActiveTabId('a'); });
+        act(() => { api.setActiveTabId('b'); });
+        act(() => { api.setActiveTabId('c'); });
+
+        expect(storage.saveMetadata).not.toHaveBeenCalled();
+
+        act(() => { vi.advanceTimersByTime(500); });
+
+        expect(storage.saveMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('the coalesced write carries the LAST value and exactly {activeTabId, recentFiles, settings}', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+        vi.useFakeTimers();
+
+        act(() => { api.setActiveTabId('a'); });
+        act(() => { api.setActiveTabId('b'); });
+        act(() => { api.setActiveTabId('c'); });
+        act(() => { vi.advanceTimersByTime(500); });
+
+        expect(storage.saveMetadata).toHaveBeenCalledTimes(1);
+        expect(storage.saveMetadata).toHaveBeenCalledWith({
+            activeTabId: 'c',
+            recentFiles: expect.any(Array),
+            settings: expect.any(Object),
+        });
+    });
+
+    it('does not fire before the 400ms window and fires after it', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+        vi.useFakeTimers();
+
+        act(() => { api.setActiveTabId('x'); });
+        act(() => { vi.advanceTimersByTime(350); });
+        expect(storage.saveMetadata).not.toHaveBeenCalled();
+
+        act(() => { vi.advanceTimersByTime(100); }); // total 450ms
+        expect(storage.saveMetadata).toHaveBeenCalledTimes(1);
+    });
+
+    it('debounces settings and recentFiles changes too — one write for a mixed burst', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+        vi.useFakeTimers();
+
+        act(() => { api.setActiveTabId('z'); });
+        act(() => { api.updateSettings({ theme: 'dark' }); });
+        act(() => { api.addRecentFile('/f.md', 'f.md'); });
+        act(() => { vi.advanceTimersByTime(500); });
+
+        expect(storage.saveMetadata).toHaveBeenCalledTimes(1);
+        const arg = storage.saveMetadata.mock.calls[0][0];
+        expect(arg.activeTabId).toBe('z');
+        expect(arg.settings).toEqual(expect.objectContaining({ theme: 'dark' }));
+        expect(arg.recentFiles[0]).toEqual(expect.objectContaining({ filePath: '/f.md' }));
+        expect(arg).not.toHaveProperty('tabOrder');
+    });
+
+    it('createTab writes metadata immediately (structural, NOT debounced)', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+        vi.useFakeTimers();
+
+        act(() => { api.createTab({ content: 'hello' }); });
+
+        // synchronous — before any timer advance
+        expect(storage.saveMetadata).toHaveBeenCalledWith(
+            expect.objectContaining({ tabOrder: expect.any(Array) })
+        );
+    });
+});
+
+// ---------------------------------------------------------------------------
+// ROUND B — P2-atomic: saveSession / flushPendingSaves persist via saveSnapshot
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//
+//  * saveSession() and flushPendingSaves() persist through ONE
+//    storage.saveSnapshot({ tabs, metadata }) call instead of
+//    Promise.all(tabs.map(storage.saveTab)) + a separate storage.saveMetadata.
+//  * The snapshot's `tabs` is the full live tab array; its `metadata` carries
+//    activeTabId, recentFiles, settings and tabOrder.
+//  * flushPendingSaves still clears every pending timer first: the per-tab
+//    saveTimers AND the new metadataTimer — so no debounced saveTab or
+//    saveMetadata fires after the flush. The live edits are captured because
+//    the snapshot serialises current `tabs` state.
+//  * Both paths stay gated on (isPrimaryWindow && isSessionLoaded); a
+//    non-primary window never calls saveSnapshot.
+//  * storage.saveTab / storage.saveMetadata remain exported and are still used
+//    by the per-tab debounce and the structural paths (createTab, closeTab,
+//    tabOrder effect, onPromoted) — not asserted dead here.
+
+describe('SessionContext snapshot persistence (P2-atomic)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true, writable: true, value: createFakeLockManager(),
+        });
+    });
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        vi.useRealTimers();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+    });
+
+    async function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        await waitFor(() =>
+            expect(storage.saveMetadata).toHaveBeenCalledWith(
+                expect.objectContaining({ activeTabId: expect.anything() })
+            )
+        );
+        return api;
+    }
+
+    const twoTabs = () => ([
+        { id: 'tab-1', title: 'A', content: 'aa', isDirty: false, filePath: null, fileHandle: null },
+        { id: 'tab-2', title: 'B', content: 'bb', isDirty: false, filePath: null, fileHandle: null },
+    ]);
+
+    it('saveSession() persists via storage.saveSnapshot({ tabs, metadata }), not per-tab saveTab + saveMetadata', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+        storage.saveTab.mockClear();
+        storage.saveMetadata.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        await act(async () => { await api.saveSession(); });
+
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+        const arg = storage.saveSnapshot.mock.calls[0][0];
+        expect(arg.tabs.map(t => t.id)).toEqual(['tab-1', 'tab-2']);
+        expect(arg.metadata).toEqual(expect.objectContaining({
+            activeTabId: expect.anything(),
+            recentFiles: expect.any(Array),
+            settings: expect.any(Object),
+            tabOrder: ['tab-1', 'tab-2'],
+        }));
+        expect(storage.saveTab).not.toHaveBeenCalled();
+        expect(storage.saveMetadata).not.toHaveBeenCalled();
+    });
+
+    it('flushPendingSaves (blur) persists via a single storage.saveSnapshot', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+        storage.saveTab.mockClear();
+        storage.saveMetadata.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('blur')); });
+
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+        const arg = storage.saveSnapshot.mock.calls[0][0];
+        expect(arg.tabs.map(t => t.id)).toEqual(['tab-1', 'tab-2']);
+        expect(arg.metadata).toEqual(expect.objectContaining({ tabOrder: ['tab-1', 'tab-2'] }));
+    });
+
+    it('flushPendingSaves folds in a pending debounced tab edit and cancels that per-tab timer', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+
+        vi.useFakeTimers();
+        act(() => { api.updateTab('tab-1', { content: 'edited' }); }); // schedules 1000ms saveTab
+        storage.saveTab.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('blur')); });
+
+        const arg = storage.saveSnapshot.mock.calls[0][0];
+        expect(arg.tabs.find(t => t.id === 'tab-1').content).toBe('edited');
+
+        act(() => { vi.advanceTimersByTime(1100); });
+        expect(storage.saveTab).not.toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'tab-1' })
+        );
+    });
+
+    it('flushPendingSaves clears the pending metadata debounce timer (no late storage.saveMetadata)', async () => {
+        const api = await renderPrimary();
+
+        vi.useFakeTimers();
+        act(() => { api.setActiveTabId('later'); }); // schedules the ~400ms debounced metadata write
+        storage.saveMetadata.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('blur')); });
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+
+        act(() => { vi.advanceTimersByTime(1000); });
+        expect(storage.saveMetadata).not.toHaveBeenCalled();
+    });
+
+    it('a non-primary window never calls storage.saveSnapshot on blur', async () => {
+        delete navigator.locks; // no Web Locks -> provider never becomes primary
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        expect(api.isPrimaryWindow).toBe(false);
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('blur')); });
+        expect(storage.saveSnapshot).not.toHaveBeenCalled();
     });
 });
