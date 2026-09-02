@@ -10,7 +10,7 @@ Branch: `fix/audit-remediation`.
 | 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
-| 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
+| 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | in-review | 1 | |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
 | 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |

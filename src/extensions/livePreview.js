@@ -1,6 +1,6 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { RangeSetBuilder, StateField } from "@codemirror/state";
+import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, CodeBlockWidget } from "./widgets";
 
 const isCursorTouching = (selection, from, to) => {
@@ -12,13 +12,18 @@ const isCursorOnLine = (selection, doc, from) => {
     return selection.ranges.some(range => range.from <= line.to && range.to >= line.from);
 };
 
-const buildDecorations = (state) => {
+const PREFIX = 10000;
+
+export const buildDecorations = (state, range) => {
     const builder = new RangeSetBuilder();
     const selection = state.selection;
     const doc = state.doc;
     const decorations = [];
 
+    const iterRange = range ? { from: range.from, to: range.to } : { from: 0, to: Math.min(doc.length, PREFIX) };
+
     syntaxTree(state).iterate({
+        ...iterRange,
         enter: (node) => {
             const { name, from: nodeFrom, to: nodeTo } = node;
 
@@ -279,13 +284,26 @@ const buildDecorations = (state) => {
     return builder.finish();
 };
 
+export const setLivePreviewViewport = StateEffect.define();
+
+const livePreviewViewportField = StateField.define({
+    create: () => null,
+    update(range, tr) {
+        for (const e of tr.effects) {
+            if (e.is(setLivePreviewViewport)) return e.value;
+        }
+        return range;
+    }
+});
+
 const livePreviewField = StateField.define({
     create(state) {
         return buildDecorations(state);
     },
     update(decorations, transaction) {
-        if (transaction.docChanged || transaction.selection) {
-            return buildDecorations(transaction.state);
+        if (transaction.docChanged || transaction.selection || transaction.effects.some(e => e.is(setLivePreviewViewport))) {
+            const range = transaction.state.field(livePreviewViewportField, false);
+            return buildDecorations(transaction.state, range);
         }
         return decorations;
     },
@@ -349,11 +367,36 @@ function convertTableToHTML(text) {
     return hasContent ? html : "<div class='cm-table-empty'>Empty Table</div>";
 }
 
+// ponytail: PAD margins outside viewport; constructs larger than PAD starting above viewport may lose decorations until scrolled into range
+const PAD = 2000;
+
+const livePreviewViewportPlugin = ViewPlugin.fromClass(class {
+    constructor(view) {
+        this.publish(view);
+    }
+
+    update(u) {
+        if (u.viewportChanged || u.docChanged) {
+            this.publish(u.view);
+        }
+    }
+
+    publish(view) {
+        const { from, to } = view.viewport;
+        const docLen = view.state.doc.length;
+        const range = { from: Math.max(0, from - PAD), to: Math.min(docLen, to + PAD) };
+        const cur = view.state.field(livePreviewViewportField, false);
+        if (!cur || cur.from !== range.from || cur.to !== range.to) {
+            view.dispatch({ effects: setLivePreviewViewport.of(range) });
+        }
+    }
+});
+
 // --- Highlights (==text==) ---
 
 
 // We need to handle Highlights in the main loop if we want the "hide markers" behavior.
-// Standard Markdown doesn't support ==, but GFM might if enabled. 
+// Standard Markdown doesn't support ==, but GFM might if enabled.
 // If not, we treat it as text.
 // Let's assume we need to regex search for it in the visible ranges or use a ViewPlugin.
 
@@ -435,5 +478,7 @@ function parseCellContent(content) {
 
 export const livePreview = [
     livePreviewField,
+    livePreviewViewportField,
+    livePreviewViewportPlugin,
     highlightPlugin
 ];
