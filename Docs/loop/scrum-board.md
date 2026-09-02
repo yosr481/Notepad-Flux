@@ -9,7 +9,7 @@ Branch: `fix/audit-remediation`.
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
 | 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
-| 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | in-review | 1 | |
+| 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
 | 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
@@ -35,6 +35,9 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 5** (1 round, tactical-only). Editor.jsx: `savedContentRef` baseline (mount + reset per tab switch on both restore/new paths) + `markSaved()` imperative method; updateListener now emits real `onContentChange(text, text !== savedContentRef.current)` — undo-to-saved clears dirty via plain string compare, no CM doc-version needed. useCommands calls `editorRef.markSaved()` after each successful write. find/replaceAll wrapped in try/catch → bad regex returns empty result, no doc change. Tactical fixed 1 test (CM merges 2 synchronous `type()` calls into one undo group — replaced undo-based assertion with explicit dispatch). 128 green.
+  - For later tasks: Editor exposes `markSaved()`; `savedContentRef` is per-mounted-editor, resets on `activeTabId` change.
 
 - **Task 4** (inline; session rate-limit killed the agent mid-run but its test file writes survived). `closeTab`: `willRemove` computed synchronously from `currentTabsRef.current` (`.some(id) && length>1`) — the `setTabs` updater runs later so an in-updater flag isn't visible to the disk branch. `storage.deleteTab` + pending-`saveTimers` clear now gated on `willRemove`. Fixes P0-5 (last-tab close wiped the disk row) + P2-close-timer (debounced save resurrected the deleted row). Tactical's 5 tests kept as the gate; no separate review round (rate limited). 102 green.
 
