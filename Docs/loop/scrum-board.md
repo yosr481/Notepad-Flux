@@ -12,7 +12,7 @@ Branch: `fix/audit-remediation`.
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
 | 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
-| 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
+| 8 | gate tabOrder write on id-list join | P1 | P1-5 | done | 1 | ec76733 |
 | 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |
 | 10 | electron path hardening: realpathSync in isPathSafe; narrow userData allowlist | P1 | P1-12, P1-13 | queued | 0 | |
 | 11 | ~~sanitize allowlist~~ — MERGED INTO TASK 2 | P2 | P2-sanitize | merged | 0 | — |
@@ -35,6 +35,8 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 8** (inline; trivial ~8-line effect gate + 2 tests). SessionContext tabOrder effect: compare `tabs.map(t=>t.id).join(',')` vs `prevTabOrderRef`, return early if unchanged — keystrokes no longer trigger an openDB+encrypt+txn for an unchanged value. 151 green.
 
 - **Task 7** (1 round; no separate review — tactical wrote+verified the fix during test-writing, 2-line change eyeballed = spec). imagePreview.js + linkPreview.js: large-doc debounce timer now `this.pendingView.dispatch({})` instead of `requestMeasure()` — CM re-reads `this.decorations` only on an update cycle, not a measure, so widgets never appeared until an unrelated transaction. Empty tx = no changes/selection/effects = no recompute loop. Tests: imagePreview.test.js (new, 8) + linkPreview.test.js (+8). 149 green. Dedupe of the identical block = Task 21.
 
