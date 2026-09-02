@@ -1,5 +1,6 @@
-import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
+import { WidgetType, Decoration } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
+import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
 
 class LRUCache {
     constructor(limit = 100) {
@@ -125,67 +126,34 @@ class ImageWidget extends WidgetType {
 
 const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;
 
-export const imagePreview = ViewPlugin.fromClass(class {
-    constructor(view) {
-        this.decorations = this.computeDecorations(view);
-        this.lastCursorImageRange = null;
-        this.debounceTimer = null;
-        this.pendingView = null;
-    }
+function computeImageDecorations(view) {
+    const builder = new RangeSetBuilder();
+    const { from: selFrom, to: selTo } = view.state.selection.main;
 
-    update(update) {
-        const docSize = update.state.doc.lines;
-        const isLargeDoc = docSize > 1000;
+    for (const { from, to } of view.visibleRanges) {
+        const text = view.state.doc.sliceString(from, to);
+        imageMatcher.lastIndex = 0;
+        let match;
 
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
-            if (isLargeDoc && update.docChanged) {
-                clearTimeout(this.debounceTimer);
-                this.pendingView = update.view;
-                this.debounceTimer = setTimeout(() => {
-                    if (this.pendingView) {
-                        this.decorations = this.computeDecorations(this.pendingView);
-                        this.pendingView.dispatch({});
-                    }
-                }, 300);
+        while ((match = imageMatcher.exec(text))) {
+            const start = from + match.index;
+            const end = start + match[0].length;
+            const isCursorInside = (selFrom <= end) && (selTo >= start);
+
+            if (!isCursorInside) {
+                builder.add(start, end, Decoration.replace({
+                    widget: new ImageWidget(match[2], match[1], false),
+                    inclusive: false
+                }));
             } else {
-                this.decorations = this.computeDecorations(update.view);
+                builder.add(end, end, Decoration.widget({
+                    widget: new ImageWidget(match[2], match[1], true),
+                    side: 1
+                }));
             }
         }
     }
+    return builder.finish();
+}
 
-    destroy() {
-        clearTimeout(this.debounceTimer);
-    }
-
-    computeDecorations(view) {
-        const builder = new RangeSetBuilder();
-        const { from: selFrom, to: selTo } = view.state.selection.main;
-
-        for (const { from, to } of view.visibleRanges) {
-            const text = view.state.doc.sliceString(from, to);
-            imageMatcher.lastIndex = 0;
-            let match;
-
-            while ((match = imageMatcher.exec(text))) {
-                const start = from + match.index;
-                const end = start + match[0].length;
-                const isCursorInside = (selFrom <= end) && (selTo >= start);
-
-                if (!isCursorInside) {
-                    builder.add(start, end, Decoration.replace({
-                        widget: new ImageWidget(match[2], match[1], false),
-                        inclusive: false
-                    }));
-                } else {
-                    builder.add(end, end, Decoration.widget({
-                        widget: new ImageWidget(match[2], match[1], true),
-                        side: 1
-                    }));
-                }
-            }
-        }
-        return builder.finish();
-    }
-}, {
-    decorations: v => v.decorations
-});
+export const imagePreview = makeDebouncedDecorationPlugin({ compute: computeImageDecorations });

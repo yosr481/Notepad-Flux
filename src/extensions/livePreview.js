@@ -2,15 +2,7 @@ import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, CodeBlockWidget } from "./widgets";
-
-const isCursorTouching = (selection, from, to) => {
-    return selection.ranges.some(range => range.from <= to && range.to >= from);
-};
-
-const isCursorOnLine = (selection, doc, from) => {
-    const line = doc.lineAt(from);
-    return selection.ranges.some(range => range.from <= line.to && range.to >= line.from);
-};
+import { isCursorTouching, isCursorOnLine } from "./selection";
 
 const PREFIX = 10000;
 

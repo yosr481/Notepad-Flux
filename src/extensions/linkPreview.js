@@ -1,7 +1,9 @@
-import { WidgetType, Decoration, ViewPlugin } from "@codemirror/view";
+import { WidgetType, Decoration } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { sanitizeHTML } from '../utils/sanitize';
+import { isCursorTouching } from './selection';
+import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -83,109 +85,72 @@ class LinkWidget extends WidgetType {
     }
 }
 
-// Helper: Check if cursor touches the range [from, to]
-const isCursorTouching = (selection, from, to) => {
-    return selection.ranges.some(range => range.from <= to && range.to >= from);
-};
+function computeLinkDecorations(view) {
+    const builder = new RangeSetBuilder();
+    const { state } = view;
+    const { selection, doc } = state;
 
-export const linkPreview = ViewPlugin.fromClass(class {
-    constructor(view) {
-        this.decorations = this.computeDecorations(view);
-        this.debounceTimer = null;
-        this.pendingView = null;
-    }
+    // Iterate over the syntax tree to find Links
+    syntaxTree(state).iterate({
+        enter: (node) => {
+            if (node.name !== "Link") return;
 
-    update(update) {
-        const docSize = update.state.doc.lines;
-        const isLargeDoc = docSize > 1000;
+            const { from, to } = node;
 
-        if (update.docChanged || update.viewportChanged || update.selectionSet) {
-            if (isLargeDoc && update.docChanged) {
-                clearTimeout(this.debounceTimer);
-                this.pendingView = update.view;
-                this.debounceTimer = setTimeout(() => {
-                    if (this.pendingView) {
-                        this.decorations = this.computeDecorations(this.pendingView);
-                        this.pendingView.dispatch({});
+            // Check if cursor is active inside or touching the link
+            let shouldReveal = isCursorTouching(selection, from, to);
+
+            // Check for surrounding emphasis (Bold/Italic)
+            let bold = false;
+            let italic = false;
+            let parent = node.node.parent;
+
+            // Traverse up to find Emphasis/StrongEmphasis
+            // and also check if cursor is touching those outer marks to reveal everything
+            while (parent) {
+                if (parent.name === "StrongEmphasis" || parent.name === "Emphasis") {
+                    if (parent.name === "StrongEmphasis") bold = true;
+                    if (parent.name === "Emphasis") italic = true;
+
+                    // If cursor is touching the outer emphasis, reveal the link
+                    if (isCursorTouching(selection, parent.from, parent.to)) {
+                        shouldReveal = true;
                     }
-                }, 300);
-            } else {
-                this.decorations = this.computeDecorations(update.view);
+
+                    parent = parent.parent; // continue moving up
+                } else {
+                    break;
+                }
+            }
+
+            if (!shouldReveal) {
+                let urlNode = node.node.getChild("URL");
+
+                // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
+                const textContentFull = doc.sliceString(from, to);
+
+                // Ignore image links which start with !
+                if (textContentFull.startsWith("!")) return;
+
+                const match = textContentFull.match(/^\[(.*?)\]\(([^"\s)]+)(?:\s+"(.*?)")?\)/);
+
+                if (match) {
+                    // double check with urlNode if it exists to be precise?
+                    // Actually the replacement range is [from, to] so regex matching the whole slice is correct.
+
+                    const linkText = match[1];
+                    const linkUrl = match[2];
+
+                    builder.add(from, to, Decoration.replace({
+                        widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
+                        inclusive: false
+                    }));
+                }
             }
         }
-    }
+    });
 
-    destroy() {
-        clearTimeout(this.debounceTimer);
-    }
+    return builder.finish();
+}
 
-    computeDecorations(view) {
-        const builder = new RangeSetBuilder();
-        const { state } = view;
-        const { selection, doc } = state;
-
-        // Iterate over the syntax tree to find Links
-        syntaxTree(state).iterate({
-            enter: (node) => {
-                if (node.name !== "Link") return;
-
-                const { from, to } = node;
-
-                // Check if cursor is active inside or touching the link
-                let shouldReveal = isCursorTouching(selection, from, to);
-
-                // Check for surrounding emphasis (Bold/Italic)
-                let bold = false;
-                let italic = false;
-                let parent = node.node.parent;
-
-                // Traverse up to find Emphasis/StrongEmphasis
-                // and also check if cursor is touching those outer marks to reveal everything
-                while (parent) {
-                    if (parent.name === "StrongEmphasis" || parent.name === "Emphasis") {
-                        if (parent.name === "StrongEmphasis") bold = true;
-                        if (parent.name === "Emphasis") italic = true;
-
-                        // If cursor is touching the outer emphasis, reveal the link
-                        if (isCursorTouching(selection, parent.from, parent.to)) {
-                            shouldReveal = true;
-                        }
-
-                        parent = parent.parent; // continue moving up
-                    } else {
-                        break;
-                    }
-                }
-
-                if (!shouldReveal) {
-                    let urlNode = node.node.getChild("URL");
-
-                    // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
-                    const textContentFull = doc.sliceString(from, to);
-
-                    // Ignore image links which start with !
-                    if (textContentFull.startsWith("!")) return;
-
-                    const match = textContentFull.match(/^\[(.*?)\]\(([^"\s)]+)(?:\s+"(.*?)")?\)/);
-
-                    if (match) {
-                        // double check with urlNode if it exists to be precise? 
-                        // Actually the replacement range is [from, to] so regex matching the whole slice is correct.
-
-                        const linkText = match[1];
-                        const linkUrl = match[2];
-
-                        builder.add(from, to, Decoration.replace({
-                            widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
-                            inclusive: false
-                        }));
-                    }
-                }
-            }
-        });
-
-        return builder.finish();
-    }
-}, {
-    decorations: v => v.decorations
-});
+export const linkPreview = makeDebouncedDecorationPlugin({ compute: computeLinkDecorations });
