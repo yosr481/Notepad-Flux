@@ -90,11 +90,14 @@ describe('dialogs.confirm — resolution', () => {
     });
 
     it('resolves false when Escape is pressed', async () => {
-        const p = dialogs.confirm({ message: 'Proceed?' });
-        await flush();
-        // MessageBox binds its keydown listener in a useEffect; give the passive
-        // effect a second macrotask to land before dispatching.
-        await flush();
+        // MessageBox binds its keydown listener in a useEffect. Open the dialog
+        // inside act() so the passive effect (listener registration) is flushed
+        // before we dispatch the key event — a bare macrotask hop is racy for a
+        // component mounted via raw createRoot (no RTL render()).
+        let p;
+        await act(async () => {
+            p = dialogs.confirm({ message: 'Proceed?' });
+        });
         await act(async () => {
             fireEvent.keyDown(document, { key: 'Escape' });
         });

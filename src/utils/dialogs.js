@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import MessageBox from '../components/Layout/MessageBox.jsx';
 
 export const dialogs = {
@@ -38,7 +39,7 @@ export const dialogs = {
                 resolve(result);
             };
 
-            root.render(
+            flushSync(() => root.render(
                 React.createElement(MessageBox, {
                     title,
                     message,
@@ -49,7 +50,7 @@ export const dialogs = {
                     onPrimary: () => handleClose(true),
                     onCancel: () => handleClose(false)
                 })
-            );
+            ));
         });
     },
 
@@ -90,7 +91,7 @@ export const dialogs = {
                 resolve(result);
             };
 
-            root.render(
+            flushSync(() => root.render(
                 React.createElement(MessageBox, {
                     title,
                     message,
@@ -101,7 +102,7 @@ export const dialogs = {
                     onSecondary: () => handleClose('dontsave'),
                     onCancel: () => handleClose('cancel')
                 })
-            );
+            ));
         });
     }
 };
