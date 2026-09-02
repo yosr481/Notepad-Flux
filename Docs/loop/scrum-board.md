@@ -6,8 +6,8 @@ Branch: `fix/audit-remediation`.
 | # | Task | Sev | Findings | Status | Rounds | Commit |
 |---|------|-----|----------|--------|--------|--------|
 | 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | 50c8304 |
-| 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | in-review | 1 | |
-| 3 | primary-window failover: queued lock + promotion | P0 | P0-4 | queued | 0 | |
+| 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
+| 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | queued | 0 | |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | queued | 0 | |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | queued | 0 | |
 | 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
@@ -28,7 +28,7 @@ Branch: `fix/audit-remediation`.
 | 21 | extract makeDebouncedDecorationPlugin factory (2x block) | P3 | P3-debounce | queued | 0 | |
 | 22 | extract persistTab() (triplicated save ladder) + canSaveInPlace() | P3 | P3-persist | queued | 0 | |
 | 23 | dead-code sweep: unused imports/widgets/css/stubs; collapse theme blocks; hoist syntaxTree in textDirection | P3 | P3-dead | queued | 0 | |
-| 24 | useMemo SessionContext value; memoize useCommands return | P3 | P3-memo | queued | 0 | |
+| 24 | split SessionContext into settings/tab-state/actions contexts (user pick A3); memoize useCommands return | P3 | P3-memo | queued | 0 | |
 | 25 | test backfill: isPathSafe, crypto failure modes, listKeymap, convertTableToHTML, extract-changelog, livePreview reveal | P3 | P3-tests | queued | 0 | |
 | 26 | reconcile GEMINI.md; double-rAF scroll restore | P3 | P3-misc | queued | 0 | |
 
@@ -38,3 +38,4 @@ Statuses: queued → tests-written → in-progress → in-review → done
 
 - **Task 1** (3 rounds). crypto.js: `NFv1:` sentinel on ciphertext; `decrypt` throws on tampered/wrong-key sentinel blob instead of silently returning `''`; chunked `uint8ToBase64` (200k-char safe, kills P0-2 RangeError); module-scope `cachedKey` memo; key create/migrate under `navigator.locks` `notepad-flux-key`. storage.js: per-row decrypt isolation in `loadSession` (one bad tab no longer drops the whole session), degraded tab tagged `_decryptFailed` + `saveTab` skip-guard so `saveSession`-on-close can't re-encrypt `''` over intact ciphertext. Bug(high) caught by architect R2 (silent disk wipe on close) → fixed R3. Intentional security-property reversal recorded: non-sentinel legacy path now returns undecryptable input unchanged (old `''` also destroyed real legacy plaintext). Tests: `crypto.hardening.test.js` (16, new), `crypto.test.js` (2 stale assertions rewritten by tactical), `storage.test.js` (+1 isolation test). 59 total green.
   - For later tasks: `decrypt` is now a throwing function on the `NFv1:` path — any NEW caller must handle rejection. `_decryptFailed` is an in-memory-only tab flag; don't rely on it surviving a round-trip.
+- **Task 2** (1 round, both reviewers `done` first pass). export.js: body now `sanitizeHTML(marked(md))`, title HTML-escaped via local `escapeHtml`, dead `exportToPdf` stub deleted. sanitize.js: allowlist +`h1-h6 pre img hr blockquote span` +`src alt`, `SAFE_FOR_TEMPLATES` removed (was mangling `{{ }}` note text). Single shared profile, not an export-specific one. Tests: `export.test.js` (new), `sanitize.test.js` (+12). 87 green. Low notes (non-blocking): remote `<img src=http>` now loads in editor/Print; non-string title would throw `escapeHtml` (caller guarantees string).
