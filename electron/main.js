@@ -1,12 +1,14 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
-import { join, resolve, isAbsolute, sep } from 'node:path'
+import { join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
+import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
+import { createIsPathSafe } from './pathSafety.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -52,23 +54,8 @@ const getPersistentDataPath = () => {
 
 const userDataPath = getPersistentDataPath()
 app.setPath('userData', userDataPath)
-allowedPaths.add(resolve(userDataPath))
 
-const isPathSafe = (filePath) => {
-    if (!filePath || typeof filePath !== 'string') return false
-
-    const resolvedPath = resolve(filePath)
-
-    if (!isAbsolute(resolvedPath) || filePath.includes('..')) return false
-
-    for (const allowed of allowedPaths) {
-        if (resolvedPath === allowed || resolvedPath.startsWith(allowed + sep)) {
-            return true
-        }
-    }
-
-    return false
-}
+const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
 
 const safeHandle = (channel, handler) => {
     ipcMain.handle(channel, async (event, ...args) => {
@@ -116,6 +103,10 @@ safeHandle('read-file', async () => {
 })
 
 safeHandle('read-file-content', async (event, filePath) => {
+    // ponytail: isPathSafe realpath-checks filePath, then readFile re-resolves the
+    // raw path - a symlink swapped in between the two is a TOCTOU race. Local
+    // attacker only; fully closing it means readFile'ing the realpath'd result,
+    // which the new-file save path has no value for. Left as a known corner.
     if (!isPathSafe(filePath)) {
         throw new Error('Access denied: Unauthorized file path.')
     }
