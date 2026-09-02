@@ -8,7 +8,7 @@ tactical review only on B, D, G; architect review only on B and G. Other rounds 
 | Round | Scope (findings) | Files | Review |
 |---|---|---|---|
 | A | ✅ done 42485ba — **Electron export/IPC** — PDF Blob→Uint8Array before IPC + binary writeFile + extension-aware save-dialog filters/defaultPath (`electron/dialogFilters.js`) [P2-pdf]; verify+fix ctrl-click scheme check [P2-ctrlclick] and goToLine lower bound [P2-gotoline] | fileSystem.js, electron/main.js, electron/dialogFilters.js, linkHandler.js, Editor.jsx | orchestrator only |
-| B | in-progress — **Persistence hardening** — debounce `saveMetadata` [P2-meta]; atomic tabs+metadata single txn + reserve `schemaVersion` key [P2-atomic] | storage.js, SessionContext.jsx | tactical + architect |
+| B | ✅ done 989a3bd — **Persistence hardening** — debounce `saveMetadata` [P2-meta]; atomic tabs+metadata single txn + reserve `schemaVersion` key [P2-atomic] | storage.js, SessionContext.jsx | tactical + architect |
 | C | **Render-capture + settings** — `requestIdleCallback` polyfill/guard + double-rAF before html2canvas/print [P2-ric]; in-app `<ConfirmDialog>` (U1) + wire "Clear Session Data" through it [P2-settings] | useCommands.js, Settings.jsx, new ConfirmDialog | orchestrator only |
 | D | **CI/release** — test job gate in release.yml; `extract-changelog` em-dash + wire release-notes.md; dependency-review drop UNLICENSED; Node 18/20 align + `engines`; `npm ci` in license-check; version-sync CI assert | .github/workflows/*, scripts/extract-changelog.js, package.json | tactical |
 | E | **Extension dedup** — `extensions/selection.js` (4× isCursorTouching + isCursorOnLine) [P3]; `inlineMarkdownToHtml` util (3× parser) [P3]; `makeDebouncedDecorationPlugin` factory (2× block, incl. Task 7's dispatch fix) [P3] | extensions/* | orchestrator only |
@@ -16,6 +16,8 @@ tactical review only on B, D, G; architect review only on B and G. Other rounds 
 | G | **Context split + tests** — split SessionContext → settings / tab-state / actions contexts (user pick A3); memoize `useCommands` return; `editorRef` as a `useCommands` hook arg (batched-architect nit); backfill tests (crypto failure modes already done, listKeymap Enter/Tab, convertTableToHTML, extract-changelog fixture, livePreview cursor-reveal) [P3] | context/*, useCommands.js, App.jsx, +tests | tactical + architect |
 
 ## Log
+
+- **Round B** (tactical + architect, both `done`). storage.js: `saveSnapshot({tabs,metadata})` = one `[tabs,metadata]` txn (encrypt before txn open), replaces the split writes in `saveSession`/`flushPendingSaves`. `SCHEMA_VERSION=1` + `getSchemaVersion()` (raw key, 0 if absent) + lazy stamp — migration hook, no dispatch yet. `saveMetadataDebounced` 400ms for the reactive `{activeTabId,recentFiles,settings}` effect; structural writes stay immediate. 2 low-sev corners → Round G. Tests +25. 249 green.
 
 - **Round A** (inline, rate-limited; orchestrator-only per new plan). `electron/dialogFilters.js` (new, pure): extension→filter set. fileSystem.js `toIpcContent`: Blob/ArrayBuffer/typed-array → Uint8Array before Electron IPC (contextBridge can't clone a Blob; Node wrote `[object Blob]`). main.js save-file: `Buffer.from(content)` for binary, `defaultPath`+`filtersForName(suggestedName)` instead of hardcoded Markdown filter. P2-gotoline / P2-ctrlclick already fixed by earlier QA (verified, no-op). Tests +15. 224 green.
 
