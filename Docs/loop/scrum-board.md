@@ -10,7 +10,7 @@ Branch: `fix/audit-remediation`.
 | 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
-| 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | in-review | 1 | |
+| 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
 | 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |
@@ -35,6 +35,9 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 6** (1 round; tactical + architect both `done` first pass). livePreview.js: `buildDecorations(state, range)` iterates `syntaxTree.iterate({from,to,...})` bounded to a padded viewport instead of the whole doc. New `setLivePreviewViewport` StateEffect + `livePreviewViewportField` hold the range; companion `livePreviewViewportPlugin` publishes `view.viewport ± PAD(2000)` on viewport/doc change (guarded against re-dispatch loop). `livePreviewField` stays a StateField (multi-line Table/HR replace widgets can't come from a ViewPlugin). `create()` fallback = first PREFIX(10000) chars. Exports: `buildDecorations`, `setLivePreviewViewport`. `livePreview` array now len 4, `[0]` still the decoration field. Byte-identical output for docs within viewport+PAD. 133 green.
+  - bug(low) accepted: doc opened scrolled mid-document shows one frame of raw markdown before the plugin publishes the real range (no scroll state persisted today, so rarely hit).
 
 - **Task 5** (1 round, tactical-only). Editor.jsx: `savedContentRef` baseline (mount + reset per tab switch on both restore/new paths) + `markSaved()` imperative method; updateListener now emits real `onContentChange(text, text !== savedContentRef.current)` — undo-to-saved clears dirty via plain string compare, no CM doc-version needed. useCommands calls `editorRef.markSaved()` after each successful write. find/replaceAll wrapped in try/catch → bad regex returns empty result, no doc change. Tactical fixed 1 test (CM merges 2 synchronous `type()` calls into one undo group — replaced undo-based assertion with explicit dispatch). 128 green.
   - For later tasks: Editor exposes `markSaved()`; `savedContentRef` is per-mounted-editor, resets on `activeTabId` change.
