@@ -498,6 +498,11 @@ export const SessionProvider = ({ children }) => {
         setRestoreWarning(null);
     }, []);
 
+    const clearSessionData = useCallback(async () => {
+        await storage.clearSession();
+        window.location.reload();
+    }, []);
+
     const value = {
         tabs,
         activeTabId,
@@ -516,7 +521,8 @@ export const SessionProvider = ({ children }) => {
         updateSettings,
         saveSession,
         restoreWarning,
-        clearRestoreWarning
+        clearRestoreWarning,
+        clearSessionData
     };
 
     return (

@@ -6,21 +6,51 @@
 
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-
-// Lazy import to avoid bundling cost unless needed
-let MessageBox = null;
+import MessageBox from '../components/Layout/MessageBox.jsx';
 
 export const dialogs = {
     /**
-     * Show a confirmation dialog.
-     * @param {string} message - The message to display.
-     * @returns {Promise<boolean>} - True if confirmed (OK/Yes), false otherwise.
+     * Show a confirmation dialog using the design-system MessageBox.
+     * @param {string|object} arg - Plain string message or options object
+     * @param {string} [arg.title] - Dialog title
+     * @param {string} [arg.message] - Dialog message
+     * @param {string} [arg.confirmLabel='OK'] - Label for confirm button
+     * @param {string} [arg.cancelLabel='Cancel'] - Label for cancel button
+     * @param {boolean} [arg.danger=false] - Mark confirm button as destructive
+     * @returns {Promise<boolean>} - True if confirmed, false if cancelled/escaped
      */
-    confirm: async (message) => {
-        // In the future, check for Electron context:
-        // if (window.electron) return await window.electron.dialog.showMessageBox(...)
+    confirm(arg) {
+        const opts = typeof arg === 'string' ? { message: arg } : (arg || {});
+        const { title, message, confirmLabel = 'OK', cancelLabel = 'Cancel', danger = false } = opts;
 
-        return window.confirm(message);
+        return new Promise((resolve) => {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const root = createRoot(container);
+
+            const handleClose = (result) => {
+                try {
+                    root.unmount();
+                } catch (_err) {
+                    // noop: unmount can throw if already unmounted
+                }
+                container.remove();
+                resolve(result);
+            };
+
+            root.render(
+                React.createElement(MessageBox, {
+                    title,
+                    message,
+                    primaryLabel: confirmLabel,
+                    cancelLabel,
+                    secondaryLabel: null,
+                    danger,
+                    onPrimary: () => handleClose(true),
+                    onCancel: () => handleClose(false)
+                })
+            );
+        });
     },
 
     /**
@@ -45,12 +75,6 @@ export const dialogs = {
      * @returns {Promise<'save'|'dontsave'|'cancel'>}
      */
     saveChangesPrompt: async ({ title, message, primaryLabel = 'Save', secondaryLabel = "Don't Save", cancelLabel = 'Cancel' }) => {
-        // Dynamic import to avoid circular deps
-        if (!MessageBox) {
-            // eslint-disable-next-line no-undef
-            MessageBox = (await import('../components/Layout/MessageBox.jsx')).default;
-        }
-
         return new Promise((resolve) => {
             const container = document.createElement('div');
             document.body.appendChild(container);

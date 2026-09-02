@@ -8,6 +8,11 @@ import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
+const nextPaint = () => new Promise(resolve => {
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb => setTimeout(cb, 16));
+    raf(() => raf(resolve));
+});
+
 export const useCommands = (showToast) => {
     const {
         tabs,
@@ -253,7 +258,7 @@ export const useCommands = (showToast) => {
         const content = React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content });
         root.render(content);
 
-        await new Promise(resolve => requestIdleCallback(resolve));
+        await nextPaint();
 
         try {
             const canvas = await html2canvas(printContainer, {
@@ -341,7 +346,7 @@ export const useCommands = (showToast) => {
             React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content })
         );
 
-        requestIdleCallback(() => {
+        nextPaint().then(() => {
             window.print();
             root.unmount();
             document.body.removeChild(printContainer);
