@@ -7,7 +7,7 @@ Branch: `fix/audit-remediation`.
 |---|------|-----|----------|--------|--------|--------|
 | 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | 50c8304 |
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub; expand sanitize allowlist + drop SAFE_FOR_TEMPLATES (merged Task 11) | P0 | P0-3, P2-sanitize | done | 1 | c5e3cc4 |
-| 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | in-progress | 3 | |
+| 3 | primary-window failover: queued lock + promotion; buffer+flush edits in failover gap (A1); toast on decrypt-fail restore (A2) | P0 | P0-4 | done | 4 | 3d7a4c0 |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | queued | 0 | |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | queued | 0 | |
 | 6 | livePreview: scope decoration build to viewport + changed ranges | P1 | P1-2 | queued | 0 | |
@@ -35,6 +35,9 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 3** (4 rounds; 2 substantive, 2 low-sev). SessionContext: secondary windows now issue a queued `navigator.locks.request('notepad-flux-primary', {signal}, onPromoted)`; on primary death the winner promotes — `isSessionLoaded=false` gate + timer-clear over the merge span (stops pristine-clobber), reload disk session as base, merge non-pristine local tabs (local wins) sorted by disk `tabOrder`, persist merged-in tabs + metadata, restore pre-promotion active tab. `adoptSessionMeta` shared by load+promotion paths. A2: `restoreWarning` context value → one-shot App toast, cleared after show. New test infra: `src/test/fakeLocks.js`. 97 green.
+  - For later tasks: promotion path holds the lock via `await new Promise` on the abort signal (now guarded for already-aborted). `currentTabsRef`/`currentActiveTabIdRef` mirror state for the `[]`-dep election effect — reuse them, don't add state to that effect's deps.
 
 - **Task 1** (3 rounds). crypto.js: `NFv1:` sentinel on ciphertext; `decrypt` throws on tampered/wrong-key sentinel blob instead of silently returning `''`; chunked `uint8ToBase64` (200k-char safe, kills P0-2 RangeError); module-scope `cachedKey` memo; key create/migrate under `navigator.locks` `notepad-flux-key`. storage.js: per-row decrypt isolation in `loadSession` (one bad tab no longer drops the whole session), degraded tab tagged `_decryptFailed` + `saveTab` skip-guard so `saveSession`-on-close can't re-encrypt `''` over intact ciphertext. Bug(high) caught by architect R2 (silent disk wipe on close) → fixed R3. Intentional security-property reversal recorded: non-sentinel legacy path now returns undecryptable input unchanged (old `''` also destroyed real legacy plaintext). Tests: `crypto.hardening.test.js` (16, new), `crypto.test.js` (2 stale assertions rewritten by tactical), `storage.test.js` (+1 isolation test). 59 total green.
   - For later tasks: `decrypt` is now a throwing function on the `NFv1:` path — any NEW caller must handle rejection. `_decryptFailed` is an in-memory-only tab flag; don't rely on it surviving a round-trip.
