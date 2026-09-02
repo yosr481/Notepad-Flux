@@ -5,7 +5,7 @@ Branch: `fix/audit-remediation`.
 
 | # | Task | Sev | Findings | Status | Rounds | Commit |
 |---|------|-----|----------|--------|--------|--------|
-| 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | (pending) |
+| 1 | crypto hardening: sentinel + throw-on-tamper, chunked base64, key-gen under lock (+ load-path isolation) | P0 | P0-1, P0-2, P1-9, P1-10 | done | 3 | 50c8304 |
 | 2 | export XSS: sanitize + escape HTML export; drop dead exportToPdf stub | P0 | P0-3 | queued | 0 | |
 | 3 | primary-window failover: queued lock + promotion | P0 | P0-4 | queued | 0 | |
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | queued | 0 | |
