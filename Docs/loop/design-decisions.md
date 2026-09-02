@@ -80,3 +80,8 @@ Auto-updates ship unsigned (no `CSC_LINK` etc.). Needs a real Windows Authentico
 
 ### Task 10 scoping — P1-6b deferred
 - **Electron `win.on('close')` dirty-guard IPC (P1-6b) — deferred, not in Task 10.** Task 9's synchronous `beforeunload` `preventDefault()` + `returnValue=''` already triggers Electron's built-in unsaved-changes dialog on window close (Electron honors `beforeunload` by default). A dedicated `win.on('close')` → IPC → renderer `closeWindow()` → confirm round-trip is a refinement (custom prompt copy, save-on-close), not a data-loss gap, and is untestable under vitest. FUTURE-5.
+
+### Post-loop follow-up debt (architect, Round G) — NOT in this loop
+- **FUTURE-6: extract the persistence/merge layer out of SessionContext.jsx.** After 7 rounds it's ~580 lines mixing React state, IndexedDB IO, Web Locks primary election, promotion+merge logic, and 5 live-state mirror refs (`currentTabsRef`, `currentActiveTabIdRef`, `currentRecentFilesRef`, `currentSettingsRef` in context + `liveState` in useCommands). The election + snapshot/merge belongs in a non-component module the provider drives.
+- **FUTURE-7: onPromoted adopts local activeTabId but persists disk's.** `onPromoted` sets the in-memory active tab to the user's pre-promotion `localActiveId` but `saveSnapshot`'s metadata writes `diskSession.activeTabId` — next reload jumps to the dead primary's active tab. Low impact.
+- **A6 code signing** still outstanding (needs a real Windows Authenticode cert; `electron-updater` ships unsigned). FUTURE-2.
