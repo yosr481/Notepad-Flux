@@ -33,7 +33,7 @@ function App() {
         charCount: 0
     });
 
-    const { settings, updateSettings } = useSession();
+    const { settings, updateSettings, restoreWarning, clearRestoreWarning } = useSession();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -54,6 +54,13 @@ function App() {
     const hideToast = useCallback(() => {
         setToast({ message: '', show: false });
     }, []);
+
+    useEffect(() => {
+        if (restoreWarning) {
+            showToast(restoreWarning);
+            clearRestoreWarning();
+        }
+    }, [restoreWarning, showToast, clearRestoreWarning]);
 
     const handleFindInEditor = useCallback(
         (text, options) => editorRef.current?.find(text, options) || { current: 0, total: 0 },

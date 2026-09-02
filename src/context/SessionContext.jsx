@@ -25,9 +25,18 @@ export const SessionProvider = ({ children }) => {
         sessionWarnTabs: 30,
         sessionWarnSize: 80,
     });
+    const [restoreWarning, setRestoreWarning] = useState(null);
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
+    const currentTabsRef = useRef(tabs);
+    const currentActiveTabIdRef = useRef(activeTabId);
+
+    // Keep currentTabsRef in sync with tabs state
+    useEffect(() => {
+        currentTabsRef.current = tabs;
+        currentActiveTabIdRef.current = activeTabId;
+    }, [tabs, activeTabId]);
 
     const generateTitle = (content) => {
         const firstLine = content.split('\n')[0].trim();
@@ -60,39 +69,64 @@ export const SessionProvider = ({ children }) => {
         const abortController = new AbortController();
         let timeoutId;
 
+        // Extract adoptSessionMeta for use in both loadAndSetupSession and onPromoted
+        const adoptSessionMeta = (diskSession) => {
+            const diskTabs = diskSession.tabs || [];
+
+            // Calculate restoreWarning: count tabs with _decryptFailed
+            const failedCount = diskTabs.filter(t => t._decryptFailed).length;
+            if (failedCount > 0) {
+                const s = failedCount > 1 ? 's' : '';
+                setRestoreWarning(`${failedCount} tab${s} couldn't be restored (decryption failed)`);
+            } else {
+                setRestoreWarning(null);
+            }
+
+            // Update nextTabId based on disk tabs
+            const maxId = diskTabs.reduce((max, t) => {
+                const num = parseInt(t.id.replace('tab-', ''));
+                return !isNaN(num) && num > max ? num : max;
+            }, 1);
+            nextTabId.current = maxId + 1;
+
+            // Adopt metadata from disk
+            if (diskSession.activeTabId) {
+                setActiveTabId(diskSession.activeTabId);
+            }
+            if (diskSession.recentFiles) {
+                setRecentFiles(diskSession.recentFiles);
+            }
+            if (diskSession.settings) {
+                setSettings(prev => ({ ...prev, ...diskSession.settings }));
+            }
+        };
+
+        const loadAndSetupSession = async (diskSession) => {
+            if (diskSession.tabs && diskSession.tabs.length > 0) {
+                let loadedTabs = diskSession.tabs;
+
+                if (diskSession.tabOrder && diskSession.tabOrder.length > 0) {
+                    const orderMap = new Map(diskSession.tabOrder.map((id, index) => [id, index]));
+                    loadedTabs.sort((a, b) => {
+                        const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+                        const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+                        return indexA - indexB;
+                    });
+                }
+
+                setTabs(loadedTabs);
+            }
+
+            adoptSessionMeta(diskSession);
+        };
+
         const initSession = async (lock) => {
             if (lock) {
+                // Primary window: load from disk
                 setIsPrimaryWindow(true);
                 try {
                     const session = await storage.loadSession();
-                    if (session.tabs && session.tabs.length > 0) {
-                        let loadedTabs = session.tabs;
-
-                        if (session.tabOrder && session.tabOrder.length > 0) {
-                            const orderMap = new Map(session.tabOrder.map((id, index) => [id, index]));
-                            loadedTabs.sort((a, b) => {
-                                const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
-                                const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
-                                return indexA - indexB;
-                            });
-                        }
-
-                        setTabs(loadedTabs);
-                        const maxId = session.tabs.reduce((max, t) => {
-                            const num = parseInt(t.id.replace('tab-', ''));
-                            return !isNaN(num) && num > max ? num : max;
-                        }, 1);
-                        nextTabId.current = maxId + 1;
-                    }
-                    if (session.activeTabId) {
-                        setActiveTabId(session.activeTabId);
-                    }
-                    if (session.recentFiles) {
-                        setRecentFiles(session.recentFiles);
-                    }
-                    if (session.settings) {
-                        setSettings(prev => ({ ...prev, ...session.settings }));
-                    }
+                    await loadAndSetupSession(session);
                 } catch (err) {
                     console.error('Failed to load session:', err);
                 } finally {
@@ -100,15 +134,13 @@ export const SessionProvider = ({ children }) => {
                 }
 
                 await new Promise((resolve) => {
-                    abortController.signal.addEventListener('abort', () => {
-                        resolve();
-                    });
+                    if (abortController.signal.aborted) { resolve(); return; }
+                    abortController.signal.addEventListener('abort', () => resolve(), { once: true });
                 });
             } else {
-                // We are a secondary window
+                // Secondary window: load settings only, then queue for promotion
                 setIsPrimaryWindow(false);
                 try {
-                    // Attempt to load settings so we inherit the theme/preferences
                     const session = await storage.loadSession();
                     if (session.settings) {
                         setSettings(prev => ({ ...prev, ...session.settings }));
@@ -117,7 +149,102 @@ export const SessionProvider = ({ children }) => {
                     console.warn('Secondary window failed to load settings:', err);
                 }
                 setIsSessionLoaded(true);
+
+                // Queue for promotion: when primary dies, this will be called with the lock
+                navigator.locks.request('notepad-flux-primary', { signal: abortController.signal }, onPromoted).catch(() => {});
             }
+        };
+
+        const onPromoted = async (_lock) => {
+            // Capture pre-promotion activeTabId to restore if the tab still exists after merge
+            const localActiveId = currentActiveTabIdRef.current;
+
+            // Called when this secondary window is promoted to primary
+            // Gate the promotion window with isSessionLoaded = false to prevent saveTabDebounced
+            // from writing pristine state while we're merging
+            setIsSessionLoaded(false);
+
+            // Clear any pending debounced saves
+            for (const t of saveTimers.current.values()) clearTimeout(t);
+            saveTimers.current.clear();
+
+            setIsPrimaryWindow(true);
+            try {
+                // Reload the on-disk session as the base
+                const diskSession = await storage.loadSession();
+                const diskTabMap = new Map((diskSession.tabs || []).map(t => [t.id, t]));
+
+                // Identify meaningful local tabs (use ref to avoid effect dependency)
+                // A tab is NOT meaningful if: content === '' && isDirty !== true && filePath == null &&
+                // fileHandle == null && id not in disk
+                const meaningfulLocalTabs = currentTabsRef.current.filter(localTab => {
+                    const isInDisk = diskTabMap.has(localTab.id);
+                    const isPristine =
+                        localTab.content === '' &&
+                        localTab.isDirty !== true &&
+                        localTab.filePath == null &&
+                        localTab.fileHandle == null;
+
+                    // A tab is meaningful if it's in disk OR it's not pristine
+                    return isInDisk || !isPristine;
+                });
+
+                // Build merged tabs: disk tabs + meaningful local tabs
+                const mergedTabs = [...(diskSession.tabs || [])];
+                for (const localTab of meaningfulLocalTabs) {
+                    const idx = mergedTabs.findIndex(t => t.id === localTab.id);
+                    if (idx !== -1) {
+                        // Replace: local edit wins
+                        mergedTabs[idx] = localTab;
+                    } else {
+                        // Append: new local tab
+                        mergedTabs.push(localTab);
+                    }
+                }
+
+                // Sort merged tabs by diskSession.tabOrder, same as loadAndSetupSession
+                if (diskSession.tabOrder && diskSession.tabOrder.length > 0) {
+                    const orderMap = new Map(diskSession.tabOrder.map((id, index) => [id, index]));
+                    mergedTabs.sort((a, b) => {
+                        const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
+                        const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
+                        return indexA - indexB;
+                    });
+                }
+
+                setTabs(mergedTabs);
+
+                // Adopt metadata from disk
+                adoptSessionMeta(diskSession);
+
+                // Restore pre-promotion activeTabId if the tab still exists in merged state
+                if (mergedTabs.some(t => t.id === localActiveId)) {
+                    setActiveTabId(localActiveId);
+                }
+
+                // Persist meaningful local tabs
+                for (const localTab of meaningfulLocalTabs) {
+                    await storage.saveTab(localTab);
+                }
+
+                // Persist metadata
+                await storage.saveMetadata({
+                    activeTabId: diskSession.activeTabId || mergedTabs[0]?.id,
+                    recentFiles: diskSession.recentFiles || [],
+                    settings: diskSession.settings || {},
+                    tabOrder: mergedTabs.map(t => t.id)
+                });
+            } catch (err) {
+                console.error('Failed to promote to primary window:', err);
+            } finally {
+                setIsSessionLoaded(true);
+            }
+
+            // Hold the lock until this window unloads
+            await new Promise((resolve) => {
+                if (abortController.signal.aborted) { resolve(); return; }
+                abortController.signal.addEventListener('abort', () => resolve(), { once: true });
+            });
         };
 
         // Add a small delay to allow cleanup of previous effect (Strict Mode) to release lock
@@ -330,6 +457,10 @@ export const SessionProvider = ({ children }) => {
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
     }, [saveSession, isPrimaryWindow, isSessionLoaded]);
 
+    const clearRestoreWarning = useCallback(() => {
+        setRestoreWarning(null);
+    }, []);
+
     const value = {
         tabs,
         activeTabId,
@@ -346,7 +477,9 @@ export const SessionProvider = ({ children }) => {
         isSessionLoaded,
         settings,
         updateSettings,
-        saveSession
+        saveSession,
+        restoreWarning,
+        clearRestoreWarning
     };
 
     return (
