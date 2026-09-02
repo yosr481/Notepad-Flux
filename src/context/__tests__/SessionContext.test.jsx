@@ -430,3 +430,55 @@ describe('SessionContext.closeTab — primary persistence (P0-5 / P2-close-timer
         );
     });
 });
+
+// TASK 8 — tabOrder metadata write is gated on the id-list actually changing (P1-5)
+describe('SessionContext tabOrder write gating (P1-5)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true, writable: true, value: createFakeLockManager(),
+        });
+    });
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        vi.useRealTimers();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+    });
+
+    async function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        return api;
+    }
+
+    const tabOrderCalls = () =>
+        storage.saveMetadata.mock.calls.filter(
+            ([arg]) => arg && Object.prototype.hasOwnProperty.call(arg, 'tabOrder')
+        );
+
+    it('does NOT re-write tabOrder on content edits (id list unchanged)', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+
+        act(() => { api.updateTab('tab-1', { content: 'a' }); });
+        act(() => { api.updateTab('tab-1', { content: 'ab' }); });
+        act(() => { api.updateTab('tab-1', { content: 'abc' }); });
+
+        expect(tabOrderCalls()).toHaveLength(0);
+    });
+
+    it('DOES write tabOrder when a tab is added (id list changed)', async () => {
+        const api = await renderPrimary();
+        storage.saveMetadata.mockClear();
+
+        act(() => { api.createTab({ content: 'new' }); });
+
+        const calls = tabOrderCalls();
+        expect(calls.length).toBeGreaterThanOrEqual(1);
+        const lastOrder = calls[calls.length - 1][0].tabOrder;
+        expect(lastOrder.length).toBe(2);
+    });
+});

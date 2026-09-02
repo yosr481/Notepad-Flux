@@ -388,14 +388,18 @@ export const SessionProvider = ({ children }) => {
         });
     }, []);
 
-    // Effect to save tab order if needed. 
-    // Since we store tabs individually, we might lose order on reload if we rely on IDB key order.
-    // Let's save the tab IDs order in metadata.
+    // Persist the tab-id order to metadata. `tabs` is a fresh array on every
+    // keystroke (updateTab), but the ORDER only changes on create/close/reorder,
+    // so gate the write on the id-list actually changing - otherwise every
+    // keypress triggers an openDB + encrypt (IPC) + txn for an unchanged value.
+    const prevTabOrderRef = useRef('');
     useEffect(() => {
-        if (isPrimaryWindow && isSessionLoaded) {
-            const order = tabs.map(t => t.id);
-            storage.saveMetadata({ tabOrder: order });
-        }
+        if (!isPrimaryWindow || !isSessionLoaded) return;
+        const order = tabs.map(t => t.id);
+        const key = order.join(',');
+        if (key === prevTabOrderRef.current) return;
+        prevTabOrderRef.current = key;
+        storage.saveMetadata({ tabOrder: order });
     }, [tabs, isPrimaryWindow, isSessionLoaded]);
 
     const updateSettings = useCallback((newSettings) => {
