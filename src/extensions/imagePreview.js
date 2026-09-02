@@ -144,7 +144,7 @@ export const imagePreview = ViewPlugin.fromClass(class {
                 this.debounceTimer = setTimeout(() => {
                     if (this.pendingView) {
                         this.decorations = this.computeDecorations(this.pendingView);
-                        this.pendingView.requestMeasure();
+                        this.pendingView.dispatch({});
                     }
                 }, 300);
             } else {

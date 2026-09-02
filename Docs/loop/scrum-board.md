@@ -11,7 +11,7 @@ Branch: `fix/audit-remediation`.
 | 4 | last-tab delete guard + cancel pending debounced saveTab on close | P0 | P0-5, P2-close-timer | done | 1 | a9b27d1 |
 | 5 | editor: real isDirty compare; find/replace try-catch | P1 | P1-4, P1-11 | done | 1 | a747031 |
 | 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
-| 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | queued | 0 | |
+| 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | in-progress | 1 | |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | queued | 0 | |
 | 9 | close paths: sync dirty guard all windows + Electron close handler; flush editor before save; save-failure toast + requestPermission | P1 | P1-6, P1-7, P1-8 | queued | 0 | |
 | 10 | electron path hardening: realpathSync in isPathSafe; narrow userData allowlist | P1 | P1-12, P1-13 | queued | 0 | |
