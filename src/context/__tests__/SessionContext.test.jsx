@@ -290,3 +290,143 @@ describe('SessionContext primary-window failover (P0-4 / A1 / A2)', () => {
         expect(apiA.restoreWarning).toBeNull();
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 4 — closeTab: last-tab delete guard + cancel pending debounced saveTab
+//          (P0-5 + P2-close-timer)
+// ---------------------------------------------------------------------------
+//
+// Pinned contract (choices the spec left open, stated so they read as
+// decisions and not oversights):
+//
+//  * closeTab on a NON-last tab, primary window:
+//      - tab is removed from `tabs`
+//      - storage.deleteTab IS called exactly once, with that id (a bare string,
+//        not an object)
+//  * closeTab on the LAST remaining tab, primary window:
+//      - `tabs` is completely unchanged (same length, same id)
+//      - storage.deleteTab is NOT called at all (the disk row must survive so
+//        the tab comes back on next launch) — P0-5
+//  * The delete branch is gated on BOTH the close actually having happened AND
+//      (isPrimaryWindow && isSessionLoaded). A non-primary window never calls
+//      storage.deleteTab.
+//  * A pending debounced saveTab for the tab being closed (non-last) is
+//      cancelled: the 1000ms setTimeout is cleared and its saveTimers entry
+//      removed, so storage.saveTab is never called for that id after the close —
+//      P2-close-timer. Observable proxy for "entry removed" is "saveTab not
+//      fired for that id" (saveTimers is a private ref).
+//  * Closing one tab does NOT disturb a pending debounced save for a DIFFERENT,
+//      still-open tab — only the closed tab's timer is cancelled.
+//
+// All four "new bug" assertions below fail against the current code:
+//   - P0-5: storage.deleteTab fires on last-tab close
+//   - P2:   the closed tab's debounced saveTab still fires after close
+
+describe('SessionContext.closeTab — primary persistence (P0-5 / P2-close-timer)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true,
+            writable: true,
+            value: createFakeLockManager(),
+        });
+    });
+
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        vi.useRealTimers();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+    });
+
+    // default loadSession mock returns { tabs: [] } -> provider keeps its own
+    // single default tab-1, which is exactly the last-tab scenario.
+    async function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        return api;
+    }
+
+    const twoTabs = () => ([
+        { id: 'tab-1', title: 'A', content: '', isDirty: false, filePath: null, fileHandle: null },
+        { id: 'tab-2', title: 'B', content: '', isDirty: false, filePath: null, fileHandle: null },
+    ]);
+
+    // P0-5: the core bug. Closing the only tab must not delete its disk row.
+    it('does NOT call storage.deleteTab when closing the last remaining tab', async () => {
+        const api = await renderPrimary();
+        expect(api.tabs).toHaveLength(1);
+        const lastId = api.tabs[0].id;
+        storage.deleteTab.mockClear();
+
+        act(() => { api.closeTab(lastId); });
+
+        expect(api.tabs.map(t => t.id)).toEqual([lastId]);
+        expect(storage.deleteTab).not.toHaveBeenCalled();
+    });
+
+    // regression guard: the normal close path still deletes the disk row.
+    it('calls storage.deleteTab(id) once and removes the tab when others remain', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+        storage.deleteTab.mockClear();
+
+        act(() => { api.closeTab('tab-1'); });
+
+        expect(api.tabs.map(t => t.id)).toEqual(['tab-2']);
+        expect(storage.deleteTab).toHaveBeenCalledTimes(1);
+        expect(storage.deleteTab).toHaveBeenCalledWith('tab-1');
+    });
+
+    // gate: a non-primary window must never touch the disk row.
+    it('does NOT call storage.deleteTab when the window is not primary', async () => {
+        delete navigator.locks; // no Web Locks -> provider never becomes primary
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        expect(api.isPrimaryWindow).toBe(false);
+
+        act(() => { api.setTabs(twoTabs()); });
+        storage.deleteTab.mockClear();
+
+        act(() => { api.closeTab('tab-1'); });
+
+        expect(api.tabs.map(t => t.id)).toEqual(['tab-2']);
+        expect(storage.deleteTab).not.toHaveBeenCalled();
+    });
+
+    // P2-close-timer: a pending debounced save for the closed tab is cancelled.
+    it('cancels a pending debounced saveTab for the tab being closed', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+
+        vi.useFakeTimers();
+        act(() => { api.updateTab('tab-1', { content: 'x' }); }); // schedules 1000ms saveTab
+        act(() => { api.closeTab('tab-1'); });
+        storage.saveTab.mockClear();
+        act(() => { vi.advanceTimersByTime(1100); });
+
+        expect(storage.saveTab).not.toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'tab-1' })
+        );
+    });
+
+    // P2-close-timer: closing tab-1 must not cancel tab-2's pending save.
+    it('leaves a different still-open tab’s pending debounced saveTab intact', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+
+        vi.useFakeTimers();
+        act(() => { api.updateTab('tab-2', { content: 'keep' }); });
+        act(() => { api.closeTab('tab-1'); });
+        storage.saveTab.mockClear();
+        act(() => { vi.advanceTimersByTime(1100); });
+
+        expect(storage.saveTab).toHaveBeenCalledWith(
+            expect.objectContaining({ id: 'tab-2', content: 'keep' })
+        );
+    });
+});

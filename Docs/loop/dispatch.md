@@ -17,9 +17,20 @@ Project: Notepad Flux — Electron + React 19 + CodeMirror 6 markdown editor. ES
 - Modes in force: ponytail (laziest working solution, YAGNI, mark capped corners with
   `ponytail:` comment) + caveman (terse prose; normal prose in code/commits).
 
+## REVIEW CADENCE (user directive, 2026-09-02)
+
+- Default per task: tests → writer → **tactical review only**, revise until tactical `done` + no bug>low.
+- Architectural review is **batched**: one architect pass over the combined diffs every ~3 completed tasks.
+- Pull architect into-round for a single task when it touches architecture-shaped surface: state/context
+  model, Electron IPC, persistence schema, CodeMirror extension core loop, cross-module contracts.
+  Orchestrator decides.
+- Tasks 1–3 used per-round architect (before this directive).
+
 ## GOTCHAS (grow this — each entry cost a review round)
 
-- (none yet)
+- Stale closure in the `[]`-dep election effect: read live `tabs`/`activeTabId` via `currentTabsRef`/
+  `currentActiveTabIdRef`, never the closed-over state var (frozen at first render).
+- `decrypt` throws on the `NFv1:` path now — any new caller needs a try/catch.
 
 ## VERIFICATION
 

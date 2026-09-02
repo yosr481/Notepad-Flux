@@ -291,15 +291,29 @@ export const SessionProvider = ({ children }) => {
     }, [tabs, isPrimaryWindow, isSessionLoaded]);
 
     const closeTab = useCallback((id) => {
+        // Decide synchronously from the live tab list (the setTabs updater runs
+        // later, so a flag mutated inside it isn't visible here). The last tab is
+        // never removed (L3), so a last-tab close must not touch disk either.
+        const willRemove =
+            currentTabsRef.current.some(t => t.id === id) &&
+            currentTabsRef.current.length > 1;
+
         setTabs(prev => {
             const newTabs = prev.filter(t => t.id !== id);
-            // Never remove the last tab (L3): the old code returned the filtered
-            // (empty) array here, which defeated the guard.
             if (newTabs.length === 0) return prev;
             return newTabs;
         });
 
-        if (isPrimaryWindow && isSessionLoaded) {
+        // Only touch disk when the tab was actually removed. Deleting the row for
+        // a last-tab close that the UI refused would lose that tab on next launch.
+        if (willRemove && isPrimaryWindow && isSessionLoaded) {
+            // Cancel any pending debounced save for this tab, otherwise its 1s
+            // timer fires after deleteTab and re-puts the row (phantom tab).
+            const pending = saveTimers.current.get(id);
+            if (pending) {
+                clearTimeout(pending);
+                saveTimers.current.delete(id);
+            }
             storage.deleteTab(id);
         }
     }, [isPrimaryWindow, isSessionLoaded]);
