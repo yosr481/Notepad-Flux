@@ -149,3 +149,39 @@ describe('sanitizeFilename', () => {
         expect(sanitizeFilename('a\\b')).not.toContain('\\');
     });
 });
+
+describe('ElectronDriver normalises binary content before IPC (P2-pdf)', () => {
+    let saveFileMock;
+    beforeEach(() => {
+        saveFileMock = vi.fn(async () => ({ filePath: '/out/x.pdf', canceled: false }));
+        window.electronAPI = { saveFile: saveFileMock };
+    });
+    afterEach(() => { delete window.electronAPI; });
+
+    it('converts a Blob to a Uint8Array (not [object Blob]) for saveFileAs', async () => {
+        const blob = new Blob([new Uint8Array([1, 2, 3])], { type: 'application/pdf' });
+        await fileSystem.saveFileAs(blob, 'doc.pdf');
+        const sent = saveFileMock.mock.calls[0][0].content;
+        expect(sent).toBeInstanceOf(Uint8Array);
+        expect(Array.from(sent)).toEqual([1, 2, 3]);
+    });
+
+    it('converts a Blob for saveFile (existing handle)', async () => {
+        const blob = new Blob([new Uint8Array([9, 8])]);
+        await fileSystem.saveFile('/out/x.pdf', blob);
+        const sent = saveFileMock.mock.calls[0][0].content;
+        expect(sent).toBeInstanceOf(Uint8Array);
+        expect(Array.from(sent)).toEqual([9, 8]);
+    });
+
+    it('passes a string straight through unchanged', async () => {
+        await fileSystem.saveFileAs('# hello', 'note.md');
+        expect(saveFileMock.mock.calls[0][0].content).toBe('# hello');
+    });
+
+    it('wraps an ArrayBuffer / typed array as Uint8Array', async () => {
+        await fileSystem.saveFileAs(new Uint8Array([7]).buffer, 'x.bin');
+        expect(saveFileMock.mock.calls[0][0].content).toBeInstanceOf(Uint8Array);
+        expect(Array.from(saveFileMock.mock.calls[0][0].content)).toEqual([7]);
+    });
+});

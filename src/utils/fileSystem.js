@@ -8,6 +8,18 @@ if (typeof require !== 'undefined') {
     }
 }
 
+// The Electron IPC bridge (contextBridge) can't clone a Blob, and Node's
+// writeFile coerces one to the string "[object Blob]" — so a PDF/binary export
+// landed on disk as an 11-byte broken file. Normalise anything non-string to a
+// Uint8Array before it crosses IPC; strings pass straight through.
+const toIpcContent = async (content) => {
+    if (typeof content === 'string') return content;
+    if (content instanceof Blob) return new Uint8Array(await content.arrayBuffer());
+    if (content instanceof ArrayBuffer) return new Uint8Array(content);
+    if (ArrayBuffer.isView(content)) return new Uint8Array(content.buffer, content.byteOffset, content.byteLength);
+    return content;
+};
+
 export const sanitizeFilename = (filename) => {
     // eslint-disable-next-line no-control-regex
     const invalidChars = /[<>:"|?*/\\\x00-\x1f]/g;
@@ -269,12 +281,12 @@ const ElectronDriver = {
     },
 
     saveFile: async (handle, content) => {
-        await window.electronAPI.saveFile({ filePath: handle, content });
+        await window.electronAPI.saveFile({ filePath: handle, content: await toIpcContent(content) });
     },
 
     saveFileAs: async (content, suggestedName) => {
         const cleanName = sanitizeFilename(suggestedName);
-        const result = await window.electronAPI.saveFile({ content, suggestedName: cleanName });
+        const result = await window.electronAPI.saveFile({ content: await toIpcContent(content), suggestedName: cleanName });
         if (result.canceled) return null;
 
         const name = getFilenameFromPath(result.filePath);

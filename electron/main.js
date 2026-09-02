@@ -9,6 +9,7 @@ import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
+import { filtersForName } from './dialogFilters.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -113,10 +114,11 @@ safeHandle('read-file-content', async (event, filePath) => {
     return await readFile(filePath, 'utf-8')
 })
 
-safeHandle('save-file', async (event, { filePath, content }) => {
+safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     if (!filePath) {
         const { canceled, filePath: savePath } = await dialog.showSaveDialog({
-            filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+            defaultPath: suggestedName || undefined,
+            filters: filtersForName(suggestedName)
         })
         if (canceled) return { canceled: true }
         filePath = savePath
@@ -125,7 +127,9 @@ safeHandle('save-file', async (event, { filePath, content }) => {
         throw new Error('Access denied: Unauthorized file path.')
     }
 
-    await writeFile(filePath, content, 'utf-8')
+    // content is a string for text saves, a Uint8Array (from the IPC bridge) for
+    // binary exports like PDF. Buffer.from copies the typed array; no encoding arg.
+    await writeFile(filePath, typeof content === 'string' ? content : Buffer.from(content))
     return { filePath, canceled: false }
 })
 
