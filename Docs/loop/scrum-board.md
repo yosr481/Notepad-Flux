@@ -13,7 +13,7 @@ Branch: `fix/audit-remediation`.
 | 6 | livePreview: scope decoration build to viewport + changed ranges (StateField + viewport StateEffect; architect in-round) | P1 | P1-2 | done | 1 | 1169c03 |
 | 7 | image/link large-doc repaint fix (annotation transaction) | P1 | P1-3 | done | 1 | 55778c7 |
 | 8 | gate tabOrder write on id-list join | P1 | P1-5 | done | 1 | ec76733 |
-| 9 | close paths (renderer): flush live editor content before close-save; save-failure toast + requestPermission; synchronous beforeunload dirty guard for ALL windows | P1 | P1-7, P1-8, P1-6a | in-review | 1 | |
+| 9 | close paths (renderer): flush live editor content before close-save; save-failure toast + requestPermission; synchronous beforeunload dirty guard for ALL windows | P1 | P1-7, P1-8, P1-6a | done | 1 | 79832cc |
 | 10 | electron: realpathSync in isPathSafe; narrow userData allowlist; win.on('close') dirty-guard IPC (P1-6b, moved from Task 9); architect in-round | P1 | P1-12, P1-13, P1-6b | queued | 0 | |
 | 11 | ~~sanitize allowlist~~ — MERGED INTO TASK 2 | P2 | P2-sanitize | merged | 0 | — |
 | 12 | Electron PDF export: Buffer.from(blob); dialog filters by extension | P2 | P2-pdf | queued | 0 | |
@@ -35,6 +35,8 @@ Branch: `fix/audit-remediation`.
 Statuses: queued → tests-written → in-progress → in-review → done
 
 ## Log
+
+- **Task 9** (1 round; tactical-only, needs-revision for one dead var → fixed inline). fileSystem.js: `WebNativeDriver.saveFile` gates on `queryPermission`/`requestPermission({mode:'readwrite'})` before `createWritable`, throws if denied. useCommands.js: `showToast` on every save/close-save failure (was bare console.error); `closeTab({editorRef})` + `closeWindow(editorRef)` save `editorRef.current.getCurrentContent()` for the ACTIVE tab (debounce-lag fix), `tab.content` otherwise; `closeOtherTabs`/`closeTabsToRight` take + forward `editorRef`. App.jsx: `beforeunload` now synchronous `preventDefault()`+`returnValue=''` for ANY dirty window (was `!isPrimaryWindow`-gated + broken async setTimeout); `closingRef` removed; editorRef threaded to all close entry points. Tactical repaired the P1-7 test block's missing `window.close` spy. 175 green. Electron `win.on('close')` guard = Task 10.
 
 - **Task 8** (inline; trivial ~8-line effect gate + 2 tests). SessionContext tabOrder effect: compare `tabs.map(t=>t.id).join(',')` vs `prevTabOrderRef`, return early if unchanged — keystrokes no longer trigger an openDB+encrypt+txn for an unchanged value. 151 green.
 
