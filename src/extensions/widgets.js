@@ -128,3 +128,25 @@ export class EntityWidget extends WidgetType {
     }
 }
 
+export class OrderedMarkerWidget extends WidgetType {
+    constructor(text) {
+        super();
+        this.text = text;
+    }
+
+    toDOM() {
+        const span = document.createElement("span");
+        span.className = "cm-ordered-marker";
+        span.textContent = this.text;
+        return span;
+    }
+
+    eq(other) {
+        return other.text === this.text;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
+}
+
