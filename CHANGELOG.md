@@ -16,7 +16,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live Preview — tables:** Honour column alignment (`:--`, `:-:`, `--:`), render tables nested in a blockquote, and treat `\|` in a cell as a literal pipe.
 - **Live Preview — headings & lists:** Hide the trailing `##` of a closed ATX heading and the `===`/`---` underline of a setext heading; renumber `1.`/`1.`/`1.` ordered lists to `1.`/`2.`/`3.`; indent nested `> >` blockquotes.
 - **Live Preview — links:** Resolve reference-style links and images (`[text][id]`, `[id]`, `![alt][id]`, `[id]: url` definitions) and render `[![alt](img)](url)` as a clickable image.
+- **Live Preview — images:** Fix a crash that stopped **all** images from rendering when a reference-style image appeared before an inline image (decoration ranges are now sorted before being applied).
+- **Live Preview — blockquotes:** Show one vertical bar per nesting level so `> >` / `> > >` quotes read as nested (previously a single bar with extra indent).
 - **Desktop:** Set an explicit window `backgroundColor` (dark/light aware) to remove the white flash on launch and the light window frame in dark mode; only apply the Windows-only `mica` / title-bar-overlay chrome on Windows.
+- **Desktop:** Keep the native window controls (minimise / maximise / close) on Linux and macOS — `titleBarStyle: 'hidden'` is now Windows-only, where the overlay draws replacements.
+
+### Features
+- **Tabs:** Tabs stretch to fill the full width of the tab bar; the new-tab (`+`) button stays pinned just right of the last tab and never scrolls out of view when many tabs are open.
 
 ## [1.3.2] — 2026-04-14
 
