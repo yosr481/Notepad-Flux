@@ -16,5 +16,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return () => ipcRenderer.removeListener('main-process-message', subscription);
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
-    openExternal: (url) => ipcRenderer.invoke('open-external', url)
+    openExternal: (url) => ipcRenderer.invoke('open-external', url),
+    // Only Windows draws overlay caption buttons over the page (titleBarOverlay);
+    // the renderer reserves top-right space for them on that platform only.
+    platform: process.platform,
 })

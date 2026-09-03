@@ -180,6 +180,7 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                 </button>
             )}
 
+            {/* Always visible, pinned right after the tab list — never scrolls out of view */}
             <button className={styles.newTabButton} onClick={onNewTab} title="New Tab (Ctrl+N)">
                 +
             </button>

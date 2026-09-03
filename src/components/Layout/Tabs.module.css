@@ -10,12 +10,17 @@
     user-select: none;
     position: relative;
     padding: 0 10px;
-    padding-right: 140px;
-    /* Space for Window Controls */
     /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
     -webkit-app-region: drag;
+}
+
+/* Windows overlays the caption buttons (min/max/close) on the top-right of the
+   page; reserve room for them there. Other platforms use a native frame, so the
+   tab bar takes the full width. */
+:global(body.platform-win32) .tabsContainer {
+    padding-right: 140px;
 }
 
 .appIcon {
@@ -87,8 +92,10 @@
     height: 32px;
     /* Leaves 8px space for container padding */
     min-width: 100px;
-    max-width: 200px;
-    flex: 0 1 160px;
+    flex: 1 1 0;
+    /* Grow to fill the bar when there are few tabs; shrink to min-width and let
+       the list scroll when there are many. No max-width: the tabs always span
+       the full width of the bar. */
     border-right: 1px solid var(--background-modifier-border);
     /* Separator */
     background-color: transparent;
@@ -217,16 +224,16 @@
     align-items: center;
     justify-content: center;
     min-width: 32px;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 26px;
+    font-size: 24px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
-    margin-left: 4px;
+    margin: 0 4px;
     transition: all var(--transition-fast);
     -webkit-app-region: no-drag;
 }
@@ -237,7 +244,12 @@
 }
 
 .dragHandle {
-    min-width: 32px;
-    width: 92px;
+    flex-shrink: 0;
+    width: 12px;
     -webkit-app-region: drag;
+}
+
+/* Wider grab strip on Windows so there is still a drag zone beside the caption buttons */
+:global(body.platform-win32) .dragHandle {
+    width: 92px;
 }
