@@ -507,3 +507,43 @@ describe('Live Preview Extension — HTML entities decode to their character (au
         expect(countDecos(field, 0, doc.length)).toBe(0);
     });
 });
+
+describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / audit #6)', () => {
+    // Verified against the installed @lezer/markdown for
+    //   'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n':
+    //     Blockquote [3,38]
+    //       QuoteMark [3,4]
+    //       Table [5,38]         <-- Table DOES nest under Blockquote
+    //         TableHeader [5,14] "| a | b |"
+    //         ... (rows 2+ still carry the "> " prefix in the sliced text)
+    //   doc.sliceString(Table.from, Table.to) ===
+    //     "| a | b |\n> | - | - |\n> | 1 | 2 |"
+    //
+    // Pinned: the Table range [5,38] carries exactly one Decoration.replace
+    // whose .spec.widget is a TableWidget, and (after the #6 fix) that widget's
+    // .htmlContent contains "<table" and NOT "cm-table-empty".
+    const doc = 'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n';
+    const tFrom = 5;
+    const tTo = 38;
+    const full = { from: 0, to: doc.length };
+
+    it('the parser nests Table under Blockquote and the slice still has the "> " prefix', () => {
+        const state = gfm(doc, { anchor: 0 });
+        expect(state.doc.sliceString(tFrom, tTo))
+            .toBe('| a | b |\n> | - | - |\n> | 1 | 2 |');
+    });
+
+    it('cursor off the table: one TableWidget replace over [5,38] with a real <table>, not "Empty Table"', () => {
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full);
+        const widgets = [];
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec && v.spec.widget instanceof TableWidget) widgets.push([f, t, v]);
+        });
+        expect(widgets.length).toBe(1);
+        expect(widgets[0][0]).toBe(tFrom);
+        expect(widgets[0][1]).toBe(tTo);
+        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
+        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('cm-table-empty');
+        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('Empty Table');
+    });
+});

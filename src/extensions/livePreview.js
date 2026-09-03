@@ -371,8 +371,20 @@ const livePreviewField = StateField.define({
     provide: field => EditorView.decorations.from(field)
 });
 
+// Split a table row on unescaped `|`, unescaping `\|` -> `|` in each cell.
+// Placeholder swap avoids a lookbehind regex (Safari <16.4 has none).
+const CELL_PH = String.fromCharCode(0); // NUL — never appears in table markdown
+function splitCells(row) {
+    return row
+        .split('\\|').join(CELL_PH)   // protect escaped pipes
+        .split('|')                   // split on real separators
+        .map(c => c.split(CELL_PH).join('|')); // restore as literal pipe
+}
+
 export function convertTableToHTML(text) {
-    const rows = text.trim().split('\n');
+    let rows = text.trim().split('\n');
+    // Strip blockquote prefix from each row (audit #6)
+    rows = rows.map(r => r.replace(/^>\s?/, ''));
     if (rows.length < 2) return "<div class='cm-table-empty'>Empty Table</div>";
 
     let alignments = [];
@@ -384,7 +396,7 @@ export function convertTableToHTML(text) {
     const isValidDelimiter = /^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-');
     if (isValidDelimiter) {
         const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
-        alignments = cleanDelimiter.split('|').map(s => {
+        alignments = splitCells(cleanDelimiter).map(s => {
             s = s.trim();
             if (s.startsWith(':') && s.endsWith(':')) return 'center';
             if (s.endsWith(':')) return 'right';
@@ -413,13 +425,13 @@ export function convertTableToHTML(text) {
         const cellTag = isHeader ? "th" : "td";
 
         let rowHtml = "<tr>";
-        const cells = cleanRow.split('|');
+        const cells = splitCells(cleanRow);
         for (let j = 0; j < cells.length; j++) {
-            const content = cells[j].trim();
+            let content = cells[j].trim();
             const parsed = parseCellContent(content);
             let alignAttr = "";
             if (alignments[j]) {
-                alignAttr = ` style="text-align: ${alignments[j]}"`;
+                alignAttr = ` class="cm-align-${alignments[j]}"`;
             }
             rowHtml += `<${cellTag}${alignAttr}>${parsed}</${cellTag}>`;
         }
