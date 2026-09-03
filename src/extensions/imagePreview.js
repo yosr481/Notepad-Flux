@@ -1,6 +1,7 @@
 import { WidgetType, Decoration } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
+import { resolveLinkDefs, normalizeLabel } from "./linkDefs";
 
 class LRUCache {
     constructor(limit = 100) {
@@ -125,13 +126,18 @@ class ImageWidget extends WidgetType {
 }
 
 const imageMatcher = /!\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
+const imageRefFullMatcher = /!\[([^\]]*)\]\[([^\]]*)\]/g;
+const imageRefShortcutMatcher = /!\[([^\]]+)\](?!\[|\()/g;
 
 function computeImageDecorations(view) {
     const builder = new RangeSetBuilder();
     const { from: selFrom, to: selTo } = view.state.selection.main;
+    const defs = resolveLinkDefs(view.state);
 
     for (const { from, to } of view.visibleRanges) {
         const text = view.state.doc.sliceString(from, to);
+
+        // Inline images: ![alt](url)
         imageMatcher.lastIndex = 0;
         let match;
 
@@ -150,6 +156,57 @@ function computeImageDecorations(view) {
                     widget: new ImageWidget(match[2], match[1], true),
                     side: 1
                 }));
+            }
+        }
+
+        // Reference-style images: ![alt][id] or ![id][]
+        imageRefFullMatcher.lastIndex = 0;
+        while ((match = imageRefFullMatcher.exec(text))) {
+            const start = from + match.index;
+            const end = start + match[0].length;
+            const alt = match[1];
+            const label = match[2] || alt;  // If empty label, use alt
+            const normalizedLabel = normalizeLabel(label);
+            const def = defs.get(normalizedLabel);
+
+            if (def) {
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
+                if (!isCursorInside) {
+                    builder.add(start, end, Decoration.replace({
+                        widget: new ImageWidget(def.url, alt, false),
+                        inclusive: false
+                    }));
+                } else {
+                    builder.add(end, end, Decoration.widget({
+                        widget: new ImageWidget(def.url, alt, true),
+                        side: 1
+                    }));
+                }
+            }
+        }
+
+        // Shortcut reference images: ![id]
+        imageRefShortcutMatcher.lastIndex = 0;
+        while ((match = imageRefShortcutMatcher.exec(text))) {
+            const start = from + match.index;
+            const end = start + match[0].length;
+            const alt = match[1];
+            const normalizedLabel = normalizeLabel(alt);
+            const def = defs.get(normalizedLabel);
+
+            if (def) {
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
+                if (!isCursorInside) {
+                    builder.add(start, end, Decoration.replace({
+                        widget: new ImageWidget(def.url, alt, false),
+                        inclusive: false
+                    }));
+                } else {
+                    builder.add(end, end, Decoration.widget({
+                        widget: new ImageWidget(def.url, alt, true),
+                        side: 1
+                    }));
+                }
             }
         }
     }
