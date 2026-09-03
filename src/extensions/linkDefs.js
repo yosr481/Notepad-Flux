@@ -24,6 +24,9 @@ export function normalizeLabel(raw) {
     return label;
 }
 
+// Returns a Map<normalizedLabel, {url, title?}> of link reference definitions in
+// the document, memoized per EditorState. The Map is shared across callers —
+// callers must treat it as read-only and never mutate it.
 export function resolveLinkDefs(state) {
     // Check cache first
     if (cache.has(state)) {
