@@ -24,6 +24,11 @@ function App() {
         if (window.electronAPI?.getAppVersion) {
             window.electronAPI.getAppVersion().then(setAppVersion).catch(() => { });
         }
+        // Windows draws overlay caption buttons over the top-right of the page;
+        // mark the body so the tab bar can reserve room for them (that platform only).
+        if (window.electronAPI?.platform === 'win32') {
+            document.body.classList.add('platform-win32');
+        }
     }, []);
     const [stats, setStats] = useState({
         line: 1,
