@@ -306,3 +306,73 @@ describe('imagePreview — image title attribute (TASK 3)', () => {
         expect(widgets[0].url).toBe('https://e/x.png');
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 8 — reference-style images (audit #8): ![alt][id] / ![id][] / ![id]
+//
+// imagePreview.js resolves these over its visible ranges using two regexes plus
+// resolveLinkDefs(view.state):
+//   full-ref  /!\[([^\]]*)\]\[([^\]]*)\]/g   — label = group2 || group1, alt = group1
+//   shortcut  /!\[([^\]]+)\](?!\[|\()/g      — label = group1,           alt = group1
+//
+// PINNED:
+//   * ![alt][id]  -> widget.url === def.url, widget.alt === "alt"
+//   * ![id][]     -> widget.url === def.url, widget.alt === "id"  (empty label
+//                     falls back to the visible alt text)
+//   * ![id]       -> widget.url === def.url, widget.alt === "id"
+//   * unresolved ![alt][nope] (no matching LRD) -> NO widget, left as source
+//   * the inline ![alt](url) path is unaffected.
+// ---------------------------------------------------------------------------
+
+describe('imagePreview — reference-style images (TASK 8)', () => {
+    it('full ref ![alt][id]: widget src from the LRD, alt "alt" (FAILS before fix)', () => {
+        const view = withCursorOff('![alt][id]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('alt');
+    });
+
+    it('collapsed ref ![id][]: src from the LRD, alt "id" (FAILS before fix)', () => {
+        const view = withCursorOff('![id][]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('id');
+    });
+
+    it('shortcut ref ![id]: src from the LRD, alt "id" (FAILS before fix)', () => {
+        const view = withCursorOff('![id]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('id');
+    });
+
+    it('unresolved ![alt][nope] (no matching LRD) -> NO widget, left as source', () => {
+        const view = withCursorOff('![alt][nope]');
+        expect(imageWidgets(view).length).toBe(0);
+    });
+
+    it('the inline ![alt](url) path is unaffected by the ref matcher', () => {
+        const view = withCursorOff('![x](https://e/x.png)');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png');
+        expect(w.alt).toBe('x');
+    });
+
+    // GAP (reviewer-added): the inline imageMatcher's `.*?` alt group can span
+    // across `]` `[`, so on ONE line holding a resolved reference image followed
+    // by an inline image it matches the whole run [0..end]. The ref-full matcher
+    // then adds an overlapping range [0..shorter] to the SAME RangeSetBuilder
+    // after the longer one -> "Ranges must be added sorted" throw, killing all
+    // image rendering in the view. Must not throw; both images should resolve.
+    it('resolved ref image + inline image on one line does not throw', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff('![a][x] ![b](https://e/b.png)\n\n[x]: https://e/x.png');
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/b.png', 'https://e/x.png']);
+    });
+});

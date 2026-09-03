@@ -332,6 +332,21 @@ export const buildDecorations = (state, range) => {
                 }
             }
 
+            if (name === "LinkReference") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                }
+            }
+
+            if (name === "LinkLabel") {
+                const parent = node.node.parent;
+                if (parent && (parent.name === "Link" || parent.name === "Image")) {
+                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
             // 10. Code Blocks (Fenced)
             if (name === "FencedCode") {
                 // Always style the code block lines, even when active

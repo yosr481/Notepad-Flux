@@ -752,3 +752,143 @@ describe('Task 7 — nested blockquote depth (folded gap)', () => {
         expect(classes).not.toContain('cm-blockquote-depth-2');
     });
 });
+
+// ===========================================================================
+// TASK 8 — reference-style links & images (audit #8) + image-in-link (#14)
+// ===========================================================================
+//
+// Lezer node/child names verified against the installed @codemirror/lang-markdown
+// (the gfm() helper above):
+//
+//   "x\n\n[id]: http://x"          -> LinkReference[3,17]
+//                                      LinkLabel[3,7] "[id]", LinkMark[7,8] ":", URL[9,17]
+//   "x\n\n> [id]: http://x"        -> Blockquote[3,19] > QuoteMark[3,4],
+//                                      LinkReference[5,19]  (LRD nests in a blockquote)
+//   "x\n\n[text][id]\n..."         -> Link[3,13] > LinkMark[3,4] "[", LinkMark[8,9] "]",
+//                                      LinkLabel[9,13] "[id]"  ; visible text "text" = [4,8]
+//                                      (no wrapper node around the visible text)
+//   "x\n\n![alt][id]\n..."         -> Image[3,13] > LinkMark[3,5] "![", LinkMark[8,9] "]",
+//                                      LinkLabel[9,13] "[id]"
+//   "x\n\n[id]\n..." (shortcut)    -> Link[3,7] > LinkMark[3,4], LinkMark[6,7] — NO LinkLabel
+//   LRD is NOT emitted inside a ``` fence; IS emitted inside a blockquote.
+//
+// buildDecorations does NOT import linkDefs — it hides syntactically valid nodes
+// regardless of whether a matching definition exists.
+//
+// PINNED CONVENTIONS (writer must match):
+//  #8-LRD   For a `LinkReference` node the cursor is NOT touching (predicate is
+//           isCursorTouching(selection, LinkReference.from, LinkReference.to) —
+//           RANGE-scoped, same precedent as FencedCode's multi-line reveal): one
+//           bare Decoration.replace({}) (spec.widget === undefined) covering
+//           EXACTLY [LinkReference.from, LinkReference.to]. Any selection range
+//           intersecting that span reveals the whole line (nothing hidden).
+//  #8-LABEL For a `LinkLabel` node whose PARENT is `Link` or `Image` and the
+//           cursor is NOT touching that parent (isCursorTouching over
+//           [parent.from, parent.to]): one bare Decoration.replace({}) covering
+//           exactly the LinkLabel range. The visible link text is never covered.
+//           A `LinkLabel` whose parent is `LinkReference` is NOT hidden by this
+//           branch (the whole-line #8-LRD replace already covers it).
+//  #8-SHORT A shortcut ref `[id]` has no LinkLabel child — nothing crashes and no
+//           label replace is pushed. The pre-existing `[` / `]` LinkMark handling
+//           (parent === "Link") is unchanged.
+//  #8-VIEW  A LinkReference outside the build `range` is simply never visited —
+//           0 decorations over its span. "Invisible ⇒ fine", not a bug.
+
+const t8bareReplacesAt = (field, from, to) =>
+    decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+describe('Task 8 — LinkReference (LRD) line hidden (audit #8)', () => {
+    it('"x\\n\\n[id]: http://x" cursor off the LRD line: one bare replace over [3,17]', () => {
+        const doc = 'x\n\n[id]: http://x'; // LinkReference[3,17]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 3, 17);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('cursor on the LRD line (anchor mid-line, outside the label) reveals it: nothing hidden over [3,17]', () => {
+        // anchor 10 is inside LinkReference[3,17] but outside LinkLabel[3,7].
+        // Pins: (a) the LRD reveal predicate is range-scoped, (b) the #8-LABEL
+        // branch does not fire for a LinkReference-parented LinkLabel.
+        const doc = 'x\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 10 }), { from: 0, to: doc.length });
+        expect(countDecos(field, 3, 17)).toBe(0);
+    });
+});
+
+describe('Task 8 — LRD nested in a blockquote', () => {
+    it('"x\\n\\n> [id]: http://x" cursor off: the inner LinkReference[5,19] still gets the bare replace', () => {
+        const doc = 'x\n\n> [id]: http://x'; // Blockquote[3,19], LinkReference[5,19]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 5, 19);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+});
+
+describe('Task 8 — LinkLabel hidden for reference links / images', () => {
+    it('[text][id] cursor off: bare replace over LinkLabel[9,13], visible "text" NOT covered', () => {
+        const doc = 'x\n\n[text][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+
+        // The reference label is hidden.
+        const vs = t8bareReplacesAt(field, 9, 13);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+
+        // The visible link text "text" ([4,8]) interior is untouched.
+        expect(countDecos(field, 5, 7)).toBe(0);
+
+        // Regression: the pre-existing "[" / "]" LinkMark replaces are unchanged.
+        expect(t8bareReplacesAt(field, 3, 4).length).toBe(1); // "["
+        expect(t8bareReplacesAt(field, 8, 9).length).toBe(1); // "]"
+    });
+
+    it('[text][id] cursor touching the Link: the label is revealed (nothing over [9,13])', () => {
+        const doc = 'x\n\n[text][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), { from: 0, to: doc.length }); // inside Link[3,13]
+        expect(countDecos(field, 9, 13)).toBe(0);
+    });
+
+    it('![alt][id] cursor off: LinkLabel[9,13] under an Image parent is hidden the same way', () => {
+        const doc = 'x\n\n![alt][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 9, 13);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('![alt][id] cursor touching the Image: the label is revealed', () => {
+        const doc = 'x\n\n![alt][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), { from: 0, to: doc.length }); // inside Image[3,13]
+        expect(countDecos(field, 9, 13)).toBe(0);
+    });
+});
+
+describe('Task 8 — shortcut [id] (no LinkLabel node) is safe', () => {
+    it('cursor off: nothing crashes, no label replace, existing [ ] LinkMark handling intact', () => {
+        const doc = 'x\n\n[id]\n\n[id]: http://x'; // Link[3,7]: LinkMark[3,4], LinkMark[6,7]; no LinkLabel
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+
+        // No decoration collapses the whole shortcut Link span (there is no
+        // LinkLabel node, so the #8-LABEL branch has nothing to push).
+        expect(decosAt(field, 3, 7).length).toBe(0);
+        // The bracket LinkMarks are still bare-replaced (parent === "Link"), and
+        // exactly those two — nothing new inside the Link.
+        expect(t8bareReplacesAt(field, 3, 4).length).toBe(1);
+        expect(t8bareReplacesAt(field, 6, 7).length).toBe(1);
+        expect(countDecos(field, 3, 7)).toBe(2);
+        // The trailing LRD line ([9,23]) still gets its own bare replace.
+        const lrd = t8bareReplacesAt(field, 9, 23);
+        expect(lrd.length).toBe(1);
+        expect(lrd[0].spec.widget).toBeUndefined();
+    });
+});
+
+describe('Task 8 — off-viewport LRD is simply not visited (design point, not a bug)', () => {
+    it('a build range that excludes the LRD line leaves it undecorated', () => {
+        const doc = 'x\n\n[id]: http://x'; // LinkReference[3,17]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: 2 }); // excludes [3,17]
+        expect(countDecos(field, 3, 17)).toBe(0);
+    });
+});

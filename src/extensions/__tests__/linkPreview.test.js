@@ -248,3 +248,108 @@ describe('linkPreview — debounced repaint on large docs (P1-3)', () => {
         expect(computeSpy).toHaveBeenCalledTimes(1);
     });
 });
+
+// ===========================================================================
+// TASK 8 — image-in-link (#14) + reference-style link resolution (#8)
+// ===========================================================================
+//
+// #14  linkPreview.js gets, in the `!shouldReveal` block BEFORE the inline
+//      /^\[(.*?)\]\(...\)/ regex:  if (node.node.getChild("Image")) return;
+//      So "[![alt](img)](url)" produces NO LinkWidget over the outer span
+//      (previously the lazy regex matched "![alt" / "img" and rendered a bogus
+//      widget).
+//
+// #8   linkPreview resolves reference-style links via resolveLinkDefs(state):
+//        * full ref   [text][id]  -> widget text = "text", url = def.url
+//        * shortcut   [id]        -> widget text = "id",   url = def.url
+//        * collapsed  [id][]      -> resolves by its visible text ("id")
+//        * unresolved [text][nope] (no matching LRD) -> NO widget, left as
+//          source (PINNED: no widget, not a reveal).
+//      Node facts (bare markdown()): "[text][id]" -> Link > LinkMark, LinkMark,
+//      LinkLabel "[id]"; "[id]" -> Link with NO LinkLabel; unresolved refs
+//      STILL parse as Link nodes (the parser does not check definitions).
+// ===========================================================================
+
+describe('linkPreview — TASK 8 (image-in-link + reference links)', () => {
+    const mounted = [];
+    const mount = (doc, anchor = 0) => {
+        const parent = document.createElement('div');
+        document.body.appendChild(parent);
+        const view = new EditorView({
+            state: EditorState.create({
+                doc,
+                selection: { anchor },
+                extensions: [markdown(), linkPreview],
+            }),
+            parent,
+        });
+        mounted.push(view);
+        return view;
+    };
+
+    // Every widget carried by the plugin's current decoration set, in doc order.
+    const linkWidgets = (view) => {
+        const set = view.plugin(linkPreview).decorations;
+        const out = [];
+        const cur = set.iter();
+        while (cur.value) {
+            const w = cur.value.spec && cur.value.spec.widget;
+            if (w) out.push(w);
+            cur.next();
+        }
+        return out;
+    };
+
+    afterEach(() => {
+        while (mounted.length) mounted.pop().destroy();
+    });
+
+    // ---- #14 image-in-link ----
+    it('image-in-link "[![alt](img)](url)" cursor away: NO LinkWidget over the outer span (FAILS before fix)', () => {
+        const view = mount('intro\n[![alt](img)](url)', 0);
+        expect(linkWidgets(view).length).toBe(0);
+    });
+
+    it('sanity: a plain [text](url) still gets its LinkWidget (the guard did not over-fire)', () => {
+        const view = mount('intro\n[text](http://x)', 0);
+        const ws = linkWidgets(view);
+        expect(ws.length).toBe(1);
+        expect(ws[0].url).toBe('http://x');
+        expect(ws[0].text).toBe('text');
+    });
+
+    // ---- #8 reference-style link resolution ----
+    it('full ref [text][id] resolves: widget text "text", url from the LRD (FAILS before fix)', () => {
+        const view = mount('intro\n[text][id]\n\n[id]: http://x', 0);
+        const ws = linkWidgets(view);
+        expect(ws.length).toBe(1);
+        expect(ws[0].text).toBe('text');
+        expect(ws[0].url).toBe('http://x');
+    });
+
+    it('shortcut ref [id] resolves: widget text "id", url from the LRD (FAILS before fix)', () => {
+        const view = mount('intro\n[id]\n\n[id]: http://x', 0);
+        const ws = linkWidgets(view);
+        expect(ws.length).toBe(1);
+        expect(ws[0].text).toBe('id');
+        expect(ws[0].url).toBe('http://x');
+    });
+
+    it('collapsed ref [id][] resolves by its visible text, like the shortcut form (FAILS before fix)', () => {
+        const view = mount('intro\n[id][]\n\n[id]: http://x', 0);
+        const ws = linkWidgets(view);
+        expect(ws.length).toBe(1);
+        expect(ws[0].text).toBe('id');
+        expect(ws[0].url).toBe('http://x');
+    });
+
+    it('unresolved ref [text][nope] (no matching LRD) -> NO widget, left as source', () => {
+        const view = mount('intro\n[text][nope]', 0);
+        expect(linkWidgets(view).length).toBe(0);
+    });
+
+    it('cursor touching a resolved ref link reveals it (no widget)', () => {
+        const view = mount('[text][id]\n\n[id]: http://x', 2); // anchor inside Link[0,10]
+        expect(linkWidgets(view).length).toBe(0);
+    });
+});
