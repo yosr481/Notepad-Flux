@@ -483,8 +483,8 @@ function parseCellContent(content) {
     html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
     // Code `text`
     html = html.replace(/`(.*?)`/g, "<code>$1</code>");
-    // Links [text](url)
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    // Links [text](url) — strip an optional "title"
+    html = html.replace(/\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g, '<a href="$2" target="_blank">$1</a>');
     // Highlights ==text==
     html = html.replace(/==(.*?)==/g, "<mark>$1</mark>");
 
