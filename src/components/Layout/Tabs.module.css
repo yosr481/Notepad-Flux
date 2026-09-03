@@ -233,7 +233,9 @@
     font-size: 24px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
-    margin: 0 4px;
+    /* No right margin: right edge lands on the container's 10px padding, the
+       same as the Settings button in the row below, so the two line up. */
+    margin: 0 0 0 4px;
     transition: color var(--transition-fast), background-color var(--transition-fast);
     -webkit-app-region: no-drag;
 }
