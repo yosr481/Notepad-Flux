@@ -171,12 +171,6 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                             />
                         ))}
                     </SortableContext>
-                    {/* Sits right after the last tab; position:sticky keeps it
-                        pinned to the right edge (always visible) once the tabs
-                        overflow and the list scrolls. */}
-                    <button className={styles.newTabButton} onClick={onNewTab} title="New Tab (Ctrl+N)">
-                        +
-                    </button>
                 </div>
             </DndContext>
 
@@ -185,6 +179,13 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                     ›
                 </button>
             )}
+
+            {/* Fixed at the far right of the tab bar. The tab list is a bounded
+                flex sibling, so tabs scroll within their own box and never reach
+                this button or the scroll arrow. */}
+            <button className={styles.newTabButton} onClick={onNewTab} title="New Tab (Ctrl+N)">
+                +
+            </button>
 
             <div className={styles.dragHandle} />
         </div>
