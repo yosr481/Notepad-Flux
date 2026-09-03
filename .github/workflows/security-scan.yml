@@ -16,9 +16,12 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
+      # Report-only: a future transitive advisory should surface here, not hard-block
+      # every push to main until someone can cut a fix.
       - name: Run NPM Audit
+        continue-on-error: true
         run: npm audit --audit-level=moderate
 
   license-check:
@@ -28,10 +31,10 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
           cache: 'npm'
       - name: Install dependencies
-        run: npm install
+        run: npm ci
       - name: Run License Check
         run: npm run license-check
 

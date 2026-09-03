@@ -1,10 +1,14 @@
 import React, { useState } from 'react';
-import { ArrowLeft } from 'phosphor-react';
+import { ArrowLeft } from 'lucide-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
+import { dialogs } from '../../utils/dialogs';
+import { useSettings, useSessionActions } from '../../context/SessionContext';
 
-const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => {
+const Settings = ({ isOpen, onClose, appVersion }) => {
     const [errors, setErrors] = useState({});
+    const { settings, updateSettings } = useSettings();
+    const { clearSessionData } = useSessionActions();
 
     if (!isOpen) return null;
 
@@ -100,7 +104,18 @@ const Settings = ({ isOpen, onClose, settings, updateSettings, appVersion }) => 
                             <div className={styles.label}>Clear saved session</div>
                             <div className={styles.description}>Remove all saved tabs and session data</div>
                         </div>
-                        <button className={`${styles.button} ${styles.danger}`}>
+                        <button
+                            className={`${styles.button} ${styles.danger}`}
+                            onClick={async () => {
+                                const ok = await dialogs.confirm({
+                                    title: 'Clear session data?',
+                                    message: 'This permanently removes all saved tabs and session data. This cannot be undone.',
+                                    confirmLabel: 'Clear',
+                                    danger: true
+                                });
+                                if (ok) clearSessionData();
+                            }}
+                        >
                             Clear Session Data
                         </button>
                     </div>

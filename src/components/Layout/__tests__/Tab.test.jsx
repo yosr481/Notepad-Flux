@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import Tab from '../Tab';
 
-// Mock phosphor-react icons
-vi.mock('phosphor-react', () => ({
+// Mock lucide-react icons
+vi.mock('lucide-react', () => ({
     X: () => <span data-testid="close-icon">X</span>,
     File: () => <span data-testid="file-icon">F</span>
 }));

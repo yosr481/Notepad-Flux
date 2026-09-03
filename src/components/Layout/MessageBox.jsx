@@ -19,16 +19,19 @@ const MessageBox = ({
   primaryLabel = 'Save',
   secondaryLabel = "Don't Save",
   cancelLabel = 'Cancel',
+  danger = false,
   onPrimary,
   onSecondary,
   onCancel
 }) => {
   useEffect(() => {
     const onKey = (e) => {
-      if (e.key === 'Escape') {
+      const isEscape = e.key === 'Escape' || e.code === 'Escape' || e.keyCode === 27;
+      const isEnter = e.key === 'Enter' || e.code === 'Enter' || e.keyCode === 13;
+      if (isEscape) {
         onCancel?.();
       }
-      if (e.key === 'Enter') {
+      if (isEnter) {
         onPrimary?.();
       }
     };
@@ -50,8 +53,10 @@ const MessageBox = ({
         <div className={styles.actions}>
           <button className={styles.cancelButton} onClick={onCancel}>{cancelLabel}</button>
           <div className={styles.spacer} />
-          <button className={styles.secondaryButton} onClick={onSecondary}>{secondaryLabel}</button>
-          <button className={styles.primaryButton} onClick={onPrimary}>{primaryLabel}</button>
+          {secondaryLabel != null && (
+            <button className={styles.secondaryButton} onClick={onSecondary}>{secondaryLabel}</button>
+          )}
+          <button className={styles.primaryButton} onClick={onPrimary} {...(danger ? { 'data-danger': '' } : {})}>{primaryLabel}</button>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { useSession } from '../context/SessionContext';
+import React, { useRef, useMemo, useCallback } from 'react';
+import { useTabState, useSessionActions } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
 import { exportToHtml } from '../utils/export';
@@ -8,20 +8,30 @@ import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
 
-export const useCommands = (showToast) => {
+const nextPaint = () => new Promise(resolve => {
+    const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb => setTimeout(cb, 16));
+    raf(() => raf(resolve));
+});
+
+const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
+
+export const useCommands = (showToast, editorRef) => {
     const {
         tabs,
         activeTabId,
+        isPrimaryWindow,
+        recentFiles
+    } = useTabState();
+
+    const {
         setActiveTabId,
         createTab,
         closeTab: closeTabInContext,
         updateTab,
         switchTab,
         reorderTabs,
-        recentFiles,
-        addRecentFile,
-        isPrimaryWindow
-    } = useSession();
+        addRecentFile
+    } = useSessionActions();
 
     // Mirror the live tab state so multi-close loops (closeOtherTabs /
     // closeTabsToRight / closeWindow) re-evaluate length guards and active-tab
@@ -29,11 +39,33 @@ export const useCommands = (showToast) => {
     const liveState = useRef({ tabs, activeTabId });
     liveState.current = { tabs, activeTabId };
 
-    const newTab = () => {
-        createTab();
-    };
+    const persistTab = useCallback(async (tab, content) => {
+        if (tab.fileHandle) {
+            await fileSystem.saveFile(tab.fileHandle, content);
+            updateTab(tab.id, { content, isDirty: false });
+        } else if (!canSaveInPlace() && tab.filePath) {
+            const result = await fileSystem.saveFileAs(content, tab.filePath);
+            if (!result) return false;
+            updateTab(tab.id, { content, isDirty: false });
+        } else {
+            const result = await fileSystem.saveFileAs(content, tab.title);
+            if (!result) return false;
+            updateTab(tab.id, {
+                title: result.name,
+                filePath: result.name,
+                fileHandle: result.handle,
+                content: content,
+                isDirty: false
+            });
+        }
+        return true;
+    }, [updateTab]);
 
-    const closeTab = async (id, options = {}) => {
+    const newTab = useCallback(() => {
+        createTab();
+    }, [createTab]);
+
+    const closeTab = useCallback(async (id, options = {}) => {
         const { skipPrompt = false } = options;
         const tab = liveState.current.tabs.find(t => t.id === id);
         if (!tab) return;
@@ -45,28 +77,15 @@ export const useCommands = (showToast) => {
             });
             if (choice === 'cancel') return;
             if (choice === 'save') {
-                const content = tab.content;
+                const content = (editorRef?.current && id === liveState.current.activeTabId)
+                    ? editorRef.current.getCurrentContent()
+                    : tab.content;
                 try {
-                    if (tab.fileHandle) {
-                        await fileSystem.saveFile(tab.fileHandle, content);
-                        updateTab(id, { content, isDirty: false });
-                    } else if (!fileSystem.isSupported() && tab.filePath) {
-                        const result = await fileSystem.saveFileAs(content, tab.filePath);
-                        if (!result) return;
-                        updateTab(id, { content, isDirty: false });
-                    } else {
-                        const result = await fileSystem.saveFileAs(content, tab.title);
-                        if (!result) return;
-                        updateTab(id, {
-                            title: result.name,
-                            filePath: result.name,
-                            fileHandle: result.handle,
-                            content: content,
-                            isDirty: false
-                        });
-                    }
+                    const success = await persistTab(tab, content);
+                    if (!success) return;
                 } catch (error) {
                     console.error("Failed to save file on close", error);
+                    showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
                     return;
                 }
             }
@@ -89,9 +108,9 @@ export const useCommands = (showToast) => {
             }
             closeTabInContext(id);
         }
-    };
+    }, [persistTab, createTab, closeTabInContext, setActiveTabId, showToast, editorRef]);
 
-    const closeOtherTabs = async (id) => {
+    const closeOtherTabs = useCallback(async (id) => {
         const tabsToClose = liveState.current.tabs.filter(t => t.id !== id);
         for (const tab of tabsToClose) {
             await closeTab(tab.id);
@@ -99,9 +118,9 @@ export const useCommands = (showToast) => {
         // The only survivor is `id`; make it active regardless of how the
         // per-tab selection inside closeTab raced (M4).
         setActiveTabId(id);
-    };
+    }, [closeTab, setActiveTabId]);
 
-    const closeTabsToRight = async (id) => {
+    const closeTabsToRight = useCallback(async (id) => {
         const index = liveState.current.tabs.findIndex(t => t.id === id);
         if (index === -1) return;
 
@@ -113,9 +132,9 @@ export const useCommands = (showToast) => {
         }
         // If the active tab was one of the closed ones, fall back to `id` (M4).
         if (!keptIds.has(activeAtStart)) setActiveTabId(id);
-    };
+    }, [closeTab, setActiveTabId]);
 
-    const openFile = async () => {
+    const openFile = useCallback(async () => {
         try {
             const file = await fileSystem.openFile();
             if (file) {
@@ -131,40 +150,34 @@ export const useCommands = (showToast) => {
         } catch (error) {
             console.error("Failed to open file", error);
         }
-    };
+    }, [createTab, addRecentFile]);
 
-    const saveFile = async (editorRef) => {
+    const saveFile = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        const content = editorRef?.current?.getCurrentContent() || tab.content;
+        // `|| tab.content` would treat a deliberately-cleared doc ('') as "use the
+        // stale copy" and save old text back. Only fall back when there's no editor.
+        const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
-        if (tab.fileHandle) {
-            try {
-                await fileSystem.saveFile(tab.fileHandle, content);
-                updateTab(activeTabId, { content, isDirty: false });
-            } catch (error) {
-                console.error("Failed to save file", error);
+        try {
+            const success = await persistTab(tab, content);
+            if (success) {
+                editorRef?.current?.markSaved?.();
             }
-        } else if (!fileSystem.isSupported() && tab.filePath) {
-            try {
-                const result = await fileSystem.saveFileAs(content, tab.filePath);
-                if (result) {
-                    updateTab(activeTabId, { content, isDirty: false });
-                }
-            } catch (error) {
-                console.error("Failed to save file", error);
-            }
-        } else {
-            saveFileAs(editorRef);
+        } catch (error) {
+            console.error("Failed to save file", error);
+            showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
-    };
+    }, [tabs, activeTabId, showToast, persistTab]);
 
-    const saveFileAs = async (editorRef) => {
+    const saveFileAs = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
         if (!tab) return;
 
-        const content = editorRef?.current?.getCurrentContent() || tab.content;
+        // `|| tab.content` would treat a deliberately-cleared doc ('') as "use the
+        // stale copy" and save old text back. Only fall back when there's no editor.
+        const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
         try {
             const result = await fileSystem.saveFileAs(content, tab.title);
@@ -177,13 +190,15 @@ export const useCommands = (showToast) => {
                     isDirty: false
                 });
                 addRecentFile(result.name, result.name, result.handle);
+                editorRef?.current?.markSaved?.();
             }
         } catch (error) {
             console.error("Failed to save file as", error);
+            showToast?.(`Could not save "${tab.title}": ${error?.message || 'unknown error'}`);
         }
-    };
+    }, [tabs, activeTabId, showToast, updateTab, addRecentFile]);
 
-    const openRecentFile = async (filePath, fileName, fileHandle) => {
+    const openRecentFile = useCallback(async (filePath, fileName, fileHandle) => {
         try {
             let file = null;
             if (fileHandle && fileSystem.isSupported()) {
@@ -203,7 +218,7 @@ export const useCommands = (showToast) => {
                     file = null;
                 }
             }
-            
+
             if (!file) {
                 file = await fileSystem.openFile();
                 if (!file) {
@@ -224,9 +239,9 @@ export const useCommands = (showToast) => {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
-    };
+    }, [createTab, addRecentFile]);
 
-    const exportToPDF = async () => {
+    const exportToPDF = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -240,7 +255,7 @@ export const useCommands = (showToast) => {
         const content = React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content });
         root.render(content);
 
-        await new Promise(resolve => requestIdleCallback(resolve));
+        await nextPaint();
 
         try {
             const canvas = await html2canvas(printContainer, {
@@ -294,9 +309,9 @@ export const useCommands = (showToast) => {
             root.unmount();
             document.body.removeChild(printContainer);
         }
-    };
+    }, [tabs, activeTabId, showToast]);
 
-    const exportToHTML = async () => {
+    const exportToHTML = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -313,9 +328,9 @@ export const useCommands = (showToast) => {
             console.error("Failed to export to HTML", error);
             showToast('Failed to export to HTML.');
         }
-    };
+    }, [tabs, activeTabId, showToast]);
 
-    const print = () => {
+    const print = useCallback(() => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
@@ -328,14 +343,14 @@ export const useCommands = (showToast) => {
             React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content })
         );
 
-        requestIdleCallback(() => {
+        nextPaint().then(() => {
             window.print();
             root.unmount();
             document.body.removeChild(printContainer);
         });
-    };
+    }, [tabs, activeTabId]);
 
-    const closeWindow = async () => {
+    const closeWindow = useCallback(async () => {
         if (!isPrimaryWindow) {
             // Iterate tabs and prompt/save/close one by one until only one default tab remains
             // Take a snapshot of current order to iterate deterministically
@@ -355,26 +370,15 @@ export const useCommands = (showToast) => {
                     });
                     if (choice === 'cancel') return; // abort entire close
                     if (choice === 'save') {
+                        const content = (editorRef?.current && current.id === liveState.current.activeTabId)
+                            ? editorRef.current.getCurrentContent()
+                            : current.content;
                         try {
-                            if (current.fileHandle) {
-                                await fileSystem.saveFile(current.fileHandle, current.content);
-                                updateTab(current.id, { isDirty: false });
-                            } else if (!fileSystem.isSupported() && current.filePath) {
-                                const result = await fileSystem.saveFileAs(current.content, current.filePath);
-                                if (!result) return; // aborted save-as
-                                updateTab(current.id, { isDirty: false });
-                            } else {
-                                const result = await fileSystem.saveFileAs(current.content, current.title);
-                                if (!result) return; // aborted save-as
-                                updateTab(current.id, {
-                                    title: result.name,
-                                    filePath: result.name,
-                                    fileHandle: result.handle,
-                                    isDirty: false
-                                });
-                            }
+                            const success = await persistTab(current, content);
+                            if (!success) return; // aborted save-as
                         } catch (err) {
                             console.error('Failed to save', err);
+                            showToast?.(`Could not save "${current.title}": ${err?.message || 'unknown error'}`);
                             return; // abort close on error
                         }
                     }
@@ -385,9 +389,9 @@ export const useCommands = (showToast) => {
             }
         }
         window.close();
-    };
+    }, [isPrimaryWindow, persistTab, closeTab, showToast, editorRef]);
 
-    return {
+    return useMemo(() => ({
         newTab,
         openFile,
         openRecentFile,
@@ -406,7 +410,6 @@ export const useCommands = (showToast) => {
         tabs,
         reorderTabs,
         recentFiles,
-        closeWindow,
-        isPrimaryWindow
-    };
+        closeWindow
+    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs]);
 };

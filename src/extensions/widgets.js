@@ -14,18 +14,6 @@ export class BulletWidget extends WidgetType {
     ignoreEvent() { return false; }
 }
 
-export class QuoteBarWidget extends WidgetType {
-    toDOM() {
-        const span = document.createElement("span");
-        span.className = "cm-quote-bar";
-        return span;
-    }
-
-    eq(other) { return true; }
-
-    ignoreEvent() { return false; }
-}
-
 export class CheckboxWidget extends WidgetType {
     constructor(checked) {
         super();
@@ -118,22 +106,3 @@ export class TableWidget extends WidgetType {
     ignoreEvent() { return true; }
 }
 
-export class CodeBlockWidget extends WidgetType {
-    constructor(content) {
-        super();
-        this.content = content;
-    }
-
-    toDOM() {
-        const pre = document.createElement("pre");
-        pre.className = "cm-code-block-widget";
-        const code = document.createElement("code");
-        code.textContent = this.content;
-        pre.appendChild(code);
-        return pre;
-    }
-
-    eq(other) { return other.content === this.content; }
-
-    ignoreEvent() { return false; }
-}

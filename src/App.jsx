@@ -9,14 +9,13 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
-import { useSession } from './context/SessionContext';
+import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
 import Settings from './components/Settings/Settings';
 
 function App() {
     const editorRef = React.useRef(null);
-    const closingRef = React.useRef(false);
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
     const [appVersion, setAppVersion] = useState(version);
@@ -33,7 +32,9 @@ function App() {
         charCount: 0
     });
 
-    const { settings, updateSettings } = useSession();
+    const { settings, updateSettings } = useSettings();
+    const { restoreWarning } = useTabState();
+    const { clearRestoreWarning } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -55,6 +56,13 @@ function App() {
         setToast({ message: '', show: false });
     }, []);
 
+    useEffect(() => {
+        if (restoreWarning) {
+            showToast(restoreWarning);
+            clearRestoreWarning();
+        }
+    }, [restoreWarning, showToast, clearRestoreWarning]);
+
     const handleFindInEditor = useCallback(
         (text, options) => editorRef.current?.find(text, options) || { current: 0, total: 0 },
         []
@@ -69,8 +77,6 @@ function App() {
     );
 
     const {
-        tabs,
-        activeTabId,
         setActiveTabId,
         newTab,
         openFile,
@@ -88,32 +94,21 @@ function App() {
         reorderTabs,
         recentFiles,
         closeWindow,
-        isPrimaryWindow
-    } = useCommands(showToast);
+        tabs,
+        activeTabId
+    } = useCommands(showToast, editorRef);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (!isPrimaryWindow) {
-                if (closingRef.current) return;
-
-                const hasDirtyTabs = tabs.some(t => t.isDirty);
-                if (hasDirtyTabs) {
-                    e.preventDefault();
-                    setTimeout(async () => {
-                        closingRef.current = true;
-                        try {
-                            await closeWindow();
-                        } finally {
-                            closingRef.current = false;
-                        }
-                    }, 0);
-                }
+            if (tabs.some(t => t.isDirty)) {
+                e.preventDefault();
+                e.returnValue = '';
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [isPrimaryWindow, tabs, closeWindow]);
+    }, [tabs]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
@@ -234,7 +229,7 @@ function App() {
                     tabs={tabs}
                     activeTabId={activeTabId}
                     onTabClick={setActiveTabId}
-                    onTabClose={closeTab}
+                    onTabClose={(id) => closeTab(id)}
                     onNewTab={newTab}
                     onContextMenu={handleContextMenu}
                     onReorder={reorderTabs}
@@ -261,8 +256,8 @@ function App() {
                     onExportToHTML={exportToHTML}
                     onPrint={print}
                     onCloseTab={() => closeTab(activeTabId)}
-                    onCloseWindow={() => closeWindow(editorRef)}
-                    onExit={() => closeWindow(editorRef)}
+                    onCloseWindow={() => closeWindow()}
+                    onExit={() => closeWindow()}
                     onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />
@@ -314,8 +309,6 @@ function App() {
             <Settings
                 isOpen={showSettings}
                 onClose={() => setShowSettings(false)}
-                settings={settings}
-                updateSettings={updateSettings}
                 appVersion={appVersion}
             />
 

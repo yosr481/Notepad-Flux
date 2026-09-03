@@ -38,6 +38,7 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
         const builder = new RangeSetBuilder();
         const { state } = view;
         const { doc } = state;
+        const tree = syntaxTree(state);
 
         for (const { from, to } of view.visibleRanges) {
             // Iterate over lines in the visible range
@@ -48,7 +49,6 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
             while (true) {
                 // Check if line is inside a Code Block or Table
                 // We use the syntax tree to check the type of the node at the start of the line
-                const tree = syntaxTree(state);
                 const node = tree.resolveInner(row.from, 1);
                 const typeName = node ? node.type.name : "";
 
@@ -57,7 +57,7 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
                 const isCodeOrTable = typeName.includes("Code") || typeName.includes("Table") || typeName.includes("Math");
 
                 // Note: Resolved node might be a child (e.g., "ListMark"). We might want to check parents.
-                // But generally, code blocks and tables are distinct enough. 
+                // But generally, code blocks and tables are distinct enough.
                 // Let's refine: FencedCode, IndentedCode, HTMLBlock?
                 // Actually, syntaxTree.resolveInner at line start usually gives the block type if it's a wrapper.
                 // Let's try to detect if we are strictly INSIDE a code block content.
@@ -67,7 +67,7 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
                 // Helper to check ancestors
                 let curr = node;
                 while (curr) {
-                    if (curr.name.includes("FencedCode") || curr.name.includes("Table")) {
+                    if (curr.name.includes("FencedCode") || curr.name.includes("Table") || curr.name.includes("IndentedCode")) {
                         shouldIgnore = true;
                         break;
                     }
@@ -84,7 +84,7 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
                         if (RTL_REGEX.test(firstChar)) {
                             builder.add(row.from, row.from, rtlDecoration);
                         } else {
-                            // Optional: Explicitly set LTR? 
+                            // Optional: Explicitly set LTR?
                             // If the whole container becomes RTL, we might want this.
                             // For now, assuming default is LTR, so we only need to flag RTL.
                             // However, if we mix, it's safer to not enforce LTR unless we know we are in an RTL context.
