@@ -36,11 +36,15 @@ Thumbs.db
 .eslintcache
 *.tsbuildinfo
 
-# Internal docs and tooling
+# Internal docs and tooling — dev-environment only, never public
 .agent/
 .claude/
 .serena/
 Docs/internal/
+HANDOFF.md
+# stray audit/report/handoff files anywhere under Docs/
+Docs/**/*audit*
+Docs/**/*handoff*
 
 # Logs
 logs/
