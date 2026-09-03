@@ -18,7 +18,6 @@ import { buildWindowOptions } from '../windowOptions.js'
 //   iconPath     : absolute path string, passed straight to `icon`
 //
 // ALWAYS PRESENT (every platform):
-//   titleBarStyle : 'hidden'                       (unchanged from today)
 //   backgroundColor : '#1E1E1E' when prefersDark, else '#FFFFFF'
 //                     (app tokens --color-dark-canvas / --color-editor-white;
 //                      this is the fix for the white-flash / light-frame bug)
@@ -30,8 +29,13 @@ import { buildWindowOptions } from '../windowOptions.js'
 //     sandbox: true,                               SECURITY — must stay true
 //   }
 //
-// WINDOWS ONLY (platform === 'win32') — these are Windows-only Electron APIs
-// and are inert / wrong on Linux & macOS, so they must NOT appear elsewhere:
+// WINDOWS ONLY (platform === 'win32') — Windows-only Electron APIs, inert /
+// wrong on Linux & macOS, so they must NOT appear elsewhere:
+//   titleBarStyle : 'hidden'   — only paired with titleBarOverlay, which draws
+//     replacement min/max/close glyphs. On Linux 'hidden' strips the native
+//     controls with no replacement (window can't be min/max/closed from its
+//     frame — the B6-followup bug); macOS has no renderer drag region. So the
+//     native title bar stays on every non-Windows platform.
 //   backgroundMaterial : 'mica'
 //   titleBarOverlay : {
 //     color: '#00000000',                          (transparent)
@@ -40,6 +44,7 @@ import { buildWindowOptions } from '../windowOptions.js'
 //   }
 //
 // NON-WINDOWS ('linux', 'darwin', anything !== 'win32'):
+//   'titleBarStyle'      in opts === false
 //   'backgroundMaterial' in opts === false
 //   'titleBarOverlay'    in opts === false
 //
@@ -47,8 +52,8 @@ import { buildWindowOptions } from '../windowOptions.js'
 //   - No merging of caller keys — the function returns its own bag only.
 //   - prefersDark is not defaulted; caller always supplies it.
 //   - No per-platform icon vari/format juggling — iconPath is passed as given.
-//   - darwin gets the same treatment as linux (no win-only keys); no separate
-//     macOS traffic-light / titleBarStyle handling is added here.
+//   - darwin gets the same treatment as linux (no win-only keys, native title
+//     bar); no separate macOS traffic-light / titleBarStyle handling here.
 //   - Each call returns a fresh, independently-mutable object graph (no frozen
 //     or shared module-level literal).
 // ---------------------------------------------------------------------------
@@ -71,8 +76,8 @@ describe('buildWindowOptions — case 1: linux + prefersDark', () => {
     it('sets backgroundColor to the dark canvas token', () => {
         expect(opts.backgroundColor).toBe('#1E1E1E')
     })
-    it('keeps titleBarStyle "hidden"', () => {
-        expect(opts.titleBarStyle).toBe('hidden')
+    it('does NOT set titleBarStyle (Linux keeps its native window controls)', () => {
+        expect('titleBarStyle' in opts).toBe(false)
     })
     it('does NOT set backgroundMaterial (Windows-only API)', () => {
         expect('backgroundMaterial' in opts).toBe(false)
@@ -100,8 +105,8 @@ describe('buildWindowOptions — case 2: linux + light', () => {
         expect('backgroundMaterial' in opts).toBe(false)
         expect('titleBarOverlay' in opts).toBe(false)
     })
-    it('still keeps titleBarStyle "hidden"', () => {
-        expect(opts.titleBarStyle).toBe('hidden')
+    it('still sets no titleBarStyle', () => {
+        expect('titleBarStyle' in opts).toBe(false)
     })
 })
 
@@ -123,7 +128,7 @@ describe('buildWindowOptions — case 3: win32 + prefersDark', () => {
     it('also sets the dark backgroundColor', () => {
         expect(opts.backgroundColor).toBe('#1E1E1E')
     })
-    it('keeps titleBarStyle "hidden"', () => {
+    it('sets titleBarStyle "hidden" (paired with the overlay glyphs)', () => {
         expect(opts.titleBarStyle).toBe('hidden')
     })
 })
@@ -158,8 +163,9 @@ describe('buildWindowOptions — case 5: darwin treated as non-Windows', () => {
         expect(dark.backgroundColor).toBe('#1E1E1E')
         expect(light.backgroundColor).toBe('#FFFFFF')
     })
-    it('keeps titleBarStyle "hidden"', () => {
-        expect(dark.titleBarStyle).toBe('hidden')
+    it('sets no titleBarStyle (native traffic lights + frame)', () => {
+        expect('titleBarStyle' in dark).toBe(false)
+        expect('titleBarStyle' in light).toBe(false)
     })
 })
 
@@ -168,6 +174,7 @@ describe('buildWindowOptions — an unknown platform is also non-Windows', () =>
     it('gets no Windows-only keys', () => {
         expect('backgroundMaterial' in opts).toBe(false)
         expect('titleBarOverlay' in opts).toBe(false)
+        expect('titleBarStyle' in opts).toBe(false)
     })
 })
 
