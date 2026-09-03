@@ -36,8 +36,8 @@ export class CheckboxWidget extends WidgetType {
             const lineText = line.text;
 
             // Find the checkbox pattern in the line
-            // We look for - [ ] or - [x]
-            const match = lineText.match(/^(\s*[-*] )\[([ x])\]/);
+            // We look for - [ ] or - [x] or - [X] or * [ ] etc.
+            const match = lineText.match(/^(\s*[-*+] )\[([ xX])\]/);
 
             if (match) {
                 const prefix = match[1];
