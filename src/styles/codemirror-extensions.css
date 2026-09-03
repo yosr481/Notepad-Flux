@@ -160,6 +160,24 @@
     background-color: var(--background-secondary);
 }
 
+/* Nested blockquote depth styling */
+.cm-line.cm-blockquote-depth-2 {
+    padding-left: 2em;
+}
+
+.cm-line.cm-blockquote-depth-3 {
+    padding-left: 3em;
+}
+
+/* ============================================
+   ORDERED MARKER WIDGET STYLES
+   ============================================ */
+
+.cm-ordered-marker {
+    color: var(--text-muted);
+    font-weight: inherit;
+}
+
 /* ============================================
    LINK HANDLER STYLES
    ============================================ */

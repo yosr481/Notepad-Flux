@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { CheckboxWidget, EntityWidget } from '../widgets';
+import { CheckboxWidget, EntityWidget, OrderedMarkerWidget } from '../widgets';
 
 // The toggle lives in CheckboxWidget.toDOM's `mousedown` handler: it reads
 // view.state.doc, matches the task-line prefix, and view.dispatch()es a single
@@ -92,5 +92,35 @@ describe('EntityWidget — decoded HTML entity as a text-only span (audit #3)', 
 
     it('ignoreEvent() returns false', () => {
         expect(new EntityWidget('&').ignoreEvent()).toBe(false);
+    });
+});
+
+describe('OrderedMarkerWidget — computed ordered-list marker (Task 7 / audit #12)', () => {
+    // Pinned contract (same 4-method shape as BulletWidget):
+    //   constructor(text) stores the already-formatted marker string ("2.", "6)", ...).
+    //   toDOM() -> <span class="cm-ordered-marker"> whose textContent === text, set via
+    //     textContent (no element children).
+    //   eq(other) -> other.text === this.text
+    //   ignoreEvent() -> false
+    it('toDOM() is a bare SPAN.cm-ordered-marker with textContent === text and no element children', () => {
+        const dom = new OrderedMarkerWidget('2.').toDOM();
+        expect(dom.tagName).toBe('SPAN');
+        expect(dom.className).toContain('cm-ordered-marker');
+        expect(dom.textContent).toBe('2.');
+        expect(dom.children.length).toBe(0);
+        expect(dom.querySelector('*')).toBe(null);
+    });
+
+    it('preserves a ")" delimiter verbatim in the rendered text', () => {
+        expect(new OrderedMarkerWidget('3)').toDOM().textContent).toBe('3)');
+    });
+
+    it('eq: true for the same text, false for a different text', () => {
+        expect(new OrderedMarkerWidget('2.').eq(new OrderedMarkerWidget('2.'))).toBe(true);
+        expect(new OrderedMarkerWidget('2.').eq(new OrderedMarkerWidget('3.'))).toBe(false);
+    });
+
+    it('ignoreEvent() returns false', () => {
+        expect(new OrderedMarkerWidget('1.').ignoreEvent()).toBe(false);
     });
 });

@@ -1,7 +1,7 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
-import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget } from "./widgets";
+import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget, OrderedMarkerWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 
 const PREFIX = 10000;
@@ -128,6 +128,33 @@ export const buildDecorations = (state, range) => {
                     const isOrdered = grandParent && grandParent.name === "OrderedList";
 
                     if (isOrdered) {
+                        // Ordered list: renumber with computed marker
+                        const markerText = doc.sliceString(nodeFrom, nodeTo);
+                        const delimMatch = markerText.match(/^\d+([.)])/);
+                        if (delimMatch) {
+                            const delim = delimMatch[1];
+                            // ponytail: rebuilds the sibling list + findIndex per ListMark visited (O(n²) per list); viewport-bounded so fine, hoist to a per-OrderedList cache if a huge list drags
+                            // Find all ListItem children of this OrderedList
+                            const listItems = grandParent.node.getChildren("ListItem");
+                            const itemIndex = listItems.findIndex(li => li.from === parent.from);
+                            const firstSiblingMark = listItems[0]?.getChild("ListMark");
+                            if (firstSiblingMark && itemIndex >= 0) {
+                                const firstMarkerText = doc.sliceString(firstSiblingMark.from, firstSiblingMark.to);
+                                const firstDigitsMatch = firstMarkerText.match(/^\d+/);
+                                if (firstDigitsMatch) {
+                                    const startNum = parseInt(firstDigitsMatch[0], 10);
+                                    const computedNum = startNum + itemIndex;
+                                    const text = String(computedNum) + delim;
+                                    if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                                        decorations.push({
+                                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                                widget: new OrderedMarkerWidget(text)
+                                            })
+                                        });
+                                    }
+                                }
+                            }
+                        }
                         return;
                     }
 
@@ -189,11 +216,32 @@ export const buildDecorations = (state, range) => {
             if (name.startsWith("ATXHeading")) {
                 if (!isCursorOnLine(selection, doc, nodeFrom)) {
                     const headerText = doc.sliceString(nodeFrom, nodeTo);
+                    // Hide leading ###...
                     const match = headerText.match(/^#+\s+/);
+                    const leadLen = match ? match[0].length : 0;
                     if (match) {
                         const hideFrom = nodeFrom;
                         const hideTo = nodeFrom + match[0].length;
                         decorations.push({ from: hideFrom, to: hideTo, value: Decoration.replace({}) });
+                    }
+                    // Hide trailing closing sequence if present
+                    const closeMatch = headerText.match(/\s+#+\s*$/);
+                    if (closeMatch && closeMatch.index >= leadLen) {
+                        const hideFrom = nodeFrom + closeMatch.index;
+                        const hideTo = nodeTo;
+                        decorations.push({ from: hideFrom, to: hideTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            if (name === "SetextHeading1" || name === "SetextHeading2") {
+                const headerMark = node.node.getChild("HeaderMark");
+                if (headerMark) {
+                    const textLineFrom = nodeFrom;
+                    const underlineLineFrom = headerMark.from;
+                    // Hide underline only if cursor is on neither the text line nor the underline line
+                    if (!isCursorOnLine(selection, doc, textLineFrom) && !isCursorOnLine(selection, doc, underlineLineFrom)) {
+                        decorations.push({ from: headerMark.from, to: headerMark.to, value: Decoration.replace({}) });
                     }
                 }
             }
@@ -209,13 +257,22 @@ export const buildDecorations = (state, range) => {
             }
 
             if (name === "Blockquote") {
+                // Calculate blockquote depth (count ancestors including self, capped at 3)
+                let depth = 1;
+                let ancestor = node.node.parent;
+                while (ancestor && depth < 3) {
+                    if (ancestor.name === "Blockquote") {
+                        depth++;
+                    }
+                    ancestor = ancestor.parent;
+                }
                 // Iterate over lines in the blockquote to apply decoration to each line
                 // This ensures continuous border even if it's multiple lines
                 for (let i = nodeFrom; i < nodeTo;) {
                     const line = doc.lineAt(i);
                     decorations.push({
                         from: line.from, to: line.from, value: Decoration.line({
-                            class: "cm-blockquote-line"
+                            class: `cm-blockquote-line cm-blockquote-depth-${depth}`
                         })
                     });
                     i = line.to + 1;

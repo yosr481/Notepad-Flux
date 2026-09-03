@@ -7,7 +7,7 @@ import {
     buildDecorations,
     setLivePreviewViewport,
 } from '../livePreview';
-import { TableWidget, CheckboxWidget, EntityWidget } from '../widgets';
+import { TableWidget, CheckboxWidget, EntityWidget, OrderedMarkerWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -545,5 +545,210 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
         expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
         expect(widgets[0][2].spec.widget.htmlContent).not.toContain('cm-table-empty');
         expect(widgets[0][2].spec.widget.htmlContent).not.toContain('Empty Table');
+    });
+});
+
+// ===========================================================================
+// TASK 7 — headings, lists & nested blockquotes (audit #13a, #13b, #12, folded gap)
+// ===========================================================================
+//
+// Lezer node/child names verified against the installed @codemirror/lang-markdown
+// (markdown({ base: markdownLanguage }), i.e. the gfm() helper above):
+//
+//   "x\n## Heading ##"  -> Paragraph[0,1], ATXHeading2[2,15]
+//                            HeaderMark[2,4] "##"   (leading)
+//                            HeaderMark[13,15] "##" (trailing closing sequence)
+//   "x\n## Heading"     -> ATXHeading2[2,12], HeaderMark[2,4] only
+//   "x\n## a # b"       -> ATXHeading2[2,10], HeaderMark[2,4] only ("# b" is content)
+//   "x\n\nHeading\n===\n" -> SetextHeading1[3,14] > HeaderMark[11,14] "===" (underline only)
+//   "x\n\nHeading\n---\n" -> SetextHeading2[3,14] > HeaderMark[11,14] "---"
+//     (the setext node spans BOTH the text line and the underline line; its only
+//      HeaderMark child is the underline row.)
+//   "x\n\n1.\n1.\n1."   -> OrderedList[3,11] > ListItem[3,5]/[6,8]/[9,11]
+//                            each ListItem > ListMark ("1." / "1)" / "5." / "0." ...)
+//   "x\n\n1.\n   1.\n   1.\n1.\n\nz" ->
+//     OrderedList[3,20] > ListItem[3,17] (+ nested OrderedList[8,17]) , ListItem[18,20]
+//       inner OrderedList[8,17] > ListItem[8,11] (ListMark[9,11]) , ListItem[14,17] (ListMark[15,17])
+//       outer ListMarks: [3,5] and [18,20]
+//   "z\n\n> > x"        -> Blockquote[3,8] > QuoteMark[3,4] , Blockquote[5,8] > QuoteMark[5,6]
+//                            both Blockquote nodes resolve to the single line at pos 3
+//   "z\n\n> x"          -> Blockquote[3,6] > QuoteMark[3,4]
+//
+// PINNED CONVENTIONS (writer must match):
+//  #13a  ATX trailing closing sequence: when the cursor is NOT on the heading line
+//        and the header text matches /\s+#+\s*$/ (CommonMark optional closing run of
+//        '#' preceded by spaces, only spaces + '#' to EOL), a bare
+//        Decoration.replace({}) covers EXACTLY [nodeFrom + match.index, nodeTo]
+//        (the leading whitespace of the closing run through end-of-node, trailing
+//        spaces included). The pre-existing leading /^#+\s+/ replace is unchanged.
+//        "## a # b" -> no closing match -> "# b" stays visible.
+//  #13b  Setext underline: when the cursor is NOT on EITHER line of the setext node
+//        (text line or underline line), a bare Decoration.replace({}) covers exactly
+//        the HeaderMark child's range (the underline row). The heading text is never
+//        replaced. Cursor on the text line OR the underline line -> nothing replaced.
+//  #12   Ordered ListMark: replaced with Decoration.replace({ widget:
+//        new OrderedMarkerWidget(text) }) where text = <computed number> + <delimiter
+//        char taken from the source marker via /^\d+([.)])/>. Number = (parseInt of
+//        the FIRST sibling item's marker digits) + (index of this ListItem among its
+//        direct OrderedList ListItem children). Each OrderedList numbers its own
+//        direct children independently. Reveal (literal "1.", NO widget) when a
+//        selection range intersects [ListMark.from, ListMark.to]
+//        (isCursorTouching, range-scoped).
+//  gap   Nested blockquote depth: each Blockquote node emits a Decoration.line whose
+//        class includes cm-blockquote-depth-N (N = count of Blockquote ancestors
+//        incl. self, capped at 3). cm-blockquote-line stays for depth-1 back-compat.
+//        >>> If the writer leaves the folded gap unfixed (brief permits this), the
+//        >>> tactical reviewer DELETES the "nested blockquote depth" describe below.
+
+const t7full = (doc) => ({ from: 0, to: doc.length });
+const t7bareReplacesAt = (field, from, to) =>
+    decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+describe('Task 7 — ATX trailing closing sequence (audit #13a)', () => {
+    it('"## Heading ##" cursor off line: leading "## " AND trailing " ##" both hidden', () => {
+        const doc = 'x\n## Heading ##';
+        const nodeFrom = 2, nodeTo = doc.length; // ATXHeading2[2,15]
+        const text = doc.slice(nodeFrom, nodeTo);
+        const lead = text.match(/^#+\s+/)[0].length;   // 3  -> [2,5]
+        const close = text.match(/\s+#+\s*$/);          // " ##" at index 10 -> [12,15]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+
+        expect(t7bareReplacesAt(field, nodeFrom, nodeFrom + lead).length).toBe(1);
+        expect(t7bareReplacesAt(field, nodeFrom + close.index, nodeTo).length).toBe(1);
+        // heading text "Heading" interior stays visible
+        expect(countDecos(field, 6, 11)).toBe(0);
+    });
+
+    it('"## Heading" (no closing sequence) cursor off line: only the leading "## " hidden', () => {
+        const doc = 'x\n## Heading';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 2, 5).length).toBe(1);       // "## "
+        expect(countDecos(field, 6, doc.length)).toBe(0);           // nothing after
+    });
+
+    it('"## a # b" cursor off line: leading "## " hidden, the inner "# b" is content and NOT hidden', () => {
+        const doc = 'x\n## a # b';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 2, 5).length).toBe(1);       // "## "
+        expect(countDecos(field, 6, doc.length)).toBe(0);           // "a # b" untouched
+    });
+
+    it('cursor ON the heading line: nothing hidden (leading or trailing)', () => {
+        const doc = 'x\n## Heading ##';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), t7full(doc)); // inside the heading
+        expect(countDecos(field, 2, doc.length)).toBe(0);
+    });
+});
+
+describe('Task 7 — setext heading underline (audit #13b)', () => {
+    it('"Heading\\n===" cursor off: the "===" underline row (HeaderMark) carries a bare replace; text not touched', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 11, 14).length).toBe(1);     // "===" HeaderMark[11,14]
+        expect(decosAt(field, 3, 10).length).toBe(0);               // "Heading" not replaced
+        expect(countDecos(field, 4, 9)).toBe(0);                    // its interior untouched
+    });
+
+    it('"Heading\\n---" cursor off: the "---" underline row carries a bare replace', () => {
+        const doc = 'x\n\nHeading\n---\n';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 11, 14).length).toBe(1);     // "---" HeaderMark[11,14]
+    });
+
+    it('cursor on the setext TEXT line: underline not hidden', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), t7full(doc)); // inside "Heading"
+        expect(countDecos(field, 11, 14)).toBe(0);
+    });
+
+    it('cursor on the setext UNDERLINE line: underline not hidden', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 12 }), t7full(doc)); // inside "==="
+        expect(countDecos(field, 11, 14)).toBe(0);
+    });
+});
+
+describe('Task 7 — ordered list renumber (audit #12)', () => {
+    const omAt = (field, from, to) => {
+        const vs = decosAt(field, from, to);
+        if (vs.length !== 1) return null;
+        const w = vs[0].spec && vs[0].spec.widget;
+        return w instanceof OrderedMarkerWidget ? w : null;
+    };
+
+    it('"1.\\n1.\\n1." (all ones) cursor parked off the list -> markers render 1. 2. 3.', () => {
+        const doc = 'x\n\n1.\n1.\n1.'; // ListMarks [3,5] [6,8] [9,11]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1.');
+        expect(omAt(field, 6, 8)?.text).toBe('2.');
+        expect(omAt(field, 9, 11)?.text).toBe('3.');
+    });
+
+    it('start value comes from the FIRST item: "5.\\n5." -> 5. 6.', () => {
+        const doc = 'x\n\n5.\n5.'; // ListMarks [3,5] [6,8]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('5.');
+        expect(omAt(field, 6, 8)?.text).toBe('6.');
+    });
+
+    it('"0.\\n0.\\n0." -> 0. 1. 2. (start = 0)', () => {
+        const doc = 'x\n\n0.\n0.\n0.'; // ListMarks [3,5] [6,8] [9,11]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('0.');
+        expect(omAt(field, 6, 8)?.text).toBe('1.');
+        expect(omAt(field, 9, 11)?.text).toBe('2.');
+    });
+
+    it('delimiter char preserved: "1)\\n1)" -> 1) 2)', () => {
+        const doc = 'x\n\n1)\n1)'; // ListMarks [3,5] [6,8]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1)');
+        expect(omAt(field, 6, 8)?.text).toBe('2)');
+    });
+
+    it('cursor touching one item\'s ListMark -> that item shows literal (no widget), siblings still renumbered', () => {
+        const doc = 'x\n\n1.\n1.\n1.';
+        // anchor 7 intersects ListMark[6,8] (the 2nd item)
+        const field = buildDecorations(gfm(doc, { anchor: 7 }), t7full(doc));
+        expect(omAt(field, 6, 8)).toBe(null);
+        expect(decosAt(field, 6, 8).length).toBe(0); // literal "1." left in place
+        expect(omAt(field, 3, 5)?.text).toBe('1.');
+        expect(omAt(field, 9, 11)?.text).toBe('3.'); // index-based, revealed sibling still counts
+    });
+
+    it('nested ordered lists each number their own direct children independently', () => {
+        const doc = 'x\n\n1.\n   1.\n   1.\n1.\n\nz';
+        // outer ListMarks [3,5] [18,20]; inner ListMarks [9,11] [15,17]
+        const field = buildDecorations(gfm(doc, { anchor: doc.length }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1.');   // outer item 0
+        expect(omAt(field, 18, 20)?.text).toBe('2.'); // outer item 1
+        expect(omAt(field, 9, 11)?.text).toBe('1.');  // inner item 0
+        expect(omAt(field, 15, 17)?.text).toBe('2.'); // inner item 1
+    });
+});
+
+// >>> DELETE THIS DESCRIBE if the folded-gap (nested blockquote indent) fix is not
+// >>> shipped — the Task 7 brief explicitly permits leaving it unfixed.
+describe('Task 7 — nested blockquote depth (folded gap)', () => {
+    const lineClasses = (field, pos) => {
+        const out = [];
+        field.between(pos, pos, (f, t, v) => {
+            if (v.spec && typeof v.spec.class === 'string') out.push(v.spec.class);
+        });
+        return out.join(' ');
+    };
+
+    it('"> > x" — the inner line carries a depth-2 blockquote line class', () => {
+        const doc = 'z\n\n> > x'; // both Blockquote nodes -> line at pos 3
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(lineClasses(field, 3)).toContain('cm-blockquote-depth-2');
+    });
+
+    it('"> x" — a single-level blockquote line is depth-1, not depth-2', () => {
+        const doc = 'z\n\n> x'; // Blockquote[3,6] -> line at pos 3
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        const classes = lineClasses(field, 3);
+        expect(classes).toContain('cm-blockquote-depth-1');
+        expect(classes).not.toContain('cm-blockquote-depth-2');
     });
 });
