@@ -38,7 +38,6 @@ describe('CheckboxWidget toggle — GFM uppercase [X] + all bullet chars (audit 
         ['- [X] task', '- [ ] task', 'uppercase X -> unchecked'],
         ['- [x] task', '- [ ] task', 'lowercase x -> unchecked (regression guard)'],
         ['- [ ] task', '- [x] task', 'empty -> checked, lowercase x (regression guard)'],
-        ['+ [ ] task', '+ [x] task', 'plus bullet -> checked'],
         ['* [X] task', '* [ ] task', 'star bullet, uppercase -> unchecked'],
         ['  - [X] nested', '  - [ ] nested', 'leading indent preserved'],
     ];
@@ -50,6 +49,12 @@ describe('CheckboxWidget toggle — GFM uppercase [X] + all bullet chars (audit 
             expect(view.state.doc.toString()).toBe(after);
         });
     }
+
+    it('plus bullet is out of scope: "+ [ ] task" unchanged, no dispatch', () => {
+        const { view, fire } = setup('+ [ ] task');
+        fire();
+        expect(view.state.doc.toString()).toBe('+ [ ] task');
+    });
 
     it('ordered-list task item is out of scope: "1. [ ] ordered" unchanged, no dispatch', () => {
         const { view, fire } = setup('1. [ ] ordered');
