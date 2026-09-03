@@ -375,4 +375,33 @@ describe('imagePreview — reference-style images (TASK 8)', () => {
         const urls = imageWidgets(view).map((w) => w.url).sort();
         expect(urls).toEqual(['https://e/b.png', 'https://e/x.png']);
     });
+
+    // Multi-line: a reference image on an EARLIER line than an inline image. The
+    // inline pass adds its range first (later doc offset), then the ref-full pass
+    // adds an earlier offset -> RangeSetBuilder "Ranges must be added sorted"
+    // throw, which disabled the whole imagePreview ViewPlugin for the session
+    // (every image, inline ones included, stopped rendering). Chrome-audit repro,
+    // 2026-09-03. The single-line test above does NOT cover this (both matches
+    // start at offset 0, so the builder never sees a decreasing `from`).
+    it('ref image before an inline image on a later line does not throw and both resolve', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff(
+                '![ref][d1]\n\ntext\n\n![inline](https://e/i.png)\n\n[d1]: https://e/d.png',
+            );
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/d.png', 'https://e/i.png']);
+    });
+
+    it('shortcut ref before an inline image on a later line does not throw', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff(
+                '![d1]\n\ntext\n\n![inline](https://e/i.png)\n\n[d1]: https://e/d.png',
+            );
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/d.png', 'https://e/i.png']);
+    });
 });
