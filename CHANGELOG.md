@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Bug Fixes
+- **Live Preview:** Stop rendering markdown inside ` ```markdown ` / ` ```md ` code fences.
+- **Live Preview:** Recognise the GFM uppercase `[X]` task checkbox as checked.
+- **Live Preview:** Render backslash escapes (`\*`, `\_`, …) and HTML entities (`&amp;amp;`, `&amp;#39;`, …) as their literal character.
+- **Live Preview:** Hide the angle brackets of `<https://…>` autolinks.
+- **Live Preview:** Strip the `"title"` from image and table-cell link URLs so titled images load.
+- **Live Preview — tables:** Honour column alignment (`:--`, `:-:`, `--:`), render tables nested in a blockquote, and treat `\|` in a cell as a literal pipe.
+- **Live Preview — headings & lists:** Hide the trailing `##` of a closed ATX heading and the `===`/`---` underline of a setext heading; renumber `1.`/`1.`/`1.` ordered lists to `1.`/`2.`/`3.`; indent nested `> >` blockquotes.
+- **Live Preview — links:** Resolve reference-style links and images (`[text][id]`, `[id]`, `![alt][id]`, `[id]: url` definitions) and render `[![alt](img)](url)` as a clickable image.
+- **Desktop:** Set an explicit window `backgroundColor` (dark/light aware) to remove the white flash on launch and the light window frame in dark mode; only apply the Windows-only `mica` / title-bar-overlay chrome on Windows.
+
 ## [1.3.2] — 2026-04-14
 
 ### Refactor
