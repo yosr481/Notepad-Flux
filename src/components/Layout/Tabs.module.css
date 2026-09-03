@@ -69,7 +69,7 @@
 
 .tabsList {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -92,10 +92,10 @@
     height: 32px;
     /* Leaves 8px space for container padding */
     min-width: 100px;
-    flex: 1 1 0;
-    /* Grow to fill the bar when there are few tabs; shrink to min-width and let
-       the list scroll when there are many. No max-width: the tabs always span
-       the full width of the bar. */
+    max-width: 200px;
+    flex: 0 1 160px;
+    /* Fixed 160px each; do not grow. As more tabs open they shrink toward the
+       100px min-width, then the list scrolls. */
     border-right: 1px solid var(--background-modifier-border);
     /* Separator */
     background-color: transparent;
@@ -227,14 +227,18 @@
     width: 32px;
     height: 32px;
     border: none;
-    background: transparent;
+    /* Opaque so scrolled-under tabs don't show through the pinned button */
+    background: var(--mica-background-alt, var(--background-secondary));
     color: var(--text-muted);
     cursor: pointer;
     font-size: 24px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
     margin: 0 4px;
-    transition: all var(--transition-fast);
+    /* Pin to the right edge of the scroll port once tabs overflow */
+    position: sticky;
+    right: 4px;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
     -webkit-app-region: no-drag;
 }
 
