@@ -205,3 +205,102 @@ describe('Live Preview Extension — GFM uppercase [X] task checkbox (audit #11)
         expect(decosAt(field, m.from, m.to).length).toBe(0);
     });
 });
+
+describe('Live Preview Extension — GFM angle-bracket autolinks keep no literal < > (audit #9)', () => {
+    // Verified against the installed @lezer/markdown (GfmAutolink):
+    //   "<https://example.com>" ->
+    //     Autolink [0,21]
+    //       LinkMark [0,1]  "<"
+    //       URL      [1,20] "https://example.com"
+    //       LinkMark [20,21] ">"
+    //   "<user@host>" -> Autolink [0,11] > LinkMark[0,1] "<", URL[1,10], LinkMark[10,11] ">"
+    //   Bare "https://example.com" -> a lone URL node whose parent is Paragraph (NOT Link/Autolink).
+    //   Normal "[text](http://x)" -> Link > LinkMark "[" "]" "(" ")" + URL; the label text
+    //     between the brackets is unwrapped text (no node of its own).
+    //
+    // Pinned contract for the fix:
+    //  - For an Autolink the cursor is NOT touching: the two delimiter LinkMarks
+    //    ("<" and ">") each get a bare Decoration.replace({}) (no widget).
+    //  - The URL child is NOT hidden — it is the visible link text.
+    //  - "cursor touching" = any selection range intersecting [Autolink.from, Autolink.to];
+    //    touching reveals BOTH brackets (no decoration on either LinkMark).
+    //  - Bare autolinks (no brackets) and normal [t](u) links are unchanged by this.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    // A bare replace decoration (empty spec, no widget) at an exact range.
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+    it('1. <https://example.com> with cursor off the line: the "<" (offset 0..1) carries one bare replace', () => {
+        const doc = 'x\n<https://example.com>';
+        const lt = doc.indexOf('<');            // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, lt, lt + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('2. <https://example.com> with cursor off the line: the ">" (last char) carries one bare replace', () => {
+        const doc = 'x\n<https://example.com>';
+        const gt = doc.length - 1;              // 22
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, gt, gt + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('3. the URL span itself stays visible — no replace decoration over it', () => {
+        const doc = 'x\n<https://example.com>';
+        const urlFrom = doc.indexOf('https');   // 3
+        const urlTo = doc.length - 1;           // 22
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        // No decoration exactly spanning the URL...
+        expect(decosAt(field, urlFrom, urlTo).length).toBe(0);
+        // ...and nothing decorating the URL interior (linkPreview is not in this
+        // extension set). Stay off the bracket boundaries — RangeSet.between()
+        // reports a range that only touches an endpoint.
+        expect(countDecos(field, urlFrom + 1, urlTo - 1)).toBe(0);
+    });
+
+    it('4. <user@host> email autolink: "<" and ">" hidden, "user@host" not', () => {
+        const doc = 'x\n<user@host>';
+        const lt = doc.indexOf('<');            // 2
+        const gt = doc.length - 1;              // 12
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(bareReplacesAt(field, lt, lt + 1).length).toBe(1);
+        expect(bareReplacesAt(field, gt, gt + 1).length).toBe(1);
+        // "user@host" between the brackets is untouched (interior only — see note in test 3).
+        expect(countDecos(field, lt + 2, gt - 1)).toBe(0);
+    });
+
+    it('5. cursor inside the autolink reveals both brackets (no decoration on < or >)', () => {
+        const doc = '<https://example.com>';
+        // Autolink [0,21]; anchor at 3 is inside the URL, so it intersects the Autolink.
+        const field = buildDecorations(gfm(doc, { anchor: 3 }), full(doc));
+        expect(decosAt(field, 0, 1).length).toBe(0);
+        expect(decosAt(field, doc.length - 1, doc.length).length).toBe(0);
+    });
+
+    it('6. bare autolink https://example.com (no brackets) is unchanged — no replace anywhere in it', () => {
+        const doc = 'x\nhttps://example.com';
+        const urlFrom = doc.indexOf('https');   // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, urlFrom, doc.length)).toBe(0);
+    });
+
+    it('7. normal [text](http://x) link is unchanged — brackets/parens/URL replaced, label text not', () => {
+        const doc = 'x\n[text](http://x)';
+        // Link [2,18]: LinkMark "[" [2,3], label "text" [3,7], LinkMark "]" [7,8],
+        // LinkMark "(" [8,9], URL [9,17], LinkMark ")" [17,18].
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        // Current behaviour pinned: each syntax piece hidden with a bare replace.
+        expect(bareReplacesAt(field, 2, 3).length).toBe(1);   // [
+        expect(bareReplacesAt(field, 7, 8).length).toBe(1);   // ]
+        expect(bareReplacesAt(field, 8, 9).length).toBe(1);   // (
+        expect(bareReplacesAt(field, 9, 17).length).toBe(1);  // URL
+        expect(bareReplacesAt(field, 17, 18).length).toBe(1); // )
+        // The visible "text" label is NOT replaced (interior only — the "[" and "]"
+        // replaces end/start on the label boundary and RangeSet.between() reports them).
+        expect(decosAt(field, 3, 7).length).toBe(0);
+        expect(countDecos(field, 4, 6)).toBe(0);
+    });
+});

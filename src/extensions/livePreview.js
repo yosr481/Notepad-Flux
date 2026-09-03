@@ -41,7 +41,7 @@ export const buildDecorations = (state, range) => {
 
             if (name === "LinkMark" || name === "URL") {
                 const parent = node.node.parent;
-                if (parent && parent.name === "Link") {
+                if (parent && (parent.name === "Link" || (parent.name === "Autolink" && name === "LinkMark"))) {
                     let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
                     if (!isTouching) {
