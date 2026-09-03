@@ -8,7 +8,6 @@ export function buildWindowOptions({ platform, prefersDark, preloadPath, iconPat
     const backgroundColor = prefersDark ? '#1E1E1E' : '#FFFFFF'
 
     const baseOptions = {
-        titleBarStyle: 'hidden',
         backgroundColor,
         icon: iconPath,
         webPreferences: {
@@ -19,8 +18,14 @@ export function buildWindowOptions({ platform, prefersDark, preloadPath, iconPat
         },
     }
 
-    // Windows-only Electron APIs; must not appear on linux/darwin/unknown platforms
+    // titleBarStyle:'hidden' only makes sense paired with the Windows
+    // titleBarOverlay, which draws replacement min/max/close glyphs. On Linux
+    // 'hidden' removes the native window controls with nothing to replace them,
+    // leaving a window that can't be minimised/maximised/closed from its frame;
+    // macOS keeps the traffic lights but the renderer has no drag region. So
+    // only Windows opts out of the native title bar.
     if (platform === 'win32') {
+        baseOptions.titleBarStyle = 'hidden'
         baseOptions.backgroundMaterial = 'mica'
         baseOptions.titleBarOverlay = {
             color: '#00000000',
