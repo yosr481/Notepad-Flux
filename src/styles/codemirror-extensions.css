@@ -220,3 +220,15 @@
     background-color: var(--background-secondary-alt);
     font-weight: 600;
 }
+
+.cm-table-widget .cm-align-left {
+    text-align: left;
+}
+
+.cm-table-widget .cm-align-center {
+    text-align: center;
+}
+
+.cm-table-widget .cm-align-right {
+    text-align: right;
+}
