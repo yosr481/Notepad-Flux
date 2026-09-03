@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell, nativeTheme } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
 import { join, resolve } from 'node:path'
@@ -10,6 +10,7 @@ import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
 import { filtersForName } from './dialogFilters.js'
+import { buildWindowOptions } from './windowOptions.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -221,20 +222,12 @@ function createWindow() {
         minWidth: 400,
         minHeight: 300,
         show: false, // Wait until ready-to-show
-        titleBarStyle: 'hidden',
-        titleBarOverlay: {
-            color: '#00000000', // Transparent background
-            symbolColor: '#64748b', // Slate-500 matches UI usually, or use theme color
-            height: 40 // Match tab height
-        },
-        backgroundMaterial: 'mica',
-        icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
-        webPreferences: {
-            preload: join(process.env.DIST_ELECTRON, 'preload.js'),
-            nodeIntegration: false,
-            contextIsolation: true,
-            sandbox: true
-        },
+        ...buildWindowOptions({
+            platform: process.platform,
+            prefersDark: nativeTheme.shouldUseDarkColors,
+            preloadPath: join(process.env.DIST_ELECTRON, 'preload.js'),
+            iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
+        }),
     })
 
     win.webContents.setWindowOpenHandler(({ url }) => {
@@ -255,18 +248,12 @@ function createWindow() {
         return {
             action: 'allow',
             overrideBrowserWindowOptions: {
-                titleBarStyle: 'hidden',
-                titleBarOverlay: {
-                    color: '#00000000',
-                    symbolColor: '#64748b',
-                    height: 40
-                },
-                backgroundMaterial: 'mica',
-                icon: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
-                webPreferences: {
-                    preload: join(process.env.DIST_ELECTRON, 'preload.js'),
-                    sandbox: true,
-                }
+                ...buildWindowOptions({
+                    platform: process.platform,
+                    prefersDark: nativeTheme.shouldUseDarkColors,
+                    preloadPath: join(process.env.DIST_ELECTRON, 'preload.js'),
+                    iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
+                }),
             }
         }
     })
