@@ -121,7 +121,7 @@ export const buildDecorations = (state, range) => {
                 }
 
                 if (!isTouching) {
-                    const isChecked = doc.sliceString(nodeFrom, nodeTo).includes("x");
+                    const isChecked = /[xX]/.test(doc.sliceString(nodeFrom, nodeTo));
                     decorations.push({
                         from: nodeFrom, to: nodeTo, value: Decoration.replace({
                             widget: new CheckboxWidget(isChecked)

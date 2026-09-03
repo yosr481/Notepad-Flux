@@ -7,7 +7,7 @@ import {
     buildDecorations,
     setLivePreviewViewport,
 } from '../livePreview';
-import { TableWidget } from '../widgets';
+import { TableWidget, CheckboxWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -151,5 +151,57 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         expect(countDecos(getField(view.state), 0, 10)).toBe(0);
 
         view.destroy();
+    });
+});
+
+describe('Live Preview Extension — GFM uppercase [X] task checkbox (audit #11)', () => {
+    // Pinned: a TaskMarker Lezer node spans EXACTLY the "[x]" / "[X]" / "[ ]"
+    // slice (verified with the parser: "- [X] a" -> TaskMarker[2,5]). That
+    // range carries one Decoration.replace whose .spec.widget is a
+    // CheckboxWidget; `checked` is true for BOTH "[x]" and "[X]", false for "[ ]".
+    const marker = (doc) => {
+        const from = doc.indexOf('[');
+        return { from, to: from + 3 };
+    };
+    // The checked-state cases put the task on line 2 with { anchor: 0 } on the
+    // first line, so the cursor is off the task line entirely. ({ anchor: 0 }
+    // on a lone task line would "touch" the ListMark and suppress the widget.)
+    const checkboxAt = (field, m) => {
+        const vs = decosAt(field, m.from, m.to);
+        if (vs.length !== 1 || !vs[0].spec || !(vs[0].spec.widget instanceof CheckboxWidget)) return null;
+        return vs[0].spec.widget;
+    };
+
+    it('renders "[X]" (uppercase) as a CHECKED CheckboxWidget', () => {
+        const doc = 'x\n- [X] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(true);
+    });
+
+    it('renders "[x]" (lowercase) as a CHECKED CheckboxWidget (regression guard)', () => {
+        const doc = 'x\n- [x] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(true);
+    });
+
+    it('renders "[ ]" (empty) as an UNCHECKED CheckboxWidget', () => {
+        const doc = 'x\n- [ ] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(false);
+    });
+
+    it('reveals the raw "[X]" (no widget) when the cursor is inside the marker', () => {
+        // Same cursor-reveal pattern as the bold-span tests above: cursor
+        // inside the node -> the replace decoration is gone.
+        const doc = '- [X] a';
+        const m = marker(doc); // [2,5]
+        const field = buildDecorations(gfm(doc, { anchor: m.from + 1 }), { from: 0, to: doc.length });
+        expect(decosAt(field, m.from, m.to).length).toBe(0);
     });
 });
