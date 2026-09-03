@@ -94,3 +94,39 @@ describe('convertTableToHTML — cell content', () => {
         expect(html).toContain('&lt;script&gt;');
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 3 — link with a title attribute inside a table cell (audit #10)
+//
+// parseCellContent link rule: html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" ...')
+// captures `url "title"` into $2, so a titled link in a cell renders
+// href="http://x "hi"" (broken attr, title leaks). Fix mirrors the image /
+// linkPreview fix: URL group stops at whitespace/quote/paren, title dropped.
+//
+// Pinned contract:
+//   * | [t](http://x "hi") |  -> cell HTML contains href="http://x" exactly,
+//     no "hi", no &quot;.
+//   * | [t](http://x) |       -> unchanged.
+//   * URL group [^"\s)]+ keeps query strings; stops at the first space.
+//   * out of scope: images inside table cells, escaped \" in a title.
+// ---------------------------------------------------------------------------
+describe('convertTableToHTML — link title in a cell (TASK 3)', () => {
+    it('strips the title from a titled link in a cell (FAILS before fix)', () => {
+        const html = convertTableToHTML(T('| H |', '| --- |', '| [t](http://x "hi") |'));
+        expect(html).toContain('href="http://x"');
+        expect(html).not.toContain('hi');
+        expect(html).not.toContain('&quot;');
+    });
+
+    it('leaves an untitled link in a cell unchanged', () => {
+        const html = convertTableToHTML(T('| H |', '| --- |', '| [t](http://x) |'));
+        expect(html).toContain('href="http://x"');
+        expect(html).toContain('>t</a>');
+    });
+
+    it('keeps a query string in the URL when a title follows', () => {
+        const html = convertTableToHTML(T('| H |', '| --- |', '| [t](http://x?a=1&b=2 "hi") |'));
+        expect(html).toContain('href="http://x?a=1&amp;b=2"');
+        expect(html).not.toContain('hi');
+    });
+});

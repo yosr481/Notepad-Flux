@@ -124,7 +124,7 @@ class ImageWidget extends WidgetType {
     }
 }
 
-const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;
+const imageMatcher = /!\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
 
 function computeImageDecorations(view) {
     const builder = new RangeSetBuilder();
