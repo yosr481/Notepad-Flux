@@ -1,10 +1,59 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
-import { BulletWidget, CheckboxWidget, TableWidget, HRWidget } from "./widgets";
+import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 
 const PREFIX = 10000;
+
+const namedEntities = {
+    'amp': '&',
+    'lt': '<',
+    'gt': '>',
+    'quot': '"',
+    'apos': "'",
+    'copy': '©',
+    'nbsp': ' '
+};
+
+function decodeEntity(entity) {
+    // entity is the whole token including & and ;
+    if (!entity.startsWith('&') || !entity.endsWith(';')) {
+        return null;
+    }
+
+    const content = entity.slice(1, -1);  // Remove & and ;
+
+    // Numeric: &#...;
+    if (content.startsWith('#')) {
+        if (content.startsWith('#x') || content.startsWith('#X')) {
+            // Hex: &#xABC;
+            const hex = content.slice(2);
+            if (!/^[0-9a-fA-F]+$/.test(hex)) return null;
+            const num = parseInt(hex, 16);
+            if (!Number.isFinite(num) || num > 0x10FFFF) return null;
+            // Reject control chars, surrogates
+            if (num < 0x20 || (num >= 0x7F && num <= 0x9F) || (num >= 0xD800 && num <= 0xDFFF)) return null;
+            return String.fromCodePoint(num);
+        } else {
+            // Decimal: &#123;
+            const digits = content.slice(1);
+            if (!/^[0-9]+$/.test(digits)) return null;
+            const num = parseInt(digits, 10);
+            if (!Number.isFinite(num) || num > 0x10FFFF) return null;
+            // Reject control chars, surrogates
+            if (num < 0x20 || (num >= 0x7F && num <= 0x9F) || (num >= 0xD800 && num <= 0xDFFF)) return null;
+            return String.fromCodePoint(num);
+        }
+    }
+
+    // Named entity — use own-property lookup, not inherited
+    if (Object.hasOwn(namedEntities, content)) {
+        return namedEntities[content];
+    }
+
+    return null;
+}
 
 export const buildDecorations = (state, range) => {
     const builder = new RangeSetBuilder();
@@ -36,6 +85,13 @@ export const buildDecorations = (state, range) => {
                     if (!isTouching) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
+                }
+            }
+
+            if (name === "Escape") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    // Hide only the backslash, leave the escaped char as plain text
+                    decorations.push({ from: nodeFrom, to: nodeFrom + 1, value: Decoration.replace({}) });
                 }
             }
 
@@ -202,6 +258,19 @@ export const buildDecorations = (state, range) => {
                 if (parent && parent.name === "InlineCode") {
                     if (!isCursorTouching(selection, parent.from, parent.to)) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            if (name === "Entity") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    const decoded = decodeEntity(doc.sliceString(nodeFrom, nodeTo));
+                    if (decoded !== null) {
+                        decorations.push({
+                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                widget: new EntityWidget(decoded)
+                            })
+                        });
                     }
                 }
             }

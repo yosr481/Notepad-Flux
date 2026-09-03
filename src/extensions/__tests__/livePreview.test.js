@@ -7,7 +7,7 @@ import {
     buildDecorations,
     setLivePreviewViewport,
 } from '../livePreview';
-import { TableWidget, CheckboxWidget } from '../widgets';
+import { TableWidget, CheckboxWidget, EntityWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -302,5 +302,208 @@ describe('Live Preview Extension — GFM angle-bracket autolinks keep no literal
         // replaces end/start on the label boundary and RangeSet.between() reports them).
         expect(decosAt(field, 3, 7).length).toBe(0);
         expect(countDecos(field, 4, 6)).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — backslash escapes hide only the "\\" (audit #2)', () => {
+    // Verified against the installed @lezer/markdown:
+    //   "x\n\\*a\\*"  -> Paragraph > Escape[2,4] "\\*", Escape[5,7] "\\*"
+    //   "x\n\\\\"     -> Paragraph > Escape[2,4] "\\\\"
+    //   "\\a"         -> Paragraph only, NO Escape node ("a" is not escapable)
+    // The `*` inside an Escape never becomes an EmphasisMark, so formatting is
+    // already suppressed. Only the leading backslash still leaks visually.
+    //
+    // Pinned contract for the fix:
+    //  - For an `Escape` node the cursor is NOT touching: a bare
+    //    Decoration.replace({}) (no widget) covers [nodeFrom, nodeFrom+1] — the
+    //    backslash ONLY. The escaped char at nodeFrom+1 stays as plain document
+    //    text and is NOT covered.
+    //  - "\\\\" (escaped backslash): same — first "\\" hidden, second renders.
+    //  - "cursor touching" is RANGE-scoped, not line-scoped: predicate is
+    //    isCursorTouching(selection, escFrom, escTo) (any selection range
+    //    intersecting [Escape.from, Escape.to]). A cursor inside one escape on a
+    //    line does NOT reveal a sibling escape elsewhere on the same line.
+    //  - "\\a" (non-escapable): no Escape node, no decoration, stays literal.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+    it('cursor off the line: "\\*" -> the "\\" (escFrom..escFrom+1) carries one bare replace', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, esc, esc + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('cursor off the line: the escaped "*" at escFrom+1 is NOT covered, and the whole Escape node is not replaced', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(decosAt(field, esc + 1, esc + 2).length).toBe(0); // the "*"
+        expect(decosAt(field, esc, esc + 2).length).toBe(0);     // not the 2-char node
+    });
+
+    it('"\\\\" (escaped backslash): first "\\" hidden, second "\\" not', () => {
+        const doc = 'x\n\\\\';
+        const esc = doc.indexOf('\\'); // 2  — Escape [2,4]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(bareReplacesAt(field, esc, esc + 1).length).toBe(1);
+        expect(decosAt(field, esc + 1, esc + 2).length).toBe(0);
+    });
+
+    it('cursor inside the escape (anchor at escFrom+1) reveals raw "\\*" — no decoration on that escape', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: esc + 1 }), full(doc));
+        expect(countDecos(field, esc, esc + 2)).toBe(0);
+    });
+
+    it('range-scoped, not line-scoped: cursor in the first escape still hides the second escape on the same line', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\');        // 2  — Escape [2,4]
+        const esc2 = doc.indexOf('\\', esc + 1); // 5  — Escape [5,7]
+        const field = buildDecorations(gfm(doc, { anchor: esc + 1 }), full(doc));
+        expect(bareReplacesAt(field, esc2, esc2 + 1).length).toBe(1);
+    });
+
+    it('"\\a" (non-escapable char): no Escape node, no decoration anywhere', () => {
+        const doc = '\\a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, 0, doc.length)).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — HTML entities decode to their character (audit #3)', () => {
+    // Verified against the installed @lezer/markdown:
+    //   "x\n&amp;"     -> Paragraph > Entity[2,7]
+    //   "&#169;" / "&#x2764;" / "&nbsp;" / "&copy;" -> a single Entity node over the token
+    //   "&notareal;"   -> Lezer STILL emits Entity[..] (it does NOT validate against
+    //                     the entity table) — the task brief's "no Entity node" was
+    //                     wrong; pinned reality below.
+    //   "`&amp;`"      -> InlineCode > CodeMark/CodeMark, NO Entity child.
+    //   fenced code    -> CodeText, NO Entity child.
+    //
+    // Pinned contract for the fix:
+    //  - For an `Entity` node the cursor is NOT touching that decodes to a real
+    //    character: one Decoration.replace({ widget: new EntityWidget(decoded) })
+    //    over the whole node range. widget.ch === the decoded string.
+    //  - Numeric "&#NN;" / "&#xNN;" decode via String.fromCodePoint(parseInt(...)).
+    //  - Named entities decode to exactly their character ("&amp;"->"&", "&copy;"->"©",
+    //    "&nbsp;"->U+00A0, "&lt;"->"<", "&gt;"->">").
+    //  - An Entity token that is NOT a valid reference ("&notareal;") produces NO
+    //    decoration — it stays literal. (Impl note in decisions.md: a detached
+    //    <textarea> greedily partial-matches "&not" -> "¬"; the fix must reject
+    //    such tokens, e.g. a named-entity allow-map or a "decoded still contains
+    //    ';'/letters" guard.)
+    //  - Entities inside inline code / fenced code are never wrapped (no Entity
+    //    node exists there anyway).
+    //  - "cursor touching" is range-scoped: isCursorTouching(selection, from, to).
+    //  - The widget renders via textContent only (architect directive): its DOM is
+    //    a bare <span class="cm-entity"> with no element children.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    const entRange = (doc) => {
+        const from = doc.indexOf('&');
+        return { from, to: doc.indexOf(';', from) + 1 };
+    };
+    const entityWidgetAt = (field, r) => {
+        const vs = decosAt(field, r.from, r.to);
+        if (vs.length !== 1) return null;
+        const w = vs[0].spec && vs[0].spec.widget;
+        return w instanceof EntityWidget ? w : null;
+    };
+    const anyEntityWidget = (field, doc) => {
+        let found = false;
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec && v.spec.widget instanceof EntityWidget) found = true;
+        });
+        return found;
+    };
+
+    it('"&amp;" cursor off -> one Decoration.replace whose widget is an EntityWidget with ch "&"', () => {
+        const doc = 'x\n&amp;';
+        const r = entRange(doc); // [2,7]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const w = entityWidgetAt(field, r);
+        expect(w).toBeInstanceOf(EntityWidget);
+        expect(w.ch).toBe('&');
+    });
+
+    it('"&amp;" widget renders via textContent — bare <span>, no element children, textContent "&"', () => {
+        const doc = 'x\n&amp;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const w = entityWidgetAt(field, entRange(doc));
+        const dom = w.toDOM();
+        expect(dom.textContent).toBe('&');
+        expect(dom.querySelector('*')).toBe(null);
+        expect(dom.children.length).toBe(0);
+    });
+
+    it('numeric "&#169;" -> ch "©"', () => {
+        const doc = 'x\n&#169;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+    });
+
+    it('numeric hex "&#x2764;" -> ch "❤"', () => {
+        const doc = 'x\n&#x2764;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('❤');
+    });
+
+    it('"&nbsp;" -> ch " " (non-breaking space)', () => {
+        const doc = 'x\n&nbsp;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe(' ');
+    });
+
+    it('"&copy;" -> ch "©"', () => {
+        const doc = 'x\n&copy;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+    });
+
+    it('"&lt;" and "&gt;" decode to "<" and ">"', () => {
+        for (const [tok, ch] of [['&lt;', '<'], ['&gt;', '>']]) {
+            const doc = 'x ' + tok + ' y';
+            const field = buildDecorations(gfm(doc, { anchor: doc.length }), full(doc));
+            expect(entityWidgetAt(field, entRange(doc)).ch).toBe(ch);
+        }
+    });
+
+    it('invalid "&notareal;" -> NO decoration, stays literal (Lezer emits an Entity node anyway)', () => {
+        const doc = 'x\n&notareal;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, doc.indexOf('&'), doc.length)).toBe(0);
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('"&toString;" (an Object.prototype key, not a real entity) -> NO decoration, stays literal', () => {
+        // decodeEntity must use own-property lookup on its allow-map, not `key in map`
+        // / `map[key]`, or inherited props (toString/constructor/__proto__/hasOwnProperty)
+        // leak through and get rendered as garbage text.
+        const doc = 'x\n&toString;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, doc.indexOf('&'), doc.length)).toBe(0);
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('entity inside inline code "`&amp;`" is NOT decoded — no EntityWidget', () => {
+        const doc = 'x\n`&amp;`';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('entity inside a fenced code block is NOT decoded — no EntityWidget', () => {
+        const doc = '```\n&amp;\n```';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('cursor touching the entity reveals raw "&copy;" — no decoration', () => {
+        const doc = '&copy;';
+        const field = buildDecorations(gfm(doc, { anchor: 2 }), full(doc));
+        expect(countDecos(field, 0, doc.length)).toBe(0);
     });
 });
