@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { CheckboxWidget } from '../widgets';
+import { CheckboxWidget, EntityWidget } from '../widgets';
 
 // The toggle lives in CheckboxWidget.toDOM's `mousedown` handler: it reads
 // view.state.doc, matches the task-line prefix, and view.dispatch()es a single
@@ -60,5 +60,37 @@ describe('CheckboxWidget toggle — GFM uppercase [X] + all bullet chars (audit 
         const { view, fire } = setup('1. [ ] ordered');
         fire();
         expect(view.state.doc.toString()).toBe('1. [ ] ordered');
+    });
+});
+
+describe('EntityWidget — decoded HTML entity as a text-only span (audit #3)', () => {
+    // Pinned contract:
+    //   constructor(ch) stores the already-decoded string.
+    //   toDOM() -> <span class="cm-entity"> whose textContent === ch, set via
+    //     textContent (NEVER innerHTML) — so no element children.
+    //   eq(other) -> other.ch === this.ch
+    //   ignoreEvent() -> false
+    it('toDOM() is a bare SPAN.cm-entity with textContent === ch and no element children', () => {
+        const dom = new EntityWidget('&').toDOM();
+        expect(dom.tagName).toBe('SPAN');
+        expect(dom.textContent).toBe('&');
+        expect(dom.className).toContain('cm-entity');
+        expect(dom.children.length).toBe(0);
+        expect(dom.querySelector('*')).toBe(null);
+    });
+
+    it('renders a multi-char decoded value literally (no HTML interpretation)', () => {
+        const dom = new EntityWidget('<b>').toDOM();
+        expect(dom.textContent).toBe('<b>');
+        expect(dom.children.length).toBe(0);
+    });
+
+    it('eq: true for the same char, false for a different char', () => {
+        expect(new EntityWidget('&').eq(new EntityWidget('&'))).toBe(true);
+        expect(new EntityWidget('&').eq(new EntityWidget('<'))).toBe(false);
+    });
+
+    it('ignoreEvent() returns false', () => {
+        expect(new EntityWidget('&').ignoreEvent()).toBe(false);
     });
 });

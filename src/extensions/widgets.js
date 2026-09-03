@@ -106,3 +106,25 @@ export class TableWidget extends WidgetType {
     ignoreEvent() { return true; }
 }
 
+export class EntityWidget extends WidgetType {
+    constructor(ch) {
+        super();
+        this.ch = ch;
+    }
+
+    toDOM() {
+        const span = document.createElement("span");
+        span.className = "cm-entity";
+        span.textContent = this.ch;
+        return span;
+    }
+
+    eq(other) {
+        return other.ch === this.ch;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
+}
+
