@@ -10,12 +10,17 @@
     user-select: none;
     position: relative;
     padding: 0 10px;
-    padding-right: 140px;
-    /* Space for Window Controls */
     /* Push tabs down to align bottom with container */
     overflow: hidden;
     z-index: 90;
     -webkit-app-region: drag;
+}
+
+/* Windows overlays the caption buttons (min/max/close) on the top-right of the
+   page; reserve room for them there. Other platforms use a native frame, so the
+   tab bar takes the full width. */
+:global(body.platform-win32) .tabsContainer {
+    padding-right: 140px;
 }
 
 .appIcon {
@@ -64,7 +69,7 @@
 
 .tabsList {
     display: flex;
-    flex: 1;
+    flex: 1 1 auto;
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: none;
@@ -89,6 +94,8 @@
     min-width: 100px;
     max-width: 200px;
     flex: 0 1 160px;
+    /* Fixed 160px each; do not grow. As more tabs open they shrink toward the
+       100px min-width, then the list scrolls. */
     border-right: 1px solid var(--background-modifier-border);
     /* Separator */
     background-color: transparent;
@@ -217,17 +224,19 @@
     align-items: center;
     justify-content: center;
     min-width: 32px;
-    width: 36px;
-    height: 36px;
+    width: 32px;
+    height: 32px;
     border: none;
     background: transparent;
     color: var(--text-muted);
     cursor: pointer;
-    font-size: 26px;
+    font-size: 24px;
     border-radius: var(--radius-s);
     flex-shrink: 0;
-    margin-left: 4px;
-    transition: all var(--transition-fast);
+    /* No right margin: right edge lands on the container's 10px padding, the
+       same as the Settings button in the row below, so the two line up. */
+    margin: 0 0 0 4px;
+    transition: color var(--transition-fast), background-color var(--transition-fast);
     -webkit-app-region: no-drag;
 }
 
@@ -237,7 +246,12 @@
 }
 
 .dragHandle {
-    min-width: 32px;
-    width: 92px;
+    flex-shrink: 0;
+    width: 12px;
     -webkit-app-region: drag;
+}
+
+/* Wider grab strip on Windows so there is still a drag zone beside the caption buttons */
+:global(body.platform-win32) .dragHandle {
+    width: 92px;
 }

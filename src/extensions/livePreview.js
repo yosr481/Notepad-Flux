@@ -1,10 +1,57 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
-import { BulletWidget, CheckboxWidget, TableWidget, HRWidget } from "./widgets";
+import { RangeSetBuilder, StateField } from "@codemirror/state";
+import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget, OrderedMarkerWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 
-const PREFIX = 10000;
+const namedEntities = {
+    'amp': '&',
+    'lt': '<',
+    'gt': '>',
+    'quot': '"',
+    'apos': "'",
+    'copy': '©',
+    'nbsp': ' '
+};
+
+function decodeEntity(entity) {
+    // entity is the whole token including & and ;
+    if (!entity.startsWith('&') || !entity.endsWith(';')) {
+        return null;
+    }
+
+    const content = entity.slice(1, -1);  // Remove & and ;
+
+    // Numeric: &#...;
+    if (content.startsWith('#')) {
+        if (content.startsWith('#x') || content.startsWith('#X')) {
+            // Hex: &#xABC;
+            const hex = content.slice(2);
+            if (!/^[0-9a-fA-F]+$/.test(hex)) return null;
+            const num = parseInt(hex, 16);
+            if (!Number.isFinite(num) || num > 0x10FFFF) return null;
+            // Reject control chars, surrogates
+            if (num < 0x20 || (num >= 0x7F && num <= 0x9F) || (num >= 0xD800 && num <= 0xDFFF)) return null;
+            return String.fromCodePoint(num);
+        } else {
+            // Decimal: &#123;
+            const digits = content.slice(1);
+            if (!/^[0-9]+$/.test(digits)) return null;
+            const num = parseInt(digits, 10);
+            if (!Number.isFinite(num) || num > 0x10FFFF) return null;
+            // Reject control chars, surrogates
+            if (num < 0x20 || (num >= 0x7F && num <= 0x9F) || (num >= 0xD800 && num <= 0xDFFF)) return null;
+            return String.fromCodePoint(num);
+        }
+    }
+
+    // Named entity — use own-property lookup, not inherited
+    if (Object.hasOwn(namedEntities, content)) {
+        return namedEntities[content];
+    }
+
+    return null;
+}
 
 export const buildDecorations = (state, range) => {
     const builder = new RangeSetBuilder();
@@ -12,10 +59,11 @@ export const buildDecorations = (state, range) => {
     const doc = state.doc;
     const decorations = [];
 
-    const iterRange = range ? { from: range.from, to: range.to } : { from: 0, to: Math.min(doc.length, PREFIX) };
+    const iterRange = range || { from: 0, to: doc.length };
 
     syntaxTree(state).iterate({
-        ...iterRange,
+        from: iterRange.from,
+        to: iterRange.to,
         enter: (node) => {
             const { name, from: nodeFrom, to: nodeTo } = node;
 
@@ -39,9 +87,16 @@ export const buildDecorations = (state, range) => {
                 }
             }
 
+            if (name === "Escape") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    // Hide only the backslash, leave the escaped char as plain text
+                    decorations.push({ from: nodeFrom, to: nodeFrom + 1, value: Decoration.replace({}) });
+                }
+            }
+
             if (name === "LinkMark" || name === "URL") {
                 const parent = node.node.parent;
-                if (parent && parent.name === "Link") {
+                if (parent && (parent.name === "Link" || (parent.name === "Autolink" && name === "LinkMark"))) {
                     let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
                     if (!isTouching) {
@@ -72,6 +127,33 @@ export const buildDecorations = (state, range) => {
                     const isOrdered = grandParent && grandParent.name === "OrderedList";
 
                     if (isOrdered) {
+                        // Ordered list: renumber with computed marker
+                        const markerText = doc.sliceString(nodeFrom, nodeTo);
+                        const delimMatch = markerText.match(/^\d+([.)])/);
+                        if (delimMatch) {
+                            const delim = delimMatch[1];
+                            // ponytail: rebuilds the sibling list + findIndex per ListMark visited (O(n²) per list); viewport-bounded so fine, hoist to a per-OrderedList cache if a huge list drags
+                            // Find all ListItem children of this OrderedList
+                            const listItems = grandParent.node.getChildren("ListItem");
+                            const itemIndex = listItems.findIndex(li => li.from === parent.from);
+                            const firstSiblingMark = listItems[0]?.getChild("ListMark");
+                            if (firstSiblingMark && itemIndex >= 0) {
+                                const firstMarkerText = doc.sliceString(firstSiblingMark.from, firstSiblingMark.to);
+                                const firstDigitsMatch = firstMarkerText.match(/^\d+/);
+                                if (firstDigitsMatch) {
+                                    const startNum = parseInt(firstDigitsMatch[0], 10);
+                                    const computedNum = startNum + itemIndex;
+                                    const text = String(computedNum) + delim;
+                                    if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                                        decorations.push({
+                                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                                widget: new OrderedMarkerWidget(text)
+                                            })
+                                        });
+                                    }
+                                }
+                            }
+                        }
                         return;
                     }
 
@@ -121,7 +203,7 @@ export const buildDecorations = (state, range) => {
                 }
 
                 if (!isTouching) {
-                    const isChecked = doc.sliceString(nodeFrom, nodeTo).includes("x");
+                    const isChecked = /[xX]/.test(doc.sliceString(nodeFrom, nodeTo));
                     decorations.push({
                         from: nodeFrom, to: nodeTo, value: Decoration.replace({
                             widget: new CheckboxWidget(isChecked)
@@ -133,11 +215,32 @@ export const buildDecorations = (state, range) => {
             if (name.startsWith("ATXHeading")) {
                 if (!isCursorOnLine(selection, doc, nodeFrom)) {
                     const headerText = doc.sliceString(nodeFrom, nodeTo);
+                    // Hide leading ###...
                     const match = headerText.match(/^#+\s+/);
+                    const leadLen = match ? match[0].length : 0;
                     if (match) {
                         const hideFrom = nodeFrom;
                         const hideTo = nodeFrom + match[0].length;
                         decorations.push({ from: hideFrom, to: hideTo, value: Decoration.replace({}) });
+                    }
+                    // Hide trailing closing sequence if present
+                    const closeMatch = headerText.match(/\s+#+\s*$/);
+                    if (closeMatch && closeMatch.index >= leadLen) {
+                        const hideFrom = nodeFrom + closeMatch.index;
+                        const hideTo = nodeTo;
+                        decorations.push({ from: hideFrom, to: hideTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            if (name === "SetextHeading1" || name === "SetextHeading2") {
+                const headerMark = node.node.getChild("HeaderMark");
+                if (headerMark) {
+                    const textLineFrom = nodeFrom;
+                    const underlineLineFrom = headerMark.from;
+                    // Hide underline only if cursor is on neither the text line nor the underline line
+                    if (!isCursorOnLine(selection, doc, textLineFrom) && !isCursorOnLine(selection, doc, underlineLineFrom)) {
+                        decorations.push({ from: headerMark.from, to: headerMark.to, value: Decoration.replace({}) });
                     }
                 }
             }
@@ -153,13 +256,22 @@ export const buildDecorations = (state, range) => {
             }
 
             if (name === "Blockquote") {
+                // Calculate blockquote depth (count ancestors including self, capped at 3)
+                let depth = 1;
+                let ancestor = node.node.parent;
+                while (ancestor && depth < 3) {
+                    if (ancestor.name === "Blockquote") {
+                        depth++;
+                    }
+                    ancestor = ancestor.parent;
+                }
                 // Iterate over lines in the blockquote to apply decoration to each line
                 // This ensures continuous border even if it's multiple lines
                 for (let i = nodeFrom; i < nodeTo;) {
                     const line = doc.lineAt(i);
                     decorations.push({
                         from: line.from, to: line.from, value: Decoration.line({
-                            class: "cm-blockquote-line"
+                            class: `cm-blockquote-line cm-blockquote-depth-${depth}`
                         })
                     });
                     i = line.to + 1;
@@ -200,6 +312,34 @@ export const buildDecorations = (state, range) => {
             if (name === "CodeMark") {
                 const parent = node.node.parent;
                 if (parent && parent.name === "InlineCode") {
+                    if (!isCursorTouching(selection, parent.from, parent.to)) {
+                        decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                    }
+                }
+            }
+
+            if (name === "Entity") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    const decoded = decodeEntity(doc.sliceString(nodeFrom, nodeTo));
+                    if (decoded !== null) {
+                        decorations.push({
+                            from: nodeFrom, to: nodeTo, value: Decoration.replace({
+                                widget: new EntityWidget(decoded)
+                            })
+                        });
+                    }
+                }
+            }
+
+            if (name === "LinkReference") {
+                if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
+                    decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
+                }
+            }
+
+            if (name === "LinkLabel") {
+                const parent = node.node.parent;
+                if (parent && (parent.name === "Link" || parent.name === "Image")) {
                     if (!isCursorTouching(selection, parent.from, parent.to)) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }
@@ -276,34 +416,44 @@ export const buildDecorations = (state, range) => {
     return builder.finish();
 };
 
-export const setLivePreviewViewport = StateEffect.define();
 
-const livePreviewViewportField = StateField.define({
-    create: () => null,
-    update(range, tr) {
-        for (const e of tr.effects) {
-            if (e.is(setLivePreviewViewport)) return e.value;
-        }
-        return range;
-    }
-});
-
+// ponytail: full-doc decoration rebuild per keystroke/selection; fine for
+// notepad-sized docs (tens of KB), add viewport windowing back if large files jank.
 const livePreviewField = StateField.define({
     create(state) {
         return buildDecorations(state);
     },
     update(decorations, transaction) {
-        if (transaction.docChanged || transaction.selection || transaction.effects.some(e => e.is(setLivePreviewViewport))) {
-            const range = transaction.state.field(livePreviewViewportField, false);
-            return buildDecorations(transaction.state, range);
+        // syntaxTree comparison: the markdown parser is time-sliced, so on a long
+        // doc the tail parses in a later transaction that carries no docChanged/
+        // selection/effect flag. Without this check those lines keep their stale
+        // (empty) decorations and never render as live preview.
+        if (
+            transaction.docChanged ||
+            transaction.selection ||
+            syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+        ) {
+            return buildDecorations(transaction.state);
         }
         return decorations;
     },
     provide: field => EditorView.decorations.from(field)
 });
 
+// Split a table row on unescaped `|`, unescaping `\|` -> `|` in each cell.
+// Placeholder swap avoids a lookbehind regex (Safari <16.4 has none).
+const CELL_PH = String.fromCharCode(0); // NUL — never appears in table markdown
+function splitCells(row) {
+    return row
+        .split('\\|').join(CELL_PH)   // protect escaped pipes
+        .split('|')                   // split on real separators
+        .map(c => c.split(CELL_PH).join('|')); // restore as literal pipe
+}
+
 export function convertTableToHTML(text) {
-    const rows = text.trim().split('\n');
+    let rows = text.trim().split('\n');
+    // Strip blockquote prefix from each row (audit #6)
+    rows = rows.map(r => r.replace(/^>\s?/, ''));
     if (rows.length < 2) return "<div class='cm-table-empty'>Empty Table</div>";
 
     let alignments = [];
@@ -315,7 +465,7 @@ export function convertTableToHTML(text) {
     const isValidDelimiter = /^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-');
     if (isValidDelimiter) {
         const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
-        alignments = cleanDelimiter.split('|').map(s => {
+        alignments = splitCells(cleanDelimiter).map(s => {
             s = s.trim();
             if (s.startsWith(':') && s.endsWith(':')) return 'center';
             if (s.endsWith(':')) return 'right';
@@ -344,13 +494,13 @@ export function convertTableToHTML(text) {
         const cellTag = isHeader ? "th" : "td";
 
         let rowHtml = "<tr>";
-        const cells = cleanRow.split('|');
+        const cells = splitCells(cleanRow);
         for (let j = 0; j < cells.length; j++) {
-            const content = cells[j].trim();
+            let content = cells[j].trim();
             const parsed = parseCellContent(content);
             let alignAttr = "";
             if (alignments[j]) {
-                alignAttr = ` style="text-align: ${alignments[j]}"`;
+                alignAttr = ` class="cm-align-${alignments[j]}"`;
             }
             rowHtml += `<${cellTag}${alignAttr}>${parsed}</${cellTag}>`;
         }
@@ -381,31 +531,6 @@ export function convertTableToHTML(text) {
 
     return html;
 }
-
-// ponytail: PAD margins outside viewport; constructs larger than PAD starting above viewport may lose decorations until scrolled into range
-const PAD = 2000;
-
-const livePreviewViewportPlugin = ViewPlugin.fromClass(class {
-    constructor(view) {
-        this.publish(view);
-    }
-
-    update(u) {
-        if (u.viewportChanged || u.docChanged) {
-            this.publish(u.view);
-        }
-    }
-
-    publish(view) {
-        const { from, to } = view.viewport;
-        const docLen = view.state.doc.length;
-        const range = { from: Math.max(0, from - PAD), to: Math.min(docLen, to + PAD) };
-        const cur = view.state.field(livePreviewViewportField, false);
-        if (!cur || cur.from !== range.from || cur.to !== range.to) {
-            view.dispatch({ effects: setLivePreviewViewport.of(range) });
-        }
-    }
-});
 
 // --- Highlights (==text==) ---
 
@@ -483,8 +608,8 @@ function parseCellContent(content) {
     html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
     // Code `text`
     html = html.replace(/`(.*?)`/g, "<code>$1</code>");
-    // Links [text](url)
-    html = html.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank">$1</a>');
+    // Links [text](url) — strip an optional "title"
+    html = html.replace(/\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g, '<a href="$2" target="_blank">$1</a>');
     // Highlights ==text==
     html = html.replace(/==(.*?)==/g, "<mark>$1</mark>");
 
@@ -493,7 +618,5 @@ function parseCellContent(content) {
 
 export const livePreview = [
     livePreviewField,
-    livePreviewViewportField,
-    livePreviewViewportPlugin,
     highlightPlugin
 ];

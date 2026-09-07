@@ -4,6 +4,23 @@ import { syntaxTree } from "@codemirror/language";
 import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
+import { resolveLinkDefs, normalizeLabel } from "./linkDefs";
+
+// Helper: visible text between opening [and closing] LinkMarks
+function getVisibleTextBetweenMarks(linkNode, doc) {
+    const markSiblings = [];
+    let child = linkNode.firstChild;
+    while (child) {
+        if (child.name === "LinkMark") {
+            markSiblings.push(child);
+        }
+        child = child.nextSibling;
+    }
+    if (markSiblings.length >= 2) {
+        return doc.sliceString(markSiblings[0].to, markSiblings[1].from);
+    }
+    return '';
+}
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -124,7 +141,8 @@ function computeLinkDecorations(view) {
             }
 
             if (!shouldReveal) {
-                let urlNode = node.node.getChild("URL");
+                // #14: skip image-in-link
+                if (node.node.getChild("Image")) return;
 
                 // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
                 const textContentFull = doc.sliceString(from, to);
@@ -145,6 +163,33 @@ function computeLinkDecorations(view) {
                         widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
                         inclusive: false
                     }));
+                } else {
+                    // #8: reference-style link resolution
+                    const defs = resolveLinkDefs(state);
+
+                    // Try to get the LinkLabel
+                    let label = '';
+                    const labelNode = node.node.getChild("LinkLabel");
+                    if (labelNode) {
+                        const labelText = doc.sliceString(labelNode.from, labelNode.to);
+                        label = normalizeLabel(labelText);
+                    }
+
+                    // Compute visible text once (used for label derivation or widget display)
+                    const visibleText = getVisibleTextBetweenMarks(node.node, doc);
+
+                    // If no LinkLabel (shortcut [id] or collapsed [id][]), use visible text as label
+                    if (!label) {
+                        label = normalizeLabel(visibleText);
+                    }
+
+                    const def = defs.get(label);
+                    if (def) {
+                        builder.add(from, to, Decoration.replace({
+                            widget: new LinkWidget(visibleText, def.url, { bold, italic }),
+                            inclusive: false
+                        }));
+                    }
                 }
             }
         }

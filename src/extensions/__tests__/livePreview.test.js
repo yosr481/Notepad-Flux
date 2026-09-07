@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import {
-    livePreview,
-    buildDecorations,
-    setLivePreviewViewport,
-} from '../livePreview';
-import { TableWidget } from '../widgets';
+import { forceParsing } from '@codemirror/language';
+import { livePreview, buildDecorations } from '../livePreview';
+import * as lp from '../livePreview';
+import { TableWidget, CheckboxWidget, EntityWidget, OrderedMarkerWidget, HRWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -18,8 +16,6 @@ const gfm = (doc, selection) =>
         selection,
         extensions: [markdown({ base: markdownLanguage }), livePreview],
     });
-
-const getField = (state) => state.field(livePreview[0]);
 
 // Count decoration ranges overlapping [from, to).
 const countDecos = (field, from, to) => {
@@ -40,8 +36,8 @@ const decosAt = (field, from, to) => {
 describe('Live Preview Extension — shape', () => {
     it('exports an array whose first element is the decoration StateField', () => {
         expect(Array.isArray(livePreview)).toBe(true);
-        // field + highlightPlugin + viewport plugin (+ maybe a viewport field)
-        expect(livePreview.length).toBeGreaterThanOrEqual(3);
+        // After viewport removal the array is just [livePreviewField, highlightPlugin].
+        expect(livePreview.length).toBe(2);
 
         const { state } = createEditor('**Bold**', livePreview);
         // livePreview[0] must stay the field that provides decorations.
@@ -61,44 +57,78 @@ describe('Live Preview Extension — shape', () => {
     });
 });
 
-describe('Live Preview Extension — viewport-scoped decoration build', () => {
-    // Doc with **aa** at offset 0-6 and **zz** at offset 50007-50013.
-    const bigDoc = '**aa**\n' + 'x\n'.repeat(25000) + '**zz**\n';
-    const FAR = 50007; // start of the far StrongEmphasis
+describe('Live Preview Extension — whole-document decoration build (no viewport cap)', () => {
+    // 150 lines of 80 'x' + '\n' = 12150 chars — well past the old 10000 PREFIX cap.
+    const filler = ('x'.repeat(80) + '\n').repeat(150);
 
-    it('does NOT decorate nodes outside the given range', () => {
-        // Cursor at 500: away from both bold spans, but inside the {0,1000} range.
-        const state = gfm(bigDoc, { anchor: 500 });
-        const field = buildDecorations(state, { from: 0, to: 1000 });
+    // A bare EditorState.create() does NOT run the Lezer markdown parser to the end
+    // of a long doc, so syntaxTree(state) is truncated at ~10k and buildDecorations
+    // can't see the tail regardless of the PREFIX removal. Drive the state through a
+    // real EditorView and forceParsing() to the doc end so the tree actually covers
+    // the tail — this is what the running editor does across transactions.
+    const forcedGfm = (doc, selection) => {
+        const view = new EditorView({ state: gfm(doc, selection), parent: document.createElement('div') });
+        forceParsing(view, view.state.doc.length, 5000);
+        const { state } = view;
+        view.destroy();
+        return state;
+    };
 
-        // In-range **aa** IS decorated (its EmphasisMarks are hidden).
-        expect(countDecos(field, 0, 10)).toBeGreaterThan(0);
+    // Bare Decoration.replace (empty spec, no widget) exactly spanning [from, to).
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
 
-        // Out-of-range **zz** near offset 50007 is NOT touched.
-        expect(countDecos(field, FAR - 5, state.doc.length)).toBe(0);
+    it('buildDecorations(state) — one arg, no range — hides EmphasisMarks of a **bold** span past offset 12000', () => {
+        const base = 'hello **world** there'; // EmphasisMark ranges within base: [6,8] and [13,15]
+        const doc = filler + '\n' + base;
+        const off = filler.length + 1; // start of `base`
+        expect(off).toBeGreaterThan(10000);
+
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 })); // cursor far away, single arg
+        expect(bareReplacesAt(field, off + 6, off + 8).length).toBe(1);
+        expect(bareReplacesAt(field, off + 13, off + 15).length).toBe(1);
     });
 
-    it('with no range argument, falls back to a bounded prefix — not the whole doc', () => {
-        const state = gfm(bigDoc, { anchor: 500 });
-        const field = buildDecorations(state);
+    it('hides the leading "## " of an ATX heading past offset 11000', () => {
+        const doc = filler + '\n## Far Heading\n';
+        const hFrom = doc.indexOf('##');
+        expect(hFrom).toBeGreaterThan(11000);
 
-        // Prefix content still decorated.
-        expect(countDecos(field, 0, 10)).toBeGreaterThan(0);
-        // Content ~50k in is beyond the fallback bound → undecorated.
-        expect(countDecos(field, FAR - 5, state.doc.length)).toBe(0);
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 }));
+        expect(bareReplacesAt(field, hFrom, hFrom + 3).length).toBe(1); // "## "
     });
 
-    it('reveals raw syntax for a bold span the cursor is inside, hides it otherwise (in range)', () => {
+    it('replaces a "---" horizontal rule near the end with an HRWidget', () => {
+        const doc = filler + '\n---\n'; // blank line before --- => HorizontalRule (not a setext underline)
+        const hrFrom = doc.indexOf('---');
+        expect(hrFrom).toBeGreaterThan(10000);
+
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 }));
+        const vs = decosAt(field, hrFrom, hrFrom + 3);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeInstanceOf(HRWidget);
+    });
+
+    it('still decorates a node near the head (~offset 200) with the cursor parked at the end — no head regression', () => {
+        const head = 'y'.repeat(200) + '\n';
+        const doc = head + 'aa **bb** cc\n' + filler; // EmphasisMark ranges within the span: [3,5] and [7,9]
+        const off = head.length; // 201
+
+        const field = buildDecorations(gfm(doc, { anchor: doc.length }));
+        expect(bareReplacesAt(field, off + 3, off + 5).length).toBe(1);
+        expect(bareReplacesAt(field, off + 7, off + 9).length).toBe(1);
+    });
+
+    it('reveals raw syntax for a bold span the cursor is inside, hides it otherwise', () => {
         const doc = 'hello **world** there';
         // EmphasisMark ranges: 6-8 and 13-15; StrongEmphasis 6-15.
+        // (2nd arg is now ignored by buildDecorations; passing it keeps the call shape.)
         const full = { from: 0, to: doc.length };
 
-        // Cursor at 0: not touching the span → marks hidden (replace deco present).
         const away = buildDecorations(gfm(doc, { anchor: 0 }), full);
         expect(decosAt(away, 6, 8).length).toBe(1);
         expect(decosAt(away, 13, 15).length).toBe(1);
 
-        // Cursor at 10: inside the span → marks shown (no replace deco).
         const inside = buildDecorations(gfm(doc, { anchor: 10 }), full);
         expect(decosAt(inside, 6, 8).length).toBe(0);
         expect(decosAt(inside, 13, 15).length).toBe(0);
@@ -111,7 +141,6 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         const tTo = tFrom + table.length; // Table node 7..36
         const full = { from: 0, to: doc.length };
 
-        // Cursor at 0: not touching table → exactly one replace spanning the whole table.
         const collapsed = buildDecorations(gfm(doc, { anchor: 0 }), full);
         const widgets = [];
         collapsed.between(0, doc.length, (f, t, v) => {
@@ -122,7 +151,6 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         expect(widgets[0][1]).toBe(tTo);
         expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
 
-        // Cursor inside the table → no full-span table widget.
         const open = buildDecorations(gfm(doc, { anchor: tFrom + 4 }), full);
         let stillWidget = false;
         open.between(0, doc.length, (f, t, v) => {
@@ -131,25 +159,754 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         expect(stillWidget).toBe(false);
     });
 
-    it('setLivePreviewViewport moves the decorated region for later transactions', () => {
-        const parent = document.createElement('div');
-        const view = new EditorView({
-            state: gfm(bigDoc, { anchor: 500 }),
-            parent,
+    it('setLivePreviewViewport is no longer an export of the module', () => {
+        expect(lp.setLivePreviewViewport).toBeUndefined();
+    });
+
+    it('the livePreview extension array drops the viewport field + plugin (2 members, field still first)', () => {
+        expect(livePreview.length).toBe(2);
+        const { state } = createEditor('**Bold**', livePreview);
+        const field = state.field(livePreview[0], false);
+        expect(field).toBeDefined();
+        expect(typeof field.between).toBe('function');
+    });
+});
+
+describe('Live Preview Extension — GFM uppercase [X] task checkbox (audit #11)', () => {
+    // Pinned: a TaskMarker Lezer node spans EXACTLY the "[x]" / "[X]" / "[ ]"
+    // slice (verified with the parser: "- [X] a" -> TaskMarker[2,5]). That
+    // range carries one Decoration.replace whose .spec.widget is a
+    // CheckboxWidget; `checked` is true for BOTH "[x]" and "[X]", false for "[ ]".
+    const marker = (doc) => {
+        const from = doc.indexOf('[');
+        return { from, to: from + 3 };
+    };
+    // The checked-state cases put the task on line 2 with { anchor: 0 } on the
+    // first line, so the cursor is off the task line entirely. ({ anchor: 0 }
+    // on a lone task line would "touch" the ListMark and suppress the widget.)
+    const checkboxAt = (field, m) => {
+        const vs = decosAt(field, m.from, m.to);
+        if (vs.length !== 1 || !vs[0].spec || !(vs[0].spec.widget instanceof CheckboxWidget)) return null;
+        return vs[0].spec.widget;
+    };
+
+    it('renders "[X]" (uppercase) as a CHECKED CheckboxWidget', () => {
+        const doc = 'x\n- [X] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(true);
+    });
+
+    it('renders "[x]" (lowercase) as a CHECKED CheckboxWidget (regression guard)', () => {
+        const doc = 'x\n- [x] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(true);
+    });
+
+    it('renders "[ ]" (empty) as an UNCHECKED CheckboxWidget', () => {
+        const doc = 'x\n- [ ] a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const w = checkboxAt(field, marker(doc));
+        expect(w).toBeInstanceOf(CheckboxWidget);
+        expect(w.checked).toBe(false);
+    });
+
+    it('reveals the raw "[X]" (no widget) when the cursor is inside the marker', () => {
+        // Same cursor-reveal pattern as the bold-span tests above: cursor
+        // inside the node -> the replace decoration is gone.
+        const doc = '- [X] a';
+        const m = marker(doc); // [2,5]
+        const field = buildDecorations(gfm(doc, { anchor: m.from + 1 }), { from: 0, to: doc.length });
+        expect(decosAt(field, m.from, m.to).length).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — GFM angle-bracket autolinks keep no literal < > (audit #9)', () => {
+    // Verified against the installed @lezer/markdown (GfmAutolink):
+    //   "<https://example.com>" ->
+    //     Autolink [0,21]
+    //       LinkMark [0,1]  "<"
+    //       URL      [1,20] "https://example.com"
+    //       LinkMark [20,21] ">"
+    //   "<user@host>" -> Autolink [0,11] > LinkMark[0,1] "<", URL[1,10], LinkMark[10,11] ">"
+    //   Bare "https://example.com" -> a lone URL node whose parent is Paragraph (NOT Link/Autolink).
+    //   Normal "[text](http://x)" -> Link > LinkMark "[" "]" "(" ")" + URL; the label text
+    //     between the brackets is unwrapped text (no node of its own).
+    //
+    // Pinned contract for the fix:
+    //  - For an Autolink the cursor is NOT touching: the two delimiter LinkMarks
+    //    ("<" and ">") each get a bare Decoration.replace({}) (no widget).
+    //  - The URL child is NOT hidden — it is the visible link text.
+    //  - "cursor touching" = any selection range intersecting [Autolink.from, Autolink.to];
+    //    touching reveals BOTH brackets (no decoration on either LinkMark).
+    //  - Bare autolinks (no brackets) and normal [t](u) links are unchanged by this.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    // A bare replace decoration (empty spec, no widget) at an exact range.
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+    it('1. <https://example.com> with cursor off the line: the "<" (offset 0..1) carries one bare replace', () => {
+        const doc = 'x\n<https://example.com>';
+        const lt = doc.indexOf('<');            // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, lt, lt + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('2. <https://example.com> with cursor off the line: the ">" (last char) carries one bare replace', () => {
+        const doc = 'x\n<https://example.com>';
+        const gt = doc.length - 1;              // 22
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, gt, gt + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('3. the URL span itself stays visible — no replace decoration over it', () => {
+        const doc = 'x\n<https://example.com>';
+        const urlFrom = doc.indexOf('https');   // 3
+        const urlTo = doc.length - 1;           // 22
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        // No decoration exactly spanning the URL...
+        expect(decosAt(field, urlFrom, urlTo).length).toBe(0);
+        // ...and nothing decorating the URL interior (linkPreview is not in this
+        // extension set). Stay off the bracket boundaries — RangeSet.between()
+        // reports a range that only touches an endpoint.
+        expect(countDecos(field, urlFrom + 1, urlTo - 1)).toBe(0);
+    });
+
+    it('4. <user@host> email autolink: "<" and ">" hidden, "user@host" not', () => {
+        const doc = 'x\n<user@host>';
+        const lt = doc.indexOf('<');            // 2
+        const gt = doc.length - 1;              // 12
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(bareReplacesAt(field, lt, lt + 1).length).toBe(1);
+        expect(bareReplacesAt(field, gt, gt + 1).length).toBe(1);
+        // "user@host" between the brackets is untouched (interior only — see note in test 3).
+        expect(countDecos(field, lt + 2, gt - 1)).toBe(0);
+    });
+
+    it('5. cursor inside the autolink reveals both brackets (no decoration on < or >)', () => {
+        const doc = '<https://example.com>';
+        // Autolink [0,21]; anchor at 3 is inside the URL, so it intersects the Autolink.
+        const field = buildDecorations(gfm(doc, { anchor: 3 }), full(doc));
+        expect(decosAt(field, 0, 1).length).toBe(0);
+        expect(decosAt(field, doc.length - 1, doc.length).length).toBe(0);
+    });
+
+    it('6. bare autolink https://example.com (no brackets) is unchanged — no replace anywhere in it', () => {
+        const doc = 'x\nhttps://example.com';
+        const urlFrom = doc.indexOf('https');   // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, urlFrom, doc.length)).toBe(0);
+    });
+
+    it('7. normal [text](http://x) link is unchanged — brackets/parens/URL replaced, label text not', () => {
+        const doc = 'x\n[text](http://x)';
+        // Link [2,18]: LinkMark "[" [2,3], label "text" [3,7], LinkMark "]" [7,8],
+        // LinkMark "(" [8,9], URL [9,17], LinkMark ")" [17,18].
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        // Current behaviour pinned: each syntax piece hidden with a bare replace.
+        expect(bareReplacesAt(field, 2, 3).length).toBe(1);   // [
+        expect(bareReplacesAt(field, 7, 8).length).toBe(1);   // ]
+        expect(bareReplacesAt(field, 8, 9).length).toBe(1);   // (
+        expect(bareReplacesAt(field, 9, 17).length).toBe(1);  // URL
+        expect(bareReplacesAt(field, 17, 18).length).toBe(1); // )
+        // The visible "text" label is NOT replaced (interior only — the "[" and "]"
+        // replaces end/start on the label boundary and RangeSet.between() reports them).
+        expect(decosAt(field, 3, 7).length).toBe(0);
+        expect(countDecos(field, 4, 6)).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — backslash escapes hide only the "\\" (audit #2)', () => {
+    // Verified against the installed @lezer/markdown:
+    //   "x\n\\*a\\*"  -> Paragraph > Escape[2,4] "\\*", Escape[5,7] "\\*"
+    //   "x\n\\\\"     -> Paragraph > Escape[2,4] "\\\\"
+    //   "\\a"         -> Paragraph only, NO Escape node ("a" is not escapable)
+    // The `*` inside an Escape never becomes an EmphasisMark, so formatting is
+    // already suppressed. Only the leading backslash still leaks visually.
+    //
+    // Pinned contract for the fix:
+    //  - For an `Escape` node the cursor is NOT touching: a bare
+    //    Decoration.replace({}) (no widget) covers [nodeFrom, nodeFrom+1] — the
+    //    backslash ONLY. The escaped char at nodeFrom+1 stays as plain document
+    //    text and is NOT covered.
+    //  - "\\\\" (escaped backslash): same — first "\\" hidden, second renders.
+    //  - "cursor touching" is RANGE-scoped, not line-scoped: predicate is
+    //    isCursorTouching(selection, escFrom, escTo) (any selection range
+    //    intersecting [Escape.from, Escape.to]). A cursor inside one escape on a
+    //    line does NOT reveal a sibling escape elsewhere on the same line.
+    //  - "\\a" (non-escapable): no Escape node, no decoration, stays literal.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+    it('cursor off the line: "\\*" -> the "\\" (escFrom..escFrom+1) carries one bare replace', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const vs = bareReplacesAt(field, esc, esc + 1);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('cursor off the line: the escaped "*" at escFrom+1 is NOT covered, and the whole Escape node is not replaced', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(decosAt(field, esc + 1, esc + 2).length).toBe(0); // the "*"
+        expect(decosAt(field, esc, esc + 2).length).toBe(0);     // not the 2-char node
+    });
+
+    it('"\\\\" (escaped backslash): first "\\" hidden, second "\\" not', () => {
+        const doc = 'x\n\\\\';
+        const esc = doc.indexOf('\\'); // 2  — Escape [2,4]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(bareReplacesAt(field, esc, esc + 1).length).toBe(1);
+        expect(decosAt(field, esc + 1, esc + 2).length).toBe(0);
+    });
+
+    it('cursor inside the escape (anchor at escFrom+1) reveals raw "\\*" — no decoration on that escape', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\'); // 2
+        const field = buildDecorations(gfm(doc, { anchor: esc + 1 }), full(doc));
+        expect(countDecos(field, esc, esc + 2)).toBe(0);
+    });
+
+    it('range-scoped, not line-scoped: cursor in the first escape still hides the second escape on the same line', () => {
+        const doc = 'x\n\\*a\\*';
+        const esc = doc.indexOf('\\');        // 2  — Escape [2,4]
+        const esc2 = doc.indexOf('\\', esc + 1); // 5  — Escape [5,7]
+        const field = buildDecorations(gfm(doc, { anchor: esc + 1 }), full(doc));
+        expect(bareReplacesAt(field, esc2, esc2 + 1).length).toBe(1);
+    });
+
+    it('"\\a" (non-escapable char): no Escape node, no decoration anywhere', () => {
+        const doc = '\\a';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, 0, doc.length)).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — HTML entities decode to their character (audit #3)', () => {
+    // Verified against the installed @lezer/markdown:
+    //   "x\n&amp;"     -> Paragraph > Entity[2,7]
+    //   "&#169;" / "&#x2764;" / "&nbsp;" / "&copy;" -> a single Entity node over the token
+    //   "&notareal;"   -> Lezer STILL emits Entity[..] (it does NOT validate against
+    //                     the entity table) — the task brief's "no Entity node" was
+    //                     wrong; pinned reality below.
+    //   "`&amp;`"      -> InlineCode > CodeMark/CodeMark, NO Entity child.
+    //   fenced code    -> CodeText, NO Entity child.
+    //
+    // Pinned contract for the fix:
+    //  - For an `Entity` node the cursor is NOT touching that decodes to a real
+    //    character: one Decoration.replace({ widget: new EntityWidget(decoded) })
+    //    over the whole node range. widget.ch === the decoded string.
+    //  - Numeric "&#NN;" / "&#xNN;" decode via String.fromCodePoint(parseInt(...)).
+    //  - Named entities decode to exactly their character ("&amp;"->"&", "&copy;"->"©",
+    //    "&nbsp;"->U+00A0, "&lt;"->"<", "&gt;"->">").
+    //  - An Entity token that is NOT a valid reference ("&notareal;") produces NO
+    //    decoration — it stays literal. (Impl note in decisions.md: a detached
+    //    <textarea> greedily partial-matches "&not" -> "¬"; the fix must reject
+    //    such tokens, e.g. a named-entity allow-map or a "decoded still contains
+    //    ';'/letters" guard.)
+    //  - Entities inside inline code / fenced code are never wrapped (no Entity
+    //    node exists there anyway).
+    //  - "cursor touching" is range-scoped: isCursorTouching(selection, from, to).
+    //  - The widget renders via textContent only (architect directive): its DOM is
+    //    a bare <span class="cm-entity"> with no element children.
+    const full = (doc) => ({ from: 0, to: doc.length });
+    const entRange = (doc) => {
+        const from = doc.indexOf('&');
+        return { from, to: doc.indexOf(';', from) + 1 };
+    };
+    const entityWidgetAt = (field, r) => {
+        const vs = decosAt(field, r.from, r.to);
+        if (vs.length !== 1) return null;
+        const w = vs[0].spec && vs[0].spec.widget;
+        return w instanceof EntityWidget ? w : null;
+    };
+    const anyEntityWidget = (field, doc) => {
+        let found = false;
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec && v.spec.widget instanceof EntityWidget) found = true;
         });
+        return found;
+    };
 
-        // Initial: prefix decorated, far span not.
-        expect(countDecos(getField(view.state), 0, 10)).toBeGreaterThan(0);
-        expect(countDecos(getField(view.state), FAR - 5, view.state.doc.length)).toBe(0);
+    it('"&amp;" cursor off -> one Decoration.replace whose widget is an EntityWidget with ch "&"', () => {
+        const doc = 'x\n&amp;';
+        const r = entRange(doc); // [2,7]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const w = entityWidgetAt(field, r);
+        expect(w).toBeInstanceOf(EntityWidget);
+        expect(w.ch).toBe('&');
+    });
 
-        // Point the live-preview viewport at the far span, then a normal
-        // selection transaction should decorate there instead.
-        view.dispatch({ effects: setLivePreviewViewport.of({ from: 49000, to: 51000 }) });
-        view.dispatch({ selection: { anchor: 49500 } }); // in new range, not touching **zz**
+    it('"&amp;" widget renders via textContent — bare <span>, no element children, textContent "&"', () => {
+        const doc = 'x\n&amp;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        const w = entityWidgetAt(field, entRange(doc));
+        const dom = w.toDOM();
+        expect(dom.textContent).toBe('&');
+        expect(dom.querySelector('*')).toBe(null);
+        expect(dom.children.length).toBe(0);
+    });
 
-        expect(countDecos(getField(view.state), FAR - 5, FAR + 12)).toBeGreaterThan(0);
-        expect(countDecos(getField(view.state), 0, 10)).toBe(0);
+    it('numeric "&#169;" -> ch "©"', () => {
+        const doc = 'x\n&#169;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+    });
 
-        view.destroy();
+    it('numeric hex "&#x2764;" -> ch "❤"', () => {
+        const doc = 'x\n&#x2764;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('❤');
+    });
+
+    it('"&nbsp;" -> ch " " (non-breaking space)', () => {
+        const doc = 'x\n&nbsp;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe(' ');
+    });
+
+    it('"&copy;" -> ch "©"', () => {
+        const doc = 'x\n&copy;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+    });
+
+    it('"&lt;" and "&gt;" decode to "<" and ">"', () => {
+        for (const [tok, ch] of [['&lt;', '<'], ['&gt;', '>']]) {
+            const doc = 'x ' + tok + ' y';
+            const field = buildDecorations(gfm(doc, { anchor: doc.length }), full(doc));
+            expect(entityWidgetAt(field, entRange(doc)).ch).toBe(ch);
+        }
+    });
+
+    it('invalid "&notareal;" -> NO decoration, stays literal (Lezer emits an Entity node anyway)', () => {
+        const doc = 'x\n&notareal;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, doc.indexOf('&'), doc.length)).toBe(0);
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('"&toString;" (an Object.prototype key, not a real entity) -> NO decoration, stays literal', () => {
+        // decodeEntity must use own-property lookup on its allow-map, not `key in map`
+        // / `map[key]`, or inherited props (toString/constructor/__proto__/hasOwnProperty)
+        // leak through and get rendered as garbage text.
+        const doc = 'x\n&toString;';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(countDecos(field, doc.indexOf('&'), doc.length)).toBe(0);
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('entity inside inline code "`&amp;`" is NOT decoded — no EntityWidget', () => {
+        const doc = 'x\n`&amp;`';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('entity inside a fenced code block is NOT decoded — no EntityWidget', () => {
+        const doc = '```\n&amp;\n```';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
+        expect(anyEntityWidget(field, doc)).toBe(false);
+    });
+
+    it('cursor touching the entity reveals raw "&copy;" — no decoration', () => {
+        const doc = '&copy;';
+        const field = buildDecorations(gfm(doc, { anchor: 2 }), full(doc));
+        expect(countDecos(field, 0, doc.length)).toBe(0);
+    });
+});
+
+describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / audit #6)', () => {
+    // Verified against the installed @lezer/markdown for
+    //   'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n':
+    //     Blockquote [3,38]
+    //       QuoteMark [3,4]
+    //       Table [5,38]         <-- Table DOES nest under Blockquote
+    //         TableHeader [5,14] "| a | b |"
+    //         ... (rows 2+ still carry the "> " prefix in the sliced text)
+    //   doc.sliceString(Table.from, Table.to) ===
+    //     "| a | b |\n> | - | - |\n> | 1 | 2 |"
+    //
+    // Pinned: the Table range [5,38] carries exactly one Decoration.replace
+    // whose .spec.widget is a TableWidget, and (after the #6 fix) that widget's
+    // .htmlContent contains "<table" and NOT "cm-table-empty".
+    const doc = 'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n';
+    const tFrom = 5;
+    const tTo = 38;
+    const full = { from: 0, to: doc.length };
+
+    it('the parser nests Table under Blockquote and the slice still has the "> " prefix', () => {
+        const state = gfm(doc, { anchor: 0 });
+        expect(state.doc.sliceString(tFrom, tTo))
+            .toBe('| a | b |\n> | - | - |\n> | 1 | 2 |');
+    });
+
+    it('cursor off the table: one TableWidget replace over [5,38] with a real <table>, not "Empty Table"', () => {
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), full);
+        const widgets = [];
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec && v.spec.widget instanceof TableWidget) widgets.push([f, t, v]);
+        });
+        expect(widgets.length).toBe(1);
+        expect(widgets[0][0]).toBe(tFrom);
+        expect(widgets[0][1]).toBe(tTo);
+        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
+        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('cm-table-empty');
+        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('Empty Table');
+    });
+});
+
+// ===========================================================================
+// TASK 7 — headings, lists & nested blockquotes (audit #13a, #13b, #12, folded gap)
+// ===========================================================================
+//
+// Lezer node/child names verified against the installed @codemirror/lang-markdown
+// (markdown({ base: markdownLanguage }), i.e. the gfm() helper above):
+//
+//   "x\n## Heading ##"  -> Paragraph[0,1], ATXHeading2[2,15]
+//                            HeaderMark[2,4] "##"   (leading)
+//                            HeaderMark[13,15] "##" (trailing closing sequence)
+//   "x\n## Heading"     -> ATXHeading2[2,12], HeaderMark[2,4] only
+//   "x\n## a # b"       -> ATXHeading2[2,10], HeaderMark[2,4] only ("# b" is content)
+//   "x\n\nHeading\n===\n" -> SetextHeading1[3,14] > HeaderMark[11,14] "===" (underline only)
+//   "x\n\nHeading\n---\n" -> SetextHeading2[3,14] > HeaderMark[11,14] "---"
+//     (the setext node spans BOTH the text line and the underline line; its only
+//      HeaderMark child is the underline row.)
+//   "x\n\n1.\n1.\n1."   -> OrderedList[3,11] > ListItem[3,5]/[6,8]/[9,11]
+//                            each ListItem > ListMark ("1." / "1)" / "5." / "0." ...)
+//   "x\n\n1.\n   1.\n   1.\n1.\n\nz" ->
+//     OrderedList[3,20] > ListItem[3,17] (+ nested OrderedList[8,17]) , ListItem[18,20]
+//       inner OrderedList[8,17] > ListItem[8,11] (ListMark[9,11]) , ListItem[14,17] (ListMark[15,17])
+//       outer ListMarks: [3,5] and [18,20]
+//   "z\n\n> > x"        -> Blockquote[3,8] > QuoteMark[3,4] , Blockquote[5,8] > QuoteMark[5,6]
+//                            both Blockquote nodes resolve to the single line at pos 3
+//   "z\n\n> x"          -> Blockquote[3,6] > QuoteMark[3,4]
+//
+// PINNED CONVENTIONS (writer must match):
+//  #13a  ATX trailing closing sequence: when the cursor is NOT on the heading line
+//        and the header text matches /\s+#+\s*$/ (CommonMark optional closing run of
+//        '#' preceded by spaces, only spaces + '#' to EOL), a bare
+//        Decoration.replace({}) covers EXACTLY [nodeFrom + match.index, nodeTo]
+//        (the leading whitespace of the closing run through end-of-node, trailing
+//        spaces included). The pre-existing leading /^#+\s+/ replace is unchanged.
+//        "## a # b" -> no closing match -> "# b" stays visible.
+//  #13b  Setext underline: when the cursor is NOT on EITHER line of the setext node
+//        (text line or underline line), a bare Decoration.replace({}) covers exactly
+//        the HeaderMark child's range (the underline row). The heading text is never
+//        replaced. Cursor on the text line OR the underline line -> nothing replaced.
+//  #12   Ordered ListMark: replaced with Decoration.replace({ widget:
+//        new OrderedMarkerWidget(text) }) where text = <computed number> + <delimiter
+//        char taken from the source marker via /^\d+([.)])/>. Number = (parseInt of
+//        the FIRST sibling item's marker digits) + (index of this ListItem among its
+//        direct OrderedList ListItem children). Each OrderedList numbers its own
+//        direct children independently. Reveal (literal "1.", NO widget) when a
+//        selection range intersects [ListMark.from, ListMark.to]
+//        (isCursorTouching, range-scoped).
+//  gap   Nested blockquote depth: each Blockquote node emits a Decoration.line whose
+//        class includes cm-blockquote-depth-N (N = count of Blockquote ancestors
+//        incl. self, capped at 3). cm-blockquote-line stays for depth-1 back-compat.
+//        >>> If the writer leaves the folded gap unfixed (brief permits this), the
+//        >>> tactical reviewer DELETES the "nested blockquote depth" describe below.
+
+const t7full = (doc) => ({ from: 0, to: doc.length });
+const t7bareReplacesAt = (field, from, to) =>
+    decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+describe('Task 7 — ATX trailing closing sequence (audit #13a)', () => {
+    it('"## Heading ##" cursor off line: leading "## " AND trailing " ##" both hidden', () => {
+        const doc = 'x\n## Heading ##';
+        const nodeFrom = 2, nodeTo = doc.length; // ATXHeading2[2,15]
+        const text = doc.slice(nodeFrom, nodeTo);
+        const lead = text.match(/^#+\s+/)[0].length;   // 3  -> [2,5]
+        const close = text.match(/\s+#+\s*$/);          // " ##" at index 10 -> [12,15]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+
+        expect(t7bareReplacesAt(field, nodeFrom, nodeFrom + lead).length).toBe(1);
+        expect(t7bareReplacesAt(field, nodeFrom + close.index, nodeTo).length).toBe(1);
+        // heading text "Heading" interior stays visible
+        expect(countDecos(field, 6, 11)).toBe(0);
+    });
+
+    it('"## Heading" (no closing sequence) cursor off line: only the leading "## " hidden', () => {
+        const doc = 'x\n## Heading';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 2, 5).length).toBe(1);       // "## "
+        expect(countDecos(field, 6, doc.length)).toBe(0);           // nothing after
+    });
+
+    it('"## a # b" cursor off line: leading "## " hidden, the inner "# b" is content and NOT hidden', () => {
+        const doc = 'x\n## a # b';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 2, 5).length).toBe(1);       // "## "
+        expect(countDecos(field, 6, doc.length)).toBe(0);           // "a # b" untouched
+    });
+
+    it('cursor ON the heading line: nothing hidden (leading or trailing)', () => {
+        const doc = 'x\n## Heading ##';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), t7full(doc)); // inside the heading
+        expect(countDecos(field, 2, doc.length)).toBe(0);
+    });
+});
+
+describe('Task 7 — setext heading underline (audit #13b)', () => {
+    it('"Heading\\n===" cursor off: the "===" underline row (HeaderMark) carries a bare replace; text not touched', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 11, 14).length).toBe(1);     // "===" HeaderMark[11,14]
+        expect(decosAt(field, 3, 10).length).toBe(0);               // "Heading" not replaced
+        expect(countDecos(field, 4, 9)).toBe(0);                    // its interior untouched
+    });
+
+    it('"Heading\\n---" cursor off: the "---" underline row carries a bare replace', () => {
+        const doc = 'x\n\nHeading\n---\n';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(field, 11, 14).length).toBe(1);     // "---" HeaderMark[11,14]
+    });
+
+    it('cursor on the setext TEXT line: underline not hidden', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), t7full(doc)); // inside "Heading"
+        expect(countDecos(field, 11, 14)).toBe(0);
+    });
+
+    it('cursor on the setext UNDERLINE line: underline not hidden', () => {
+        const doc = 'x\n\nHeading\n===\n';
+        const field = buildDecorations(gfm(doc, { anchor: 12 }), t7full(doc)); // inside "==="
+        expect(countDecos(field, 11, 14)).toBe(0);
+    });
+});
+
+describe('Task 7 — ordered list renumber (audit #12)', () => {
+    const omAt = (field, from, to) => {
+        const vs = decosAt(field, from, to);
+        if (vs.length !== 1) return null;
+        const w = vs[0].spec && vs[0].spec.widget;
+        return w instanceof OrderedMarkerWidget ? w : null;
+    };
+
+    it('"1.\\n1.\\n1." (all ones) cursor parked off the list -> markers render 1. 2. 3.', () => {
+        const doc = 'x\n\n1.\n1.\n1.'; // ListMarks [3,5] [6,8] [9,11]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1.');
+        expect(omAt(field, 6, 8)?.text).toBe('2.');
+        expect(omAt(field, 9, 11)?.text).toBe('3.');
+    });
+
+    it('start value comes from the FIRST item: "5.\\n5." -> 5. 6.', () => {
+        const doc = 'x\n\n5.\n5.'; // ListMarks [3,5] [6,8]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('5.');
+        expect(omAt(field, 6, 8)?.text).toBe('6.');
+    });
+
+    it('"0.\\n0.\\n0." -> 0. 1. 2. (start = 0)', () => {
+        const doc = 'x\n\n0.\n0.\n0.'; // ListMarks [3,5] [6,8] [9,11]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('0.');
+        expect(omAt(field, 6, 8)?.text).toBe('1.');
+        expect(omAt(field, 9, 11)?.text).toBe('2.');
+    });
+
+    it('delimiter char preserved: "1)\\n1)" -> 1) 2)', () => {
+        const doc = 'x\n\n1)\n1)'; // ListMarks [3,5] [6,8]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1)');
+        expect(omAt(field, 6, 8)?.text).toBe('2)');
+    });
+
+    it('cursor touching one item\'s ListMark -> that item shows literal (no widget), siblings still renumbered', () => {
+        const doc = 'x\n\n1.\n1.\n1.';
+        // anchor 7 intersects ListMark[6,8] (the 2nd item)
+        const field = buildDecorations(gfm(doc, { anchor: 7 }), t7full(doc));
+        expect(omAt(field, 6, 8)).toBe(null);
+        expect(decosAt(field, 6, 8).length).toBe(0); // literal "1." left in place
+        expect(omAt(field, 3, 5)?.text).toBe('1.');
+        expect(omAt(field, 9, 11)?.text).toBe('3.'); // index-based, revealed sibling still counts
+    });
+
+    it('nested ordered lists each number their own direct children independently', () => {
+        const doc = 'x\n\n1.\n   1.\n   1.\n1.\n\nz';
+        // outer ListMarks [3,5] [18,20]; inner ListMarks [9,11] [15,17]
+        const field = buildDecorations(gfm(doc, { anchor: doc.length }), t7full(doc));
+        expect(omAt(field, 3, 5)?.text).toBe('1.');   // outer item 0
+        expect(omAt(field, 18, 20)?.text).toBe('2.'); // outer item 1
+        expect(omAt(field, 9, 11)?.text).toBe('1.');  // inner item 0
+        expect(omAt(field, 15, 17)?.text).toBe('2.'); // inner item 1
+    });
+});
+
+// >>> DELETE THIS DESCRIBE if the folded-gap (nested blockquote indent) fix is not
+// >>> shipped — the Task 7 brief explicitly permits leaving it unfixed.
+describe('Task 7 — nested blockquote depth (folded gap)', () => {
+    const lineClasses = (field, pos) => {
+        const out = [];
+        field.between(pos, pos, (f, t, v) => {
+            if (v.spec && typeof v.spec.class === 'string') out.push(v.spec.class);
+        });
+        return out.join(' ');
+    };
+
+    it('"> > x" — the inner line carries a depth-2 blockquote line class', () => {
+        const doc = 'z\n\n> > x'; // both Blockquote nodes -> line at pos 3
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(lineClasses(field, 3)).toContain('cm-blockquote-depth-2');
+    });
+
+    it('"> x" — a single-level blockquote line is depth-1, not depth-2', () => {
+        const doc = 'z\n\n> x'; // Blockquote[3,6] -> line at pos 3
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        const classes = lineClasses(field, 3);
+        expect(classes).toContain('cm-blockquote-depth-1');
+        expect(classes).not.toContain('cm-blockquote-depth-2');
+    });
+});
+
+// ===========================================================================
+// TASK 8 — reference-style links & images (audit #8) + image-in-link (#14)
+// ===========================================================================
+//
+// Lezer node/child names verified against the installed @codemirror/lang-markdown
+// (the gfm() helper above):
+//
+//   "x\n\n[id]: http://x"          -> LinkReference[3,17]
+//                                      LinkLabel[3,7] "[id]", LinkMark[7,8] ":", URL[9,17]
+//   "x\n\n> [id]: http://x"        -> Blockquote[3,19] > QuoteMark[3,4],
+//                                      LinkReference[5,19]  (LRD nests in a blockquote)
+//   "x\n\n[text][id]\n..."         -> Link[3,13] > LinkMark[3,4] "[", LinkMark[8,9] "]",
+//                                      LinkLabel[9,13] "[id]"  ; visible text "text" = [4,8]
+//                                      (no wrapper node around the visible text)
+//   "x\n\n![alt][id]\n..."         -> Image[3,13] > LinkMark[3,5] "![", LinkMark[8,9] "]",
+//                                      LinkLabel[9,13] "[id]"
+//   "x\n\n[id]\n..." (shortcut)    -> Link[3,7] > LinkMark[3,4], LinkMark[6,7] — NO LinkLabel
+//   LRD is NOT emitted inside a ``` fence; IS emitted inside a blockquote.
+//
+// buildDecorations does NOT import linkDefs — it hides syntactically valid nodes
+// regardless of whether a matching definition exists.
+//
+// PINNED CONVENTIONS (writer must match):
+//  #8-LRD   For a `LinkReference` node the cursor is NOT touching (predicate is
+//           isCursorTouching(selection, LinkReference.from, LinkReference.to) —
+//           RANGE-scoped, same precedent as FencedCode's multi-line reveal): one
+//           bare Decoration.replace({}) (spec.widget === undefined) covering
+//           EXACTLY [LinkReference.from, LinkReference.to]. Any selection range
+//           intersecting that span reveals the whole line (nothing hidden).
+//  #8-LABEL For a `LinkLabel` node whose PARENT is `Link` or `Image` and the
+//           cursor is NOT touching that parent (isCursorTouching over
+//           [parent.from, parent.to]): one bare Decoration.replace({}) covering
+//           exactly the LinkLabel range. The visible link text is never covered.
+//           A `LinkLabel` whose parent is `LinkReference` is NOT hidden by this
+//           branch (the whole-line #8-LRD replace already covers it).
+//  #8-SHORT A shortcut ref `[id]` has no LinkLabel child — nothing crashes and no
+//           label replace is pushed. The pre-existing `[` / `]` LinkMark handling
+//           (parent === "Link") is unchanged.
+//  #8-VIEW  A LinkReference outside the build `range` is simply never visited —
+//           0 decorations over its span. "Invisible ⇒ fine", not a bug.
+
+const t8bareReplacesAt = (field, from, to) =>
+    decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
+
+describe('Task 8 — LinkReference (LRD) line hidden (audit #8)', () => {
+    it('"x\\n\\n[id]: http://x" cursor off the LRD line: one bare replace over [3,17]', () => {
+        const doc = 'x\n\n[id]: http://x'; // LinkReference[3,17]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 3, 17);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('cursor on the LRD line (anchor mid-line, outside the label) reveals it: nothing hidden over [3,17]', () => {
+        // anchor 10 is inside LinkReference[3,17] but outside LinkLabel[3,7].
+        // Pins: (a) the LRD reveal predicate is range-scoped, (b) the #8-LABEL
+        // branch does not fire for a LinkReference-parented LinkLabel.
+        const doc = 'x\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 10 }), { from: 0, to: doc.length });
+        expect(countDecos(field, 3, 17)).toBe(0);
+    });
+});
+
+describe('Task 8 — LRD nested in a blockquote', () => {
+    it('"x\\n\\n> [id]: http://x" cursor off: the inner LinkReference[5,19] still gets the bare replace', () => {
+        const doc = 'x\n\n> [id]: http://x'; // Blockquote[3,19], LinkReference[5,19]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 5, 19);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+});
+
+describe('Task 8 — LinkLabel hidden for reference links / images', () => {
+    it('[text][id] cursor off: bare replace over LinkLabel[9,13], visible "text" NOT covered', () => {
+        const doc = 'x\n\n[text][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+
+        // The reference label is hidden.
+        const vs = t8bareReplacesAt(field, 9, 13);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+
+        // The visible link text "text" ([4,8]) interior is untouched.
+        expect(countDecos(field, 5, 7)).toBe(0);
+
+        // Regression: the pre-existing "[" / "]" LinkMark replaces are unchanged.
+        expect(t8bareReplacesAt(field, 3, 4).length).toBe(1); // "["
+        expect(t8bareReplacesAt(field, 8, 9).length).toBe(1); // "]"
+    });
+
+    it('[text][id] cursor touching the Link: the label is revealed (nothing over [9,13])', () => {
+        const doc = 'x\n\n[text][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), { from: 0, to: doc.length }); // inside Link[3,13]
+        expect(countDecos(field, 9, 13)).toBe(0);
+    });
+
+    it('![alt][id] cursor off: LinkLabel[9,13] under an Image parent is hidden the same way', () => {
+        const doc = 'x\n\n![alt][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        const vs = t8bareReplacesAt(field, 9, 13);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeUndefined();
+    });
+
+    it('![alt][id] cursor touching the Image: the label is revealed', () => {
+        const doc = 'x\n\n![alt][id]\n\n[id]: http://x';
+        const field = buildDecorations(gfm(doc, { anchor: 5 }), { from: 0, to: doc.length }); // inside Image[3,13]
+        expect(countDecos(field, 9, 13)).toBe(0);
+    });
+});
+
+describe('Task 8 — shortcut [id] (no LinkLabel node) is safe', () => {
+    it('cursor off: nothing crashes, no label replace, existing [ ] LinkMark handling intact', () => {
+        const doc = 'x\n\n[id]\n\n[id]: http://x'; // Link[3,7]: LinkMark[3,4], LinkMark[6,7]; no LinkLabel
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+
+        // No decoration collapses the whole shortcut Link span (there is no
+        // LinkLabel node, so the #8-LABEL branch has nothing to push).
+        expect(decosAt(field, 3, 7).length).toBe(0);
+        // The bracket LinkMarks are still bare-replaced (parent === "Link"), and
+        // exactly those two — nothing new inside the Link.
+        expect(t8bareReplacesAt(field, 3, 4).length).toBe(1);
+        expect(t8bareReplacesAt(field, 6, 7).length).toBe(1);
+        expect(countDecos(field, 3, 7)).toBe(2);
+        // The trailing LRD line ([9,23]) still gets its own bare replace.
+        const lrd = t8bareReplacesAt(field, 9, 23);
+        expect(lrd.length).toBe(1);
+        expect(lrd[0].spec.widget).toBeUndefined();
+    });
+});
+
+describe('Task 8 — off-viewport LRD is simply not visited (design point, not a bug)', () => {
+    it('a build range that excludes the LRD line leaves it undecorated', () => {
+        const doc = 'x\n\n[id]: http://x'; // LinkReference[3,17]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: 2 }); // excludes [3,17]
+        expect(countDecos(field, 3, 17)).toBe(0);
     });
 });

@@ -1,6 +1,6 @@
 import { WidgetType, Decoration } from "@codemirror/view";
-import { RangeSetBuilder } from "@codemirror/state";
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
+import { resolveLinkDefs, normalizeLabel } from "./linkDefs";
 
 class LRUCache {
     constructor(limit = 100) {
@@ -124,14 +124,23 @@ class ImageWidget extends WidgetType {
     }
 }
 
-const imageMatcher = /!\[(.*?)\]\((.*?)\)/g;
+const imageMatcher = /!\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
+const imageRefFullMatcher = /!\[([^\]]*)\]\[([^\]]*)\]/g;
+const imageRefShortcutMatcher = /!\[([^\]]+)\](?!\[|\()/g;
 
 function computeImageDecorations(view) {
-    const builder = new RangeSetBuilder();
+    // Three regex passes below (inline, ref-full, shortcut) each scan the whole
+    // visible range independently, so they emit ranges out of document order.
+    // RangeSetBuilder rejects that; collect into an array and let Decoration.set
+    // sort. One unsorted add used to throw and kill the whole plugin.
+    const ranges = [];
     const { from: selFrom, to: selTo } = view.state.selection.main;
+    const defs = resolveLinkDefs(view.state);
 
     for (const { from, to } of view.visibleRanges) {
         const text = view.state.doc.sliceString(from, to);
+
+        // Inline images: ![alt](url)
         imageMatcher.lastIndex = 0;
         let match;
 
@@ -141,19 +150,70 @@ function computeImageDecorations(view) {
             const isCursorInside = (selFrom <= end) && (selTo >= start);
 
             if (!isCursorInside) {
-                builder.add(start, end, Decoration.replace({
+                ranges.push(Decoration.replace({
                     widget: new ImageWidget(match[2], match[1], false),
                     inclusive: false
-                }));
+                }).range(start, end));
             } else {
-                builder.add(end, end, Decoration.widget({
+                ranges.push(Decoration.widget({
                     widget: new ImageWidget(match[2], match[1], true),
                     side: 1
-                }));
+                }).range(end, end));
+            }
+        }
+
+        // Reference-style images: ![alt][id] or ![id][]
+        imageRefFullMatcher.lastIndex = 0;
+        while ((match = imageRefFullMatcher.exec(text))) {
+            const start = from + match.index;
+            const end = start + match[0].length;
+            const alt = match[1];
+            const label = match[2] || alt;  // If empty label, use alt
+            const normalizedLabel = normalizeLabel(label);
+            const def = defs.get(normalizedLabel);
+
+            if (def) {
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
+                if (!isCursorInside) {
+                    ranges.push(Decoration.replace({
+                        widget: new ImageWidget(def.url, alt, false),
+                        inclusive: false
+                    }).range(start, end));
+                } else {
+                    ranges.push(Decoration.widget({
+                        widget: new ImageWidget(def.url, alt, true),
+                        side: 1
+                    }).range(end, end));
+                }
+            }
+        }
+
+        // Shortcut reference images: ![id]
+        imageRefShortcutMatcher.lastIndex = 0;
+        while ((match = imageRefShortcutMatcher.exec(text))) {
+            const start = from + match.index;
+            const end = start + match[0].length;
+            const alt = match[1];
+            const normalizedLabel = normalizeLabel(alt);
+            const def = defs.get(normalizedLabel);
+
+            if (def) {
+                const isCursorInside = (selFrom <= end) && (selTo >= start);
+                if (!isCursorInside) {
+                    ranges.push(Decoration.replace({
+                        widget: new ImageWidget(def.url, alt, false),
+                        inclusive: false
+                    }).range(start, end));
+                } else {
+                    ranges.push(Decoration.widget({
+                        widget: new ImageWidget(def.url, alt, true),
+                        side: 1
+                    }).range(end, end));
+                }
             }
         }
     }
-    return builder.finish();
+    return Decoration.set(ranges, true);
 }
 
 export const imagePreview = makeDebouncedDecorationPlugin({ compute: computeImageDecorations });

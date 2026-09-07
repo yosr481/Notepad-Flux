@@ -215,3 +215,193 @@ describe('imagePreview — debounced repaint on large docs (P1-3)', () => {
         expect(computeSpy).toHaveBeenCalledTimes(1);
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 3 — image with a title attribute: ![alt](url "title") (audit #10)
+//
+// Bug: imageMatcher `/!\[(.*?)\]\((.*?)\)/g` puts everything between the parens
+// (`url "title"`) into match[2], which becomes ImageWidget.url -> img.src, so
+// the image fails to load. Fix mirrors linkPreview.js:135 — a URL group that
+// stops at whitespace/quote/paren plus an optional title group that is dropped.
+//
+// Pinned contract:
+//   * ![alt](url "title")  -> widget.url === "url" (bare), widget.alt === "alt"
+//   * ![alt](url) / ![](url) -> widget.url === "url" (unchanged)
+//   * URL group is [^"\s)]+ : keeps %20, query strings (?a=1&b=2), paren-free
+//     paths; stops at the first space so a single-quoted 'title' tail is left
+//     out of the URL (only the clean URL is asserted, the tail is not pinned).
+//   * cursor-inside the image still yields a widget (existing behaviour) and
+//     that widget's url is the clean URL too.
+//   * out of scope: escaped \" inside a title, <url> autolink form.
+//
+// Tested at the level imagePreview.js uses: build an EditorView with the
+// plugin, read the ViewPlugin's `decorations` RangeSet, pull the widget out.
+// ---------------------------------------------------------------------------
+
+// Every widget carried by the plugin's current decoration set, in doc order.
+const imageWidgets = (view) => {
+    const set = view.plugin(imagePreview).decorations;
+    const out = [];
+    const cur = set.iter();
+    while (cur.value) {
+        const w = cur.value.spec && cur.value.spec.widget;
+        if (w) out.push(w);
+        cur.next();
+    }
+    return out;
+};
+
+// Doc with a non-image first line so anchor 0 leaves the cursor OFF the image.
+const withCursorOff = (imgMarkdown) => mkView(`intro line\n${imgMarkdown}`, 0);
+
+describe('imagePreview — image title attribute (TASK 3)', () => {
+    it('strips the "title" from the URL: ![x](url "title") -> widget.url is bare (FAILS before fix)', () => {
+        const view = withCursorOff('![x](https://e/x.png "the title")');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('https://e/x.png');
+        expect(w.alt).toBe('x');
+    });
+
+    it('no title: ![x](url) is unchanged', () => {
+        const view = withCursorOff('![x](https://e/x.png)');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png');
+        expect(w.alt).toBe('x');
+    });
+
+    it('empty alt with a title: ![](url "t") -> url bare, alt empty string', () => {
+        const view = withCursorOff('![](https://e/x.png "t")');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png');
+        expect(w.alt).toBe('');
+    });
+
+    it('preserves %20 in the URL when a title follows', () => {
+        const view = withCursorOff('![a](https://e/a%20b.png "t")');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/a%20b.png');
+    });
+
+    it('preserves a query string in the URL when a title follows', () => {
+        const view = withCursorOff('![a](https://e/x.png?a=1&b=2 "t")');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png?a=1&b=2');
+    });
+
+    it('single-quoted title: URL still stops at the first space and is clean', () => {
+        // CommonMark allows 'single' quotes; linkPreview does not and neither
+        // need we. Pin only that the URL group [^"\s)]+ yields the bare URL.
+        const view = withCursorOff("![a](https://e/x.png 'single')");
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png');
+    });
+
+    it('cursor inside the image still yields a widget, with the clean URL', () => {
+        // Single-line doc, anchor 0 -> cursor is on/inside the image: existing
+        // behaviour is an active Decoration.widget rather than a replace.
+        const view = mkView('![x](https://e/x.png "t")', 0);
+        const widgets = imageWidgets(view);
+        expect(widgets.length).toBeGreaterThanOrEqual(1);
+        expect(widgets[0].url).toBe('https://e/x.png');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 8 — reference-style images (audit #8): ![alt][id] / ![id][] / ![id]
+//
+// imagePreview.js resolves these over its visible ranges using two regexes plus
+// resolveLinkDefs(view.state):
+//   full-ref  /!\[([^\]]*)\]\[([^\]]*)\]/g   — label = group2 || group1, alt = group1
+//   shortcut  /!\[([^\]]+)\](?!\[|\()/g      — label = group1,           alt = group1
+//
+// PINNED:
+//   * ![alt][id]  -> widget.url === def.url, widget.alt === "alt"
+//   * ![id][]     -> widget.url === def.url, widget.alt === "id"  (empty label
+//                     falls back to the visible alt text)
+//   * ![id]       -> widget.url === def.url, widget.alt === "id"
+//   * unresolved ![alt][nope] (no matching LRD) -> NO widget, left as source
+//   * the inline ![alt](url) path is unaffected.
+// ---------------------------------------------------------------------------
+
+describe('imagePreview — reference-style images (TASK 8)', () => {
+    it('full ref ![alt][id]: widget src from the LRD, alt "alt" (FAILS before fix)', () => {
+        const view = withCursorOff('![alt][id]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('alt');
+    });
+
+    it('collapsed ref ![id][]: src from the LRD, alt "id" (FAILS before fix)', () => {
+        const view = withCursorOff('![id][]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('id');
+    });
+
+    it('shortcut ref ![id]: src from the LRD, alt "id" (FAILS before fix)', () => {
+        const view = withCursorOff('![id]\n\n[id]: http://x');
+        const [w] = imageWidgets(view);
+        expect(w).toBeTruthy();
+        expect(w.url).toBe('http://x');
+        expect(w.alt).toBe('id');
+    });
+
+    it('unresolved ![alt][nope] (no matching LRD) -> NO widget, left as source', () => {
+        const view = withCursorOff('![alt][nope]');
+        expect(imageWidgets(view).length).toBe(0);
+    });
+
+    it('the inline ![alt](url) path is unaffected by the ref matcher', () => {
+        const view = withCursorOff('![x](https://e/x.png)');
+        const [w] = imageWidgets(view);
+        expect(w.url).toBe('https://e/x.png');
+        expect(w.alt).toBe('x');
+    });
+
+    // GAP (reviewer-added): the inline imageMatcher's `.*?` alt group can span
+    // across `]` `[`, so on ONE line holding a resolved reference image followed
+    // by an inline image it matches the whole run [0..end]. The ref-full matcher
+    // then adds an overlapping range [0..shorter] to the SAME RangeSetBuilder
+    // after the longer one -> "Ranges must be added sorted" throw, killing all
+    // image rendering in the view. Must not throw; both images should resolve.
+    it('resolved ref image + inline image on one line does not throw', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff('![a][x] ![b](https://e/b.png)\n\n[x]: https://e/x.png');
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/b.png', 'https://e/x.png']);
+    });
+
+    // Multi-line: a reference image on an EARLIER line than an inline image. The
+    // inline pass adds its range first (later doc offset), then the ref-full pass
+    // adds an earlier offset -> RangeSetBuilder "Ranges must be added sorted"
+    // throw, which disabled the whole imagePreview ViewPlugin for the session
+    // (every image, inline ones included, stopped rendering). Chrome-audit repro,
+    // 2026-09-03. The single-line test above does NOT cover this (both matches
+    // start at offset 0, so the builder never sees a decreasing `from`).
+    it('ref image before an inline image on a later line does not throw and both resolve', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff(
+                '![ref][d1]\n\ntext\n\n![inline](https://e/i.png)\n\n[d1]: https://e/d.png',
+            );
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/d.png', 'https://e/i.png']);
+    });
+
+    it('shortcut ref before an inline image on a later line does not throw', () => {
+        let view;
+        expect(() => {
+            view = withCursorOff(
+                '![d1]\n\ntext\n\n![inline](https://e/i.png)\n\n[d1]: https://e/d.png',
+            );
+        }).not.toThrow();
+        const urls = imageWidgets(view).map((w) => w.url).sort();
+        expect(urls).toEqual(['https://e/d.png', 'https://e/i.png']);
+    });
+});
