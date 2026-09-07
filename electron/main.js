@@ -1,15 +1,14 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell, nativeTheme } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
-import { join, resolve } from 'node:path'
+import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { dirname } from 'node:path'
 import { readFile, writeFile } from 'node:fs/promises'
 import { realpathSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
-import { filtersForName } from './dialogFilters.js'
+import { filtersForName, OPEN_FILTERS } from './dialogFilters.js'
 import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
 import { isProbablyText } from './isProbablyText.js'
@@ -22,6 +21,9 @@ const __dirname = dirname(__filename)
 // picked file). Ceiling is fine for a desktop notepad session; upgrade path is
 // per-session pruning (drop a path when its tab closes) if it ever matters.
 const allowedPaths = new Set()
+
+// Track the last directory used in file dialogs; starts at documents folder.
+let lastDir = app.getPath('documents')
 
 // Scheme allowlist for URLs handed to the OS. Only http/https/mailto; anything
 // else (file:, smb:, javascript:, custom protocols) is refused.
@@ -99,9 +101,10 @@ safeHandle('safe-storage-available', async () => {
 })
 
 safeHandle('read-file', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog({
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
         properties: ['openFile'],
-        filters: [{ name: 'Markdown', extensions: ['md', 'markdown'] }]
+        filters: OPEN_FILTERS,
+        defaultPath: lastDir
     })
     if (canceled) return { canceled }
 
@@ -109,6 +112,7 @@ safeHandle('read-file', async () => {
     // Selecting a file in the native OS picker IS the authorization; we do not
     // call isPathSafe here (QA finding 3, user-confirmed).
     allowedPaths.add(resolve(filePath))
+    lastDir = dirname(filePath)
 
     const buf = await readFile(filePath)
     if (!isProbablyText(buf)) {
@@ -135,13 +139,14 @@ safeHandle('read-file-content', async (event, filePath) => {
 
 safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     if (!filePath) {
-        const { canceled, filePath: savePath } = await dialog.showSaveDialog({
-            defaultPath: suggestedName || undefined,
+        const { canceled, filePath: savePath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+            defaultPath: suggestedName ? join(lastDir, suggestedName) : lastDir,
             filters: filtersForName(suggestedName)
         })
         if (canceled) return { canceled: true }
         filePath = savePath
         allowedPaths.add(resolve(filePath))
+        lastDir = dirname(filePath)
     } else if (!isPathSafe(filePath)) {
         throw new Error('Access denied: Unauthorized file path.')
     }
@@ -149,6 +154,7 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     // content is a string for text saves, a Uint8Array (from the IPC bridge) for
     // binary exports like PDF. Buffer.from copies the typed array; no encoding arg.
     await writeFile(filePath, typeof content === 'string' ? content : Buffer.from(content))
+    lastDir = dirname(filePath)
     return { filePath, canceled: false }
 })
 
