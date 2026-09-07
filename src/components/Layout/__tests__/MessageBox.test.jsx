@@ -158,6 +158,58 @@ describe('MessageBox — 2-button confirm mode (secondaryLabel == null)', () => 
     });
 });
 
+describe('MessageBox — cancelLabel == null hides the cancel button (alert mode, TASK 6)', () => {
+    // Pinned: mirrors the secondaryLabel == null guard. cancelLabel == null
+    // (null OR undefined) drops the cancel <button> from the DOM entirely.
+    // Escape -> onCancel is UNCHANGED (the key handler does not depend on the
+    // button being rendered).
+    it('omits the cancel button when cancelLabel is null', () => {
+        const { getAllByRole, queryByText } = render(
+            <MessageBox
+                {...baseProps}
+                primaryLabel="OK"
+                secondaryLabel={null}
+                cancelLabel={null}
+                onPrimary={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        );
+        const buttons = getAllByRole('button');
+        expect(buttons).toHaveLength(1);
+        expect(buttons[0]).toHaveTextContent('OK');
+        expect(queryByText('Cancel')).toBeNull();
+    });
+
+    it('still renders the cancel button when cancelLabel is a string (regression)', () => {
+        const { getByText, getAllByRole } = render(
+            <MessageBox
+                {...baseProps}
+                secondaryLabel={null}
+                onPrimary={vi.fn()}
+                onCancel={vi.fn()}
+            />
+        );
+        expect(getAllByRole('button')).toHaveLength(2);
+        expect(getByText('Cancel')).toBeInTheDocument();
+    });
+
+    it('Escape still calls onCancel even though the cancel button is hidden', () => {
+        const onCancel = vi.fn();
+        render(
+            <MessageBox
+                {...baseProps}
+                primaryLabel="OK"
+                secondaryLabel={null}
+                cancelLabel={null}
+                onPrimary={vi.fn()}
+                onCancel={onCancel}
+            />
+        );
+        fireEvent.keyDown(document, { key: 'Escape' });
+        expect(onCancel).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('MessageBox — danger prop', () => {
     it('adds data-danger to the primary button when danger is true', () => {
         const { getByText } = render(

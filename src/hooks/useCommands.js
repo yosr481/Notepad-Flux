@@ -30,7 +30,8 @@ export const useCommands = (showToast, editorRef) => {
         updateTab,
         switchTab,
         reorderTabs,
-        addRecentFile
+        addRecentFile,
+        removeRecentFile
     } = useSessionActions();
 
     // Mirror the live tab state so multi-close loops (closeOtherTabs /
@@ -221,11 +222,18 @@ export const useCommands = (showToast, editorRef) => {
             }
 
             if (!file) {
-                file = await fileSystem.openFile();
-                if (!file) {
-                    await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+                const locate = await dialogs.confirm({
+                    title: 'File not found',
+                    message: `"${fileName}" was moved or can't be found. Pick a new location?`,
+                    confirmLabel: 'Locate…',
+                    cancelLabel: 'Cancel',
+                });
+                if (!locate) {
+                    removeRecentFile(filePath);
                     return;
                 }
+                file = await fileSystem.openFile();
+                if (!file) return;
             }
 
             createTab({
@@ -240,7 +248,7 @@ export const useCommands = (showToast, editorRef) => {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
-    }, [createTab, addRecentFile]);
+    }, [createTab, addRecentFile, removeRecentFile]);
 
     const exportToPDF = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);

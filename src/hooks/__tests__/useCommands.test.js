@@ -16,6 +16,8 @@ vi.mock('../../context/SessionContext', () => ({
 vi.mock('../../utils/fileSystem', () => ({
     fileSystem: {
         openFile: vi.fn(async () => null),
+        openFileFromHandle: vi.fn(async () => { throw new Error('nope'); }),
+        openFileFromPath: vi.fn(async () => { throw new Error('nope'); }),
         saveFile: vi.fn(async () => undefined),
         saveFileAs: vi.fn(async (_content, name) => ({ name, handle: {} })),
         isSupported: vi.fn(() => true)
@@ -51,7 +53,8 @@ describe('useCommands Hook', () => {
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
             setTabs: vi.fn(),
-            addRecentFile: vi.fn()
+            addRecentFile: vi.fn(),
+            removeRecentFile: vi.fn()
         };
         SessionContext.useTabState.mockReturnValue(mockTabState);
         SessionContext.useSessionActions.mockReturnValue(mockActions);
@@ -597,5 +600,118 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');
+    });
+});
+
+describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
+    // Pinned flow when BOTH the fileHandle open and the filePath open fail:
+    //  1. dialogs.confirm({ title: 'File not found', ... , confirmLabel: 'Locate…',
+    //     cancelLabel: 'Cancel' }) is shown FIRST — before any native picker.
+    //  2. confirm -> false: removeRecentFile(filePath) is called, then return.
+    //     The native picker (fileSystem.openFile) is NOT invoked. No toast, no alert.
+    //  3. confirm -> true: fileSystem.openFile() runs. If it returns null (picker
+    //     cancelled) -> just return: no createTab, no alert, no throw, no
+    //     removeRecentFile.
+    //  4. confirm -> true and openFile returns a file -> createTab with that file.
+    //  The outer catch (genuine unexpected errors) still uses dialogs.alert — not
+    //  exercised here.
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.isSupported.mockReturnValue(true);
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('nope'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('nope'); });
+        fileSystem.openFile.mockImplementation(async () => null);
+
+        mockTabState = {
+            tabs: [{ id: '1', title: 'Tab 1', content: '', isDirty: false }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            setTabs: vi.fn(),
+            addRecentFile: vi.fn(),
+            removeRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const FILE_PATH = '/old/path/notes.md';
+    const FILE_NAME = 'notes.md';
+
+    const callOpenRecent = async (result) => {
+        let threw = false;
+        await act(async () => {
+            try {
+                await result.current.openRecentFile(FILE_PATH, FILE_NAME, {});
+            } catch {
+                threw = true;
+            }
+        });
+        return threw;
+    };
+
+    it('calls dialogs.confirm BEFORE fileSystem.openFile', async () => {
+        const order = [];
+        dialogs.confirm.mockImplementation(async () => { order.push('confirm'); return true; });
+        fileSystem.openFile.mockImplementation(async () => { order.push('openFile'); return null; });
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(order).toEqual(['confirm', 'openFile']);
+    });
+
+    it('confirm -> false: picker NOT opened, removeRecentFile(filePath) called, no throw', async () => {
+        dialogs.confirm.mockResolvedValue(false);
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(fileSystem.openFile).not.toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).toHaveBeenCalledWith(FILE_PATH);
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+        expect(dialogs.alert).not.toHaveBeenCalled();
+    });
+
+    it('confirm -> true, picker cancelled (null): no createTab, no alert, no removeRecentFile, no throw', async () => {
+        dialogs.confirm.mockResolvedValue(true);
+        fileSystem.openFile.mockResolvedValue(null);
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(fileSystem.openFile).toHaveBeenCalled();
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+        expect(dialogs.alert).not.toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('confirm -> true, picker returns a file: createTab is called with that file', async () => {
+        dialogs.confirm.mockResolvedValue(true);
+        fileSystem.openFile.mockResolvedValue({ name: 'relocated.md', content: 'hello', handle: {} });
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(mockActions.createTab).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'relocated.md', content: 'hello', isDirty: false })
+        );
     });
 });
