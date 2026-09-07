@@ -407,6 +407,10 @@ export const SessionProvider = ({ children }) => {
         });
     }, []);
 
+    const removeRecentFile = useCallback((filePath) => {
+        setRecentFiles(prev => prev.filter(f => f.filePath !== filePath));
+    }, []);
+
     const switchTab = useCallback((direction) => {
         setTabs(currentTabs => {
             const currentIndex = currentTabs.findIndex(t => t.id === currentActiveTabIdRef.current);
@@ -573,10 +577,11 @@ export const SessionProvider = ({ children }) => {
         setTabs,
         reorderTabs,
         addRecentFile,
+        removeRecentFile,
         saveSession,
         clearSessionData,
         clearRestoreWarning
-    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
+    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, removeRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
 
     return (
         <SettingsContext.Provider value={settingsValue}>
