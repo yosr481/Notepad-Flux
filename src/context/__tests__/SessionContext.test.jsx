@@ -794,4 +794,34 @@ describe('SessionContext snapshot persistence (P2-atomic)', () => {
         act(() => { window.dispatchEvent(new Event('blur')); });
         expect(storage.saveSnapshot).not.toHaveBeenCalled();
     });
+
+    // TASK 7 / QA-10: the close beforeunload handler routes through
+    // flushPendingSaves() (not saveSession()) for the primary window, so it
+    // both persists the snapshot AND clears pending debounced timers.
+    it('primary window: beforeunload persists via storage.saveSnapshot', async () => {
+        const api = await renderPrimary();
+        act(() => { api.setTabs(twoTabs()); });
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('beforeunload')); });
+
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+        const arg = storage.saveSnapshot.mock.calls[0][0];
+        expect(arg.tabs.map(t => t.id)).toEqual(['tab-1', 'tab-2']);
+    });
+
+    it('primary window: beforeunload clears the pending metadata debounce timer (no late saveMetadata)', async () => {
+        const api = await renderPrimary();
+
+        vi.useFakeTimers();
+        act(() => { api.setActiveTabId('later'); }); // schedules the ~400ms debounced metadata write
+        storage.saveMetadata.mockClear();
+        storage.saveSnapshot.mockClear();
+
+        act(() => { window.dispatchEvent(new Event('beforeunload')); });
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+
+        act(() => { vi.advanceTimersByTime(1000); });
+        expect(storage.saveMetadata).not.toHaveBeenCalled();
+    });
 });

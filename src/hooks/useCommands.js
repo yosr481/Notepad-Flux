@@ -365,8 +365,6 @@ export const useCommands = (showToast, editorRef) => {
             // Take a snapshot of current order to iterate deterministically
             let toProcess = [...liveState.current.tabs];
             for (let i = 0; i < toProcess.length; i++) {
-                // Refresh current tabs length on each iteration (live state, M4)
-                if (liveState.current.tabs.length <= 1) break; // leave one default tab
                 const tab = toProcess[i];
                 // If this tab has already been closed due to side effects, skip
                 const current = liveState.current.tabs.find(t => t.id === tab.id);
@@ -394,7 +392,10 @@ export const useCommands = (showToast, editorRef) => {
                     // if 'dontsave', proceed without saving
                 }
 
-                await closeTab(current.id, { skipPrompt: true });
+                // Only close the tab if not the last one (leave one default tab)
+                if (liveState.current.tabs.length > 1) {
+                    await closeTab(current.id, { skipPrompt: true });
+                }
             }
         }
         window.close();
@@ -419,6 +420,7 @@ export const useCommands = (showToast, editorRef) => {
         tabs,
         reorderTabs,
         recentFiles,
-        closeWindow
-    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs]);
+        closeWindow,
+        isPrimaryWindow
+    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs, isPrimaryWindow]);
 };

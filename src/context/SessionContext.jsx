@@ -469,6 +469,8 @@ export const SessionProvider = ({ children }) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
     }, []);
 
+    // Retained as public API (actionsValue) though the close path now uses
+    // flushPendingSaves; callers that want an awaitable persist still use this.
     const saveSession = useCallback(async () => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
@@ -528,22 +530,23 @@ export const SessionProvider = ({ children }) => {
         };
     }, [flushPendingSaves]);
 
-    // Save session before window closes (last-resort best-effort; beforeunload is
-    // synchronous so IndexedDB writes may not land — flushPendingSaves above is
-    // the reliable path).
+    // Flush pending saves before window closes: persist snapshot + clear debounced
+    // timers synchronously (last-resort best-effort; beforeunload is synchronous
+    // so IndexedDB writes may not land — flushPendingSaves above on blur is the
+    // reliable path).
     useEffect(() => {
         const handleBeforeUnload = () => {
             if (isPrimaryWindow && isSessionLoaded) {
                 // Since beforeunload is synchronous, we can't wait for the promise.
                 // However, storage operations might still complete if they start before the process dies.
                 // In Electron, we could use synchronous storage or IPC, but with IDB we do our best.
-                saveSession();
+                flushPendingSaves();
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [saveSession, isPrimaryWindow, isSessionLoaded]);
+    }, [flushPendingSaves, isPrimaryWindow, isSessionLoaded]);
 
     const clearRestoreWarning = useCallback(() => {
         setRestoreWarning(null);
