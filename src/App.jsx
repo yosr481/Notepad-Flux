@@ -9,6 +9,7 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
+import { useFileDrop } from './hooks/useFileDrop';
 import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
@@ -39,7 +40,7 @@ function App() {
 
     const { settings, updateSettings } = useSettings();
     const { restoreWarning } = useTabState();
-    const { clearRestoreWarning } = useSessionActions();
+    const { clearRestoreWarning, createTab } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -60,6 +61,8 @@ function App() {
     const hideToast = useCallback(() => {
         setToast({ message: '', show: false });
     }, []);
+
+    useFileDrop({ createTab, showToast });
 
     useEffect(() => {
         if (restoreWarning) {
