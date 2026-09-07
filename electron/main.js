@@ -47,6 +47,11 @@ if (!gotTheLock) {
 }
 
 const getPersistentDataPath = () => {
+    // E2E override: point userData (session DB, safeStorage keychain scope) at a
+    // throwaway dir so a test run never touches the user's real session.
+    if (process.env.NOTEPAD_FLUX_USER_DATA) {
+        return process.env.NOTEPAD_FLUX_USER_DATA
+    }
     const home = homedir()
     if (platform === 'win32') {
         return join(home, 'AppData', 'LocalLow', 'Notepad Flux')
