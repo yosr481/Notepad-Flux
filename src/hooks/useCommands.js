@@ -3,6 +3,7 @@ import { useTabState, useSessionActions } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
 import { exportToHtml } from '../utils/export';
+import { normalizeEol, applyCharset } from '../utils/eol';
 import { createRoot } from 'react-dom/client';
 import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
@@ -41,15 +42,17 @@ export const useCommands = (showToast, editorRef) => {
     liveState.current = { tabs, activeTabId };
 
     const persistTab = useCallback(async (tab, content) => {
+        const outContent = applyCharset(normalizeEol(content, tab.eol || 'LF'), tab.charset || 'UTF-8');
+
         if (tab.fileHandle && !tab.fileMissing) {
-            await fileSystem.saveFile(tab.fileHandle, content);
+            await fileSystem.saveFile(tab.fileHandle, outContent);
             updateTab(tab.id, { content, isDirty: false });
         } else if (!canSaveInPlace() && tab.filePath && !tab.fileMissing) {
-            const result = await fileSystem.saveFileAs(content, tab.filePath);
+            const result = await fileSystem.saveFileAs(outContent, tab.filePath);
             if (!result) return false;
             updateTab(tab.id, { content, isDirty: false });
         } else {
-            const result = await fileSystem.saveFileAs(content, tab.title);
+            const result = await fileSystem.saveFileAs(outContent, tab.title);
             if (!result) return false;
             updateTab(tab.id, {
                 title: result.name,

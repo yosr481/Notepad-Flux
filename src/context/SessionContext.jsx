@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
 import { sanitizeFilename, fileSystem } from '../utils/fileSystem';
+import { detectEol, detectCharset } from '../utils/eol';
 
 const SettingsContext = createContext();
 const TabStateContext = createContext();
@@ -176,6 +177,13 @@ export const SessionProvider = ({ children }) => {
                         return indexA - indexB;
                     });
                 }
+
+                // Migrate missing eol/charset fields
+                loadedTabs = loadedTabs.map(t => ({
+                    ...t,
+                    eol: t.eol ?? detectEol(t.content),
+                    charset: t.charset ?? detectCharset(t.content)
+                }));
 
                 setTabs(loadedTabs);
             }
@@ -362,8 +370,18 @@ export const SessionProvider = ({ children }) => {
             content: '',
             filePath: null,
             fileHandle: null,
-            ...initialData
+            eol: 'LF',
+            charset: 'UTF-8',
         };
+
+        // Detect eol/charset from content if provided and non-empty
+        if (typeof initialData.content === 'string' && initialData.content !== '') {
+            newTab.eol = detectEol(initialData.content);
+            newTab.charset = detectCharset(initialData.content);
+        }
+
+        // Spread initialData AFTER detection so explicit eol/charset wins
+        Object.assign(newTab, initialData);
 
         setTabs(curr => [...curr, newTab]);
         setActiveTabId(newId);

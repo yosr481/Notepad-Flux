@@ -286,7 +286,7 @@ function App() {
                 />
             </div>
 
-            <StatusBar stats={stats} appVersion={appVersion} />
+            <StatusBar stats={stats} appVersion={appVersion} eol={activeTab.eol} charset={activeTab.charset} />
 
             {contextMenu && (
                 <ContextMenu

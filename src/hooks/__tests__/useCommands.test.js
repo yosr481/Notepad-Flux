@@ -909,3 +909,106 @@ describe('useCommands — a fileMissing tab saves through Save As (TASK 9 / QA f
         expect(fileSystem.saveFileAs).not.toHaveBeenCalled();
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 10 — persistTab normalizes line endings + charset on the disk write only
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * persistTab computes the on-disk form ONCE at the top:
+//      outContent = applyCharset(normalizeEol(content, tab.eol || 'LF'),
+//                                tab.charset || 'UTF-8')
+//    and passes `outContent` to every fileSystem.saveFile / saveFileAs call.
+//  * The editor works in LF internally: the updateTab({ content, ... }) calls
+//    still store the ORIGINAL `content`, NOT the normalized bytes.
+//  * A tab with eol 'LF' + charset 'UTF-8' (or missing both) writes the content
+//    through unchanged — regression guard.
+
+describe('useCommands — persistTab EOL + charset normalization on save (TASK 10)', () => {
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async (_c, name) => ({ name, handle: {} }));
+        fileSystem.isSupported.mockReturnValue(true);
+
+        mockTabState = {
+            tabs: [{
+                id: '1', title: 'note.md', content: 'a\nb', isDirty: true,
+                fileHandle: {}, eol: 'CRLF', charset: 'UTF-8',
+            }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null,
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(), createTab: vi.fn(), closeTab: vi.fn(),
+            updateTab: vi.fn(), switchTab: vi.fn(), reorderTabs: vi.fn(),
+            setTabs: vi.fn(), addRecentFile: vi.fn(), removeRecentFile: vi.fn(),
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const mkEditorRef = (text = 'a\nb') => ({
+        current: { getCurrentContent: () => text, markSaved: vi.fn() },
+    });
+
+    it('eol "CRLF": the bytes handed to fileSystem.saveFile use \\r\\n', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'a\r\nb');
+    });
+
+    it('the cached tab content stays LF — updateTab still stores the original', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ content: 'a\nb', isDirty: false }),
+        );
+    });
+
+    it('charset "UTF-8 BOM": the bytes handed to fileSystem.saveFile start with U+FEFF', async () => {
+        mockTabState.tabs[0].charset = 'UTF-8 BOM';
+        mockTabState.tabs[0].eol = 'LF';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        const written = fileSystem.saveFile.mock.calls[0][1];
+        expect(written.charCodeAt(0)).toBe(0xFEFF);
+        expect(written).toBe('﻿a\nb');
+    });
+
+    it('regression: eol "LF" + charset "UTF-8" writes the content through unchanged', async () => {
+        mockTabState.tabs[0].eol = 'LF';
+        mockTabState.tabs[0].charset = 'UTF-8';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'a\nb');
+    });
+
+    // persistTab's else branch (no fileHandle, no filePath) also routes through
+    // the same normalized `outContent`.
+    it('persistTab Save-As fallback: a CRLF tab hands \\r\\n bytes to fileSystem.saveFileAs', async () => {
+        mockTabState.tabs[0].fileHandle = undefined;
+        mockTabState.tabs[0].filePath = undefined;
+        mockTabState.tabs[0].eol = 'CRLF';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFileAs).toHaveBeenCalledWith('a\r\nb', 'note.md');
+    });
+});
