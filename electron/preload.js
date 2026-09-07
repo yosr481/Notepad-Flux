@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     readFileContent: (filePath) => ipcRenderer.invoke('read-file-content', filePath),
     saveFile: (data) => ipcRenderer.invoke('save-file', data),
     authorizePaths: (paths) => ipcRenderer.invoke('authorize-paths', paths),
+    fileExists: (p) => ipcRenderer.invoke('file-exists', p),
     safeStorage: {
         isAvailable: () => ipcRenderer.invoke('safe-storage-available'),
         encrypt: (text) => ipcRenderer.invoke('safe-storage-encrypt', text),

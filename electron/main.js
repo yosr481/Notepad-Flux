@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile, writeFile } from 'node:fs/promises'
-import { realpathSync } from 'node:fs'
+import { realpathSync, existsSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
@@ -168,6 +168,11 @@ safeHandle('authorize-paths', async (event, paths) => {
     const safe = filterAuthorizablePaths(paths)
     for (const p of safe) allowedPaths.add(p)
     return { added: safe.length }
+})
+
+safeHandle('file-exists', async (event, p) => {
+    if (filterAuthorizablePaths([p]).length === 0) return false
+    try { return existsSync(p) } catch { return false }
 })
 
 

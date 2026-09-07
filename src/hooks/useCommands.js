@@ -41,10 +41,10 @@ export const useCommands = (showToast, editorRef) => {
     liveState.current = { tabs, activeTabId };
 
     const persistTab = useCallback(async (tab, content) => {
-        if (tab.fileHandle) {
+        if (tab.fileHandle && !tab.fileMissing) {
             await fileSystem.saveFile(tab.fileHandle, content);
             updateTab(tab.id, { content, isDirty: false });
-        } else if (!canSaveInPlace() && tab.filePath) {
+        } else if (!canSaveInPlace() && tab.filePath && !tab.fileMissing) {
             const result = await fileSystem.saveFileAs(content, tab.filePath);
             if (!result) return false;
             updateTab(tab.id, { content, isDirty: false });
@@ -56,7 +56,8 @@ export const useCommands = (showToast, editorRef) => {
                 filePath: result.name,
                 fileHandle: result.handle,
                 content: content,
-                isDirty: false
+                isDirty: false,
+                fileMissing: false
             });
         }
         return true;
@@ -189,7 +190,8 @@ export const useCommands = (showToast, editorRef) => {
                     filePath: result.name,
                     fileHandle: result.handle,
                     content: content,
-                    isDirty: false
+                    isDirty: false,
+                    fileMissing: false
                 });
                 addRecentFile(result.name, result.name, result.handle);
                 editorRef?.current?.markSaved?.();

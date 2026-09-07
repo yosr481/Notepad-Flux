@@ -45,6 +45,7 @@ const SortableTab = ({ tab, isActive, onClick, onClose, onContextMenu }) => {
             title={tab.title}
             isActive={isActive}
             isDirty={tab.isDirty}
+            fileMissing={tab.fileMissing}
             onClick={onClick}
             onClose={onClose}
             onContextMenu={onContextMenu}
