@@ -170,6 +170,12 @@ safeHandle('authorize-paths', async (event, paths) => {
     return { added: safe.length }
 })
 
+// ponytail: this uses only the lexical guard (absolute, no "..") and NOT the
+// isPathSafe allowlist check that read-file-content / save-file run — deliberate.
+// It returns a bare boolean (no content), and the SessionContext restore stat
+// that calls it runs before the fire-and-forget authorize-paths re-seed has
+// landed, so gating on the allowlist would false-flag every restored tab as
+// missing. Upgrade path: await the re-seed in the renderer, then tighten to isPathSafe.
 safeHandle('file-exists', async (event, p) => {
     if (filterAuthorizablePaths([p]).length === 0) return false
     try { return existsSync(p) } catch { return false }
