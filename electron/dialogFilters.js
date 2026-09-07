@@ -13,6 +13,12 @@ const BY_EXT = {
     txt: { name: 'Text', extensions: ['txt'] },
 }
 
+export const OPEN_FILTERS = [
+    { name: 'Markdown', extensions: ['md', 'markdown'] },
+    { name: 'Text', extensions: ['txt', 'text'] },
+    ALL_FILES,
+]
+
 export function filtersForName(name) {
     if (typeof name !== 'string') return [ALL_FILES]
     const dot = name.lastIndexOf('.')
