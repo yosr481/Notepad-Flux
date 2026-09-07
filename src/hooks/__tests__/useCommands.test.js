@@ -715,3 +715,104 @@ describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
         );
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 7 / QA finding 10 — closeWindow must still prompt for a LONE dirty tab
+// on a non-primary window, and the hook must expose isPrimaryWindow.
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * useCommands()'s returned object includes `isPrimaryWindow` (passed through
+//    from useTabState) so App.jsx can gate its beforeunload guard on it.
+//  * closeWindow() on a NON-primary window: the dirty-check + saveChangesPrompt
+//    + save runs for EVERY dirty tab, including the last remaining one. The
+//    old `if (liveState.current.tabs.length <= 1) break;` guard must not skip
+//    the prompt (data-loss gap). Only the final context closeTab is still
+//    guarded so one default tab survives.
+//  * choice 'cancel' aborts the whole close: window.close() is not reached.
+//  * choice 'save' + a successful persist: window.close() IS reached; the
+//    context-level closeTab is NOT called for that last tab (it stays).
+
+describe('useCommands — isPrimaryWindow passthrough + lone-dirty-tab closeWindow prompt (TASK 7)', () => {
+    let mockTabState;
+    let mockActions;
+    let showToast;
+    let closeSpy;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async (_c, name) => ({ name, handle: {} }));
+        fileSystem.isSupported.mockReturnValue(true);
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
+
+        showToast = vi.fn();
+        mockTabState = {
+            tabs: [{ id: '1', title: 'LoneDirty', content: 'old', isDirty: true, fileHandle: {} }],
+            activeTabId: '1',
+            isPrimaryWindow: false,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            addRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+        closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        closeSpy.mockRestore();
+    });
+
+    it('exposes isPrimaryWindow from the hook (mirrors useTabState)', () => {
+        const { result } = renderHook(() => useCommands(showToast));
+        expect(result.current.isPrimaryWindow).toBe(false);
+
+        mockTabState.isPrimaryWindow = true;
+        const { result: r2 } = renderHook(() => useCommands(showToast));
+        expect(r2.current.isPrimaryWindow).toBe(true);
+    });
+
+    it('closeWindow(): a single dirty tab still triggers dialogs.saveChangesPrompt', async () => {
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(dialogs.saveChangesPrompt).toHaveBeenCalled();
+    });
+
+    it('closeWindow(): choice "cancel" on the lone dirty tab aborts — window.close not called', async () => {
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'cancel');
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(closeSpy).not.toHaveBeenCalled();
+    });
+
+    it('closeWindow(): choice "save" on the lone dirty tab saves, then closes, keeping the last tab', async () => {
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(fileSystem.saveFile).toHaveBeenCalled();
+        expect(closeSpy).toHaveBeenCalled();
+        expect(mockActions.closeTab).not.toHaveBeenCalled();
+    });
+});

@@ -100,12 +100,13 @@ function App() {
         recentFiles,
         closeWindow,
         tabs,
-        activeTabId
+        activeTabId,
+        isPrimaryWindow
     } = useCommands(showToast, editorRef);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (tabs.some(t => t.isDirty)) {
+            if (!isPrimaryWindow && tabs.some(t => t.isDirty)) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -113,7 +114,7 @@ function App() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [tabs]);
+    }, [tabs, isPrimaryWindow]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
