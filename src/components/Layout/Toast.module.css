@@ -1,10 +1,13 @@
 .toast {
   visibility: hidden;
   min-width: 250px;
-  margin-left: -125px;
+  /* right-anchored (right: 30px); cap width so a long message wraps inside the
+     viewport instead of growing off the left edge (QA finding 8). */
+  max-width: calc(100vw - 60px);
+  overflow-wrap: anywhere;
   background-color: var(--background-secondary);
   color: var(--text-normal);
-  text-align: center;
+  text-align: left;
   border-radius: var(--radius-s);
   padding: var(--space-16);
   position: fixed;
