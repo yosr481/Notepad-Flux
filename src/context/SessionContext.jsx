@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
-import { sanitizeFilename } from '../utils/fileSystem';
+import { sanitizeFilename, fileSystem } from '../utils/fileSystem';
 
 const SettingsContext = createContext();
 const TabStateContext = createContext();
@@ -147,6 +147,21 @@ export const SessionProvider = ({ children }) => {
             if (diskSession.settings) {
                 setSettings(prev => ({ ...prev, ...diskSession.settings }));
             }
+
+            // Re-authorize the file paths the user picked in a prior session. The
+            // Electron main-process allowlist starts empty each launch, so without
+            // this a restored tab can't be saved and a recent file can't be
+            // reopened until it's picked again (QA finding 13). The persisted
+            // session/recents ARE the consent record; main still realpath-checks
+            // every actual read/write via isPathSafe.
+            const authPaths = new Set();
+            for (const t of (diskSession.tabs || [])) {
+                if (typeof t.filePath === 'string' && t.filePath) authPaths.add(t.filePath);
+            }
+            for (const r of (diskSession.recentFiles || [])) {
+                if (typeof r.filePath === 'string' && r.filePath) authPaths.add(r.filePath);
+            }
+            if (authPaths.size) fileSystem.authorizePaths([...authPaths]).catch(() => {});
         };
 
         const loadAndSetupSession = async (diskSession) => {

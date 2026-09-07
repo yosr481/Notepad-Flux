@@ -10,6 +10,7 @@ import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
 import { filtersForName } from './dialogFilters.js'
+import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -134,6 +135,18 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     return { filePath, canceled: false }
 })
 
+// Re-seed the allowlist from paths the renderer persisted in a prior session
+// (restored tabs + recent files). allowedPaths starts empty each launch, so
+// without this every restored tab is unsaveable and every recent file
+// unopenable until re-picked (QA finding 13). The persisted list is the user's
+// prior consent; isPathSafe still realpath-checks each actual read/write, and
+// the same lexical guard as pathSafety Check 2 keeps junk out of the set.
+safeHandle('authorize-paths', async (event, paths) => {
+    const safe = filterAuthorizablePaths(paths)
+    for (const p of safe) allowedPaths.add(p)
+    return { added: safe.length }
+})
+
 
 // --------- Auto Updater ---------
 autoUpdater.logger = log
@@ -187,7 +200,7 @@ safeHandle('open-external', async (event, url) => {
 // │ └── index.html
 // ├── dist-electron
 // │ ├── main.js
-// │ └── preload.js
+// │ └── preload.cjs
 //
 process.env.DIST_ELECTRON = join(__dirname, '../dist-electron')
 process.env.DIST = join(__dirname, '../dist')
@@ -225,7 +238,7 @@ function createWindow() {
         ...buildWindowOptions({
             platform: process.platform,
             prefersDark: nativeTheme.shouldUseDarkColors,
-            preloadPath: join(process.env.DIST_ELECTRON, 'preload.js'),
+            preloadPath: join(process.env.DIST_ELECTRON, 'preload.cjs'),
             iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
         }),
     })
@@ -251,7 +264,7 @@ function createWindow() {
                 ...buildWindowOptions({
                     platform: process.platform,
                     prefersDark: nativeTheme.shouldUseDarkColors,
-                    preloadPath: join(process.env.DIST_ELECTRON, 'preload.js'),
+                    preloadPath: join(process.env.DIST_ELECTRON, 'preload.cjs'),
                     iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
                 }),
             }
