@@ -20,6 +20,7 @@ vi.mock('../../utils/fileSystem', () => ({
         openFileFromPath: vi.fn(async () => { throw new Error('nope'); }),
         saveFile: vi.fn(async () => undefined),
         saveFileAs: vi.fn(async (_content, name) => ({ name, handle: {} })),
+        fileExists: vi.fn(async () => true),
         isSupported: vi.fn(() => true)
     }
 }));
@@ -814,5 +815,97 @@ describe('useCommands — isPrimaryWindow passthrough + lone-dirty-tab closeWind
         expect(fileSystem.saveFile).toHaveBeenCalled();
         expect(closeSpy).toHaveBeenCalled();
         expect(mockActions.closeTab).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 9 — a fileMissing tab must NOT save in place; it routes to Save As,
+// and a successful Save As clears the flag (QA finding 12).
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * persistTab's in-place branches are gated on `!tab.fileMissing`:
+//      - `tab.fileHandle && !tab.fileMissing`  (native handle write)
+//      - `!canSaveInPlace() && tab.filePath && !tab.fileMissing` (path write)
+//    So a fileMissing tab — even one that still has a fileHandle / filePath —
+//    falls through to the title-based `fileSystem.saveFileAs(content, tab.title)`
+//    branch. `fileSystem.saveFile` is never called for it.
+//  * On a successful Save As the tab's update payload carries `fileMissing:false`
+//    (both via persistTab's final branch and via the saveFileAs command).
+//  * The cached buffer is still the content that gets written.
+//  * A normal tab (fileMissing falsy) with a fileHandle is unaffected — it still
+//    saves in place via fileSystem.saveFile.
+
+describe('useCommands — a fileMissing tab saves through Save As (TASK 9 / QA finding 12)', () => {
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async () => ({ name: 'x.md', handle: '/new/x.md' }));
+        fileSystem.isSupported.mockReturnValue(true);
+
+        mockTabState = {
+            tabs: [{
+                id: '1', title: 'x.md', content: 'cached', isDirty: true,
+                fileHandle: '/abs/x.md', filePath: '/abs/x.md', fileMissing: true,
+            }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null,
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(), createTab: vi.fn(), closeTab: vi.fn(),
+            updateTab: vi.fn(), switchTab: vi.fn(), reorderTabs: vi.fn(),
+            setTabs: vi.fn(), addRecentFile: vi.fn(), removeRecentFile: vi.fn(),
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const mkEditorRef = () => ({ current: { getCurrentContent: () => 'live text', markSaved: vi.fn() } });
+
+    it('saveFile: routes a fileMissing tab to fileSystem.saveFileAs, never fileSystem.saveFile', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(fileSystem.saveFileAs).toHaveBeenCalledWith('live text', 'x.md');
+        expect(fileSystem.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('saveFile: a successful Save As clears fileMissing (updateTab { fileMissing: false, isDirty: false })', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ fileMissing: false, isDirty: false }),
+        );
+    });
+
+    it('saveFileAs command: a successful write clears fileMissing on the active tab', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFileAs(mkEditorRef()); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ fileMissing: false }),
+        );
+    });
+
+    it('regression: a normal tab (fileMissing falsy) with a fileHandle still saves in place', async () => {
+        mockTabState.tabs[0].fileMissing = false;
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalled();
+        expect(fileSystem.saveFileAs).not.toHaveBeenCalled();
     });
 });

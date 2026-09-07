@@ -324,6 +324,34 @@ export const SessionProvider = ({ children }) => {
         saveMetadataDebounced({ activeTabId, recentFiles, settings });
     }, [activeTabId, recentFiles, settings, saveMetadataDebounced]);
 
+    // Check for missing files after session load (TASK 9 / QA finding 12)
+    useEffect(() => {
+        if (!isSessionLoaded || !isPrimaryWindow) return;
+
+        const cancelled = { flag: false };
+
+        (async () => {
+            for (const tab of currentTabsRef.current) {
+                if (typeof tab.filePath === 'string' && (tab.filePath.includes('/') || tab.filePath.includes('\\'))) {
+                    const exists = await fileSystem.fileExists(tab.filePath);
+                    if (!cancelled.flag && exists !== null) {
+                        const targetFileMissing = exists === false;
+                        const currentFileMissing = !!tab.fileMissing;
+                        if (targetFileMissing !== currentFileMissing) {
+                            setTabs(prev => prev.map(x =>
+                                x.id === tab.id ? { ...x, fileMissing: targetFileMissing } : x
+                            ));
+                        }
+                    }
+                }
+            }
+        })();
+
+        return () => {
+            cancelled.flag = true;
+        };
+    }, [isSessionLoaded, isPrimaryWindow]);
+
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
         nextTabId.current += 1;

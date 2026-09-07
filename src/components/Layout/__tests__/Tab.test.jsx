@@ -58,3 +58,38 @@ describe('Tab Component', () => {
         expect(defaultProps.onClose).toHaveBeenCalledWith('1');
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 9 — fileMissing marker (QA finding 12)
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * Tab accepts a `fileMissing` prop. When truthy it renders a marker element
+//    carrying data-testid="tab-file-missing" (inside .tabIndicator).
+//  * When falsy or absent, that element is not rendered.
+describe('Tab — fileMissing marker (TASK 9 / QA finding 12)', () => {
+    const base = {
+        id: '9',
+        title: 'gone.md',
+        isActive: false,
+        isDirty: false,
+        onClick: vi.fn(),
+        onClose: vi.fn(),
+        onContextMenu: vi.fn(),
+    };
+
+    it('renders the marker when fileMissing is truthy', () => {
+        render(<Tab {...base} fileMissing={true} />);
+        expect(screen.getByTestId('tab-file-missing')).toBeInTheDocument();
+    });
+
+    it('does not render the marker when fileMissing is false', () => {
+        render(<Tab {...base} fileMissing={false} />);
+        expect(screen.queryByTestId('tab-file-missing')).toBeNull();
+    });
+
+    it('does not render the marker when fileMissing is absent', () => {
+        render(<Tab {...base} />);
+        expect(screen.queryByTestId('tab-file-missing')).toBeNull();
+    });
+});

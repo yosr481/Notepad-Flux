@@ -363,4 +363,8 @@ export const fileSystem = {
     // (File.path was removed in Electron 32). null on the web build.
     pathForFile: (file) => window.electronAPI?.getPathForFile?.(file) ?? null,
 
+    // Electron-only: does this absolute path currently exist on disk?
+    // boolean in Electron; null on the web build (can't tell).
+    fileExists: (p) => (window.electronAPI?.fileExists ? window.electronAPI.fileExists(p) : Promise.resolve(null)),
+
 };

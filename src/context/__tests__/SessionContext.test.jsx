@@ -3,7 +3,17 @@ import React from 'react';
 import { render, act, waitFor } from '@testing-library/react';
 import { SessionProvider, useSession } from '../SessionContext';
 import { storage } from '../../services/storage';
+import { fileSystem } from '../../utils/fileSystem';
 import { createFakeLockManager } from '../../test/fakeLocks';
+
+// Keep sanitizeFilename / authorizePaths real; only stub the new fileExists.
+vi.mock('../../utils/fileSystem', async (importOriginal) => {
+    const actual = await importOriginal();
+    return {
+        ...actual,
+        fileSystem: { ...actual.fileSystem, fileExists: vi.fn(async () => null) },
+    };
+});
 
 vi.mock('../../services/storage', () => ({
     storage: {
@@ -823,5 +833,189 @@ describe('SessionContext snapshot persistence (P2-atomic)', () => {
 
         act(() => { vi.advanceTimersByTime(1000); });
         expect(storage.saveMetadata).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 9 — moved/deleted file on session restore: mark the tab (QA finding 12)
+// ---------------------------------------------------------------------------
+//
+// Pinned contract (choices the spec left open, stated as decisions):
+//
+//  * After session load, the PRIMARY window (isSessionLoaded && isPrimaryWindow)
+//    runs one stat pass over the restored tabs. For each tab whose `filePath`
+//    is a string that looks like a real path (contains '/' or '\\') it calls
+//    `await fileSystem.fileExists(tab.filePath)`.
+//  * result EXACTLY `false`  -> that tab gets `fileMissing === true`.
+//  * result `true`           -> tab untouched (no truthy `fileMissing`).
+//  * result `null` (web build — "can't tell") -> NO tab marked, even though
+//    fileExists was still called.
+//  * A tab with no `filePath`, or a `filePath` with no '/' or '\\', is never
+//    passed to fileExists.
+//  * The cached buffer (`tab.content`) is never altered — only the flag is added.
+//  * A non-primary window runs no stat pass at all.
+
+describe('SessionContext — fileMissing on restore (TASK 9 / QA finding 12)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true, writable: true, value: createFakeLockManager(),
+        });
+        fileSystem.fileExists.mockReset();
+        fileSystem.fileExists.mockResolvedValue(null);
+    });
+
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+        fileSystem.fileExists.mockReset();
+        fileSystem.fileExists.mockResolvedValue(null);
+    });
+
+    const restoredSession = () => ({
+        tabs: [
+            { id: 'gone', title: 'gone.md', content: 'cached gone', isDirty: false, filePath: '/abs/gone.md', fileHandle: null },
+            { id: 'here', title: 'here.md', content: 'cached here', isDirty: false, filePath: '/abs/here.md', fileHandle: null },
+        ],
+        activeTabId: 'gone',
+        recentFiles: [],
+        settings: {},
+    });
+
+    function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        return api;
+    }
+
+    it('marks only the tab whose file is gone (fileExists === false)', async () => {
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockImplementation(async (p) => p !== '/abs/gone.md');
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['gone', 'here']));
+
+        await waitFor(() => expect(api.tabs.find(t => t.id === 'gone').fileMissing).toBe(true));
+        expect(api.tabs.find(t => t.id === 'here').fileMissing).toBeFalsy();
+    });
+
+    it('leaves the cached buffer of a missing tab intact', async () => {
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockResolvedValue(false);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.tabs.find(t => t.id === 'gone').fileMissing).toBe(true));
+        expect(api.tabs.find(t => t.id === 'gone').content).toBe('cached gone');
+    });
+
+    it('marks no tab when fileExists resolves null (web build), though it was still called', async () => {
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockResolvedValue(null);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(fileSystem.fileExists).toHaveBeenCalledWith('/abs/gone.md'));
+        expect(api.tabs.some(t => t.fileMissing)).toBe(false);
+    });
+
+    it('marks no tab when fileExists resolves true', async () => {
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockResolvedValue(true);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(fileSystem.fileExists).toHaveBeenCalledWith('/abs/here.md'));
+        expect(api.tabs.some(t => t.fileMissing)).toBe(false);
+    });
+
+    it('never stats a tab with no filePath or a filePath that carries no path separator', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [
+                { id: 'scratch', title: 'Untitled', content: 'x', isDirty: false, filePath: null, fileHandle: null },
+                { id: 'named', title: 'notes.md', content: 'y', isDirty: false, filePath: 'notes.md', fileHandle: null },
+                { id: 'real', title: 'real.md', content: 'z', isDirty: false, filePath: '/abs/real.md', fileHandle: null },
+            ],
+            activeTabId: 'real',
+            recentFiles: [],
+            settings: {},
+        });
+        fileSystem.fileExists.mockResolvedValue(true);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(fileSystem.fileExists).toHaveBeenCalledWith('/abs/real.md'));
+
+        const stated = fileSystem.fileExists.mock.calls.map(c => c[0]);
+        expect(stated).toEqual(['/abs/real.md']);
+    });
+
+    it('a non-primary window runs no stat pass', async () => {
+        delete navigator.locks; // provider never becomes primary
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockResolvedValue(false);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isSessionLoaded).toBe(true));
+        expect(api.isPrimaryWindow).toBe(false);
+        await act(async () => { await Promise.resolve(); });
+
+        expect(fileSystem.fileExists).not.toHaveBeenCalled();
+        expect(api.tabs.some(t => t.fileMissing)).toBe(false);
+    });
+
+    // -----------------------------------------------------------------------
+    // TASK 9-REVISION — the stat pass must resolve BOTH directions:
+    //   fileExists === false -> fileMissing: true
+    //   fileExists === true  -> fileMissing: false  (clear a stale flag)
+    //   fileExists === null  -> leave the tab untouched (must NOT clear)
+    // and only setTabs when the value actually changes.
+    // -----------------------------------------------------------------------
+
+    // A session whose 'gone' tab was persisted while already flagged missing.
+    const staleFlaggedSession = () => ({
+        tabs: [
+            { id: 'gone', title: 'gone.md', content: 'cached gone', isDirty: false, filePath: '/abs/gone.md', fileHandle: null, fileMissing: true },
+            { id: 'here', title: 'here.md', content: 'cached here', isDirty: false, filePath: '/abs/here.md', fileHandle: null },
+        ],
+        activeTabId: 'gone',
+        recentFiles: [],
+        settings: {},
+    });
+
+    it('clears a stale fileMissing flag when the file has reappeared (fileExists === true)', async () => {
+        storage.loadSession.mockResolvedValue(staleFlaggedSession());
+        fileSystem.fileExists.mockResolvedValue(true);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['gone', 'here']));
+
+        await waitFor(() => expect(api.tabs.find(t => t.id === 'gone').fileMissing).toBe(false));
+    });
+
+    it('does not clear a seeded fileMissing flag when fileExists resolves null (web build)', async () => {
+        storage.loadSession.mockResolvedValue(staleFlaggedSession());
+        fileSystem.fileExists.mockResolvedValue(null);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(fileSystem.fileExists).toHaveBeenCalledWith('/abs/gone.md'));
+        await act(async () => { await Promise.resolve(); });
+
+        expect(api.tabs.find(t => t.id === 'gone').fileMissing).toBe(true);
+    });
+
+    it('a normal restored tab with fileExists === true is never marked fileMissing', async () => {
+        storage.loadSession.mockResolvedValue(restoredSession());
+        fileSystem.fileExists.mockResolvedValue(true);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(fileSystem.fileExists).toHaveBeenCalledWith('/abs/here.md'));
+        await act(async () => { await Promise.resolve(); });
+
+        expect(api.tabs.every(t => !t.fileMissing)).toBe(true);
     });
 });

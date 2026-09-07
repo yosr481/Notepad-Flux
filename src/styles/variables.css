@@ -69,6 +69,7 @@
    --text-accent-hover: #6D28D9;
    /* Darker violet */
    --text-error: var(--color-error);
+   --text-warning: #B45309;
    --text-selection: rgba(59, 130, 246, 0.2);
    /* Focus Blue with opacity */
    --text-highlight-bg: var(--color-flux-violet-surface);
@@ -193,6 +194,7 @@
    --text-faint: #52525B;
    --text-accent: var(--color-dark-accent);
    --text-accent-hover: #8B5CF6;
+   --text-warning: #FBBF24;
 
    /* Interactive */
    --interactive-normal: var(--color-dark-sidebar);

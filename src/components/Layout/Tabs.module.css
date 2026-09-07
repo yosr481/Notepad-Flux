@@ -183,6 +183,13 @@
     background-color: var(--text-muted);
 }
 
+.missingIndicator {
+    font-size: 0.75rem;
+    line-height: 1;
+    color: var(--text-warning);
+    margin-right: 4px;
+}
+
 .tab:hover .dirtyIndicator {
     display: none;
 }
