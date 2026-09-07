@@ -12,6 +12,7 @@ import { createIsPathSafe } from './pathSafety.js'
 import { filtersForName } from './dialogFilters.js'
 import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
+import { isProbablyText } from './isProbablyText.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -104,9 +105,15 @@ safeHandle('read-file', async () => {
     if (canceled) return { canceled }
 
     const filePath = filePaths[0]
+    // Selecting a file in the native OS picker IS the authorization; we do not
+    // call isPathSafe here (QA finding 3, user-confirmed).
     allowedPaths.add(resolve(filePath))
 
-    const content = await readFile(filePath, 'utf-8')
+    const buf = await readFile(filePath)
+    if (!isProbablyText(buf)) {
+        throw new Error('Not a text file.')
+    }
+    const content = buf.toString('utf-8')
     return { canceled, filePath, content }
 })
 
@@ -118,7 +125,11 @@ safeHandle('read-file-content', async (event, filePath) => {
     if (!isPathSafe(filePath)) {
         throw new Error('Access denied: Unauthorized file path.')
     }
-    return await readFile(filePath, 'utf-8')
+    const buf = await readFile(filePath)
+    if (!isProbablyText(buf)) {
+        throw new Error('Not a text file.')
+    }
+    return buf.toString('utf-8')
 })
 
 safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
