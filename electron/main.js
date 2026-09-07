@@ -13,6 +13,7 @@ import { filtersForName } from './dialogFilters.js'
 import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
 import { isProbablyText } from './isProbablyText.js'
+import { toUserMessage } from './ipcErrorMessage.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -72,7 +73,7 @@ const safeHandle = (channel, handler) => {
             return await handler(event, ...args)
         } catch (error) {
             console.error(`Error in IPC handler for ${channel}:`, error)
-            throw new Error('An internal system error occurred. Please try again.', { cause: error })
+            throw new Error(toUserMessage(error), { cause: error })
         }
     })
 }
