@@ -58,7 +58,7 @@ import { buildWindowOptions } from '../windowOptions.js'
 //     or shared module-level literal).
 // ---------------------------------------------------------------------------
 
-const PRELOAD = '/app/dist-electron/preload.js'
+const PRELOAD = '/app/dist-electron/preload.cjs'
 const ICON = '/app/public/icons/desktop/icon.png'
 
 const build = (over = {}) =>

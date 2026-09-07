@@ -350,4 +350,13 @@ export const fileSystem = {
 
     openFileFromPath: (filePath) => getDriver().openFileFromPath(filePath),
 
+    // Electron-only: re-seed the main-process path allowlist with paths the user
+    // authorized in a prior session (restored tabs + recents). No-op on the web.
+    authorizePaths: (paths) => {
+        if (window.electronAPI?.authorizePaths) {
+            return window.electronAPI.authorizePaths(paths);
+        }
+        return Promise.resolve({ added: 0 });
+    },
+
 };
