@@ -359,4 +359,8 @@ export const fileSystem = {
         return Promise.resolve({ added: 0 });
     },
 
+    // Electron-only: resolve a dropped/File object to its absolute path
+    // (File.path was removed in Electron 32). null on the web build.
+    pathForFile: (file) => window.electronAPI?.getPathForFile?.(file) ?? null,
+
 };

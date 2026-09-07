@@ -10,15 +10,16 @@ export const openDroppedFiles = async (fileList, deps) => {
 
     for (const file of fileList) {
         try {
-            if (file.path) {
+            const nativePath = fileSystem.pathForFile(file);
+            if (nativePath) {
                 // Electron file
-                await fileSystem.authorizePaths([file.path]);
-                const { content, name } = await fileSystem.openFileFromPath(file.path);
+                await fileSystem.authorizePaths([nativePath]);
+                const { content, name } = await fileSystem.openFileFromPath(nativePath);
                 createTab({
                     title: name,
                     content,
-                    filePath: file.path,
-                    fileHandle: file.path,
+                    filePath: nativePath,
+                    fileHandle: nativePath,
                     isDirty: false,
                 });
             } else {

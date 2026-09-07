@@ -1,4 +1,4 @@
-import { ipcRenderer, contextBridge } from 'electron'
+import { ipcRenderer, contextBridge, webUtils } from 'electron'
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('electronAPI', {
@@ -21,4 +21,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Only Windows draws overlay caption buttons over the page (titleBarOverlay);
     // the renderer reserves top-right space for them on that platform only.
     platform: process.platform,
+    getPathForFile: (file) => webUtils.getPathForFile(file),
 })
