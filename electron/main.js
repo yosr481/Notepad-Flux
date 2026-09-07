@@ -355,6 +355,27 @@ app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
 })
 
+// A non-primary window (a second app window opened via window.open — it does not
+// hold the Web Lock, so it does NOT persist its tabs) calls beforeunload's
+// preventDefault() when it has dirty tabs. Electron silently swallows that unless
+// the main process handles will-prevent-unload — so without this, the X button on
+// such a window does nothing (QA finding 10 follow-up). Give the user a real
+// choice. NOTE: preventDefault() HERE means "override the block and close".
+app.on('web-contents-created', (_event, contents) => {
+    contents.on('will-prevent-unload', (event) => {
+        const owner = BrowserWindow.fromWebContents(contents)
+        const choice = dialog.showMessageBoxSync(owner ?? undefined, {
+            type: 'question',
+            buttons: ['Discard changes and close', 'Keep editing'],
+            defaultId: 1,
+            cancelId: 1,
+            title: 'Unsaved changes',
+            message: 'This window has unsaved changes that are not part of the saved session. Close it and discard them?',
+        })
+        if (choice === 0) event.preventDefault()
+    })
+})
+
 app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
