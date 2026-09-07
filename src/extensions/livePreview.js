@@ -1,10 +1,8 @@
 import { Decoration, EditorView, MatchDecorator, ViewPlugin, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { RangeSetBuilder, StateField, StateEffect } from "@codemirror/state";
+import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget, OrderedMarkerWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
-
-const PREFIX = 10000;
 
 const namedEntities = {
     'amp': '&',
@@ -61,10 +59,11 @@ export const buildDecorations = (state, range) => {
     const doc = state.doc;
     const decorations = [];
 
-    const iterRange = range ? { from: range.from, to: range.to } : { from: 0, to: Math.min(doc.length, PREFIX) };
+    const iterRange = range || { from: 0, to: doc.length };
 
     syntaxTree(state).iterate({
-        ...iterRange,
+        from: iterRange.from,
+        to: iterRange.to,
         enter: (node) => {
             const { name, from: nodeFrom, to: nodeTo } = node;
 
@@ -417,26 +416,24 @@ export const buildDecorations = (state, range) => {
     return builder.finish();
 };
 
-export const setLivePreviewViewport = StateEffect.define();
 
-const livePreviewViewportField = StateField.define({
-    create: () => null,
-    update(range, tr) {
-        for (const e of tr.effects) {
-            if (e.is(setLivePreviewViewport)) return e.value;
-        }
-        return range;
-    }
-});
-
+// ponytail: full-doc decoration rebuild per keystroke/selection; fine for
+// notepad-sized docs (tens of KB), add viewport windowing back if large files jank.
 const livePreviewField = StateField.define({
     create(state) {
         return buildDecorations(state);
     },
     update(decorations, transaction) {
-        if (transaction.docChanged || transaction.selection || transaction.effects.some(e => e.is(setLivePreviewViewport))) {
-            const range = transaction.state.field(livePreviewViewportField, false);
-            return buildDecorations(transaction.state, range);
+        // syntaxTree comparison: the markdown parser is time-sliced, so on a long
+        // doc the tail parses in a later transaction that carries no docChanged/
+        // selection/effect flag. Without this check those lines keep their stale
+        // (empty) decorations and never render as live preview.
+        if (
+            transaction.docChanged ||
+            transaction.selection ||
+            syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
+        ) {
+            return buildDecorations(transaction.state);
         }
         return decorations;
     },
@@ -535,31 +532,6 @@ export function convertTableToHTML(text) {
     return html;
 }
 
-// ponytail: PAD margins outside viewport; constructs larger than PAD starting above viewport may lose decorations until scrolled into range
-const PAD = 2000;
-
-const livePreviewViewportPlugin = ViewPlugin.fromClass(class {
-    constructor(view) {
-        this.publish(view);
-    }
-
-    update(u) {
-        if (u.viewportChanged || u.docChanged) {
-            this.publish(u.view);
-        }
-    }
-
-    publish(view) {
-        const { from, to } = view.viewport;
-        const docLen = view.state.doc.length;
-        const range = { from: Math.max(0, from - PAD), to: Math.min(docLen, to + PAD) };
-        const cur = view.state.field(livePreviewViewportField, false);
-        if (!cur || cur.from !== range.from || cur.to !== range.to) {
-            view.dispatch({ effects: setLivePreviewViewport.of(range) });
-        }
-    }
-});
-
 // --- Highlights (==text==) ---
 
 
@@ -646,7 +618,5 @@ function parseCellContent(content) {
 
 export const livePreview = [
     livePreviewField,
-    livePreviewViewportField,
-    livePreviewViewportPlugin,
     highlightPlugin
 ];

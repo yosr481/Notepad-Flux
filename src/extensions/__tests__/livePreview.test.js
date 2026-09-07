@@ -2,12 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import {
-    livePreview,
-    buildDecorations,
-    setLivePreviewViewport,
-} from '../livePreview';
-import { TableWidget, CheckboxWidget, EntityWidget, OrderedMarkerWidget } from '../widgets';
+import { forceParsing } from '@codemirror/language';
+import { livePreview, buildDecorations } from '../livePreview';
+import * as lp from '../livePreview';
+import { TableWidget, CheckboxWidget, EntityWidget, OrderedMarkerWidget, HRWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -18,8 +16,6 @@ const gfm = (doc, selection) =>
         selection,
         extensions: [markdown({ base: markdownLanguage }), livePreview],
     });
-
-const getField = (state) => state.field(livePreview[0]);
 
 // Count decoration ranges overlapping [from, to).
 const countDecos = (field, from, to) => {
@@ -40,8 +36,8 @@ const decosAt = (field, from, to) => {
 describe('Live Preview Extension — shape', () => {
     it('exports an array whose first element is the decoration StateField', () => {
         expect(Array.isArray(livePreview)).toBe(true);
-        // field + highlightPlugin + viewport plugin (+ maybe a viewport field)
-        expect(livePreview.length).toBeGreaterThanOrEqual(3);
+        // After viewport removal the array is just [livePreviewField, highlightPlugin].
+        expect(livePreview.length).toBe(2);
 
         const { state } = createEditor('**Bold**', livePreview);
         // livePreview[0] must stay the field that provides decorations.
@@ -61,44 +57,78 @@ describe('Live Preview Extension — shape', () => {
     });
 });
 
-describe('Live Preview Extension — viewport-scoped decoration build', () => {
-    // Doc with **aa** at offset 0-6 and **zz** at offset 50007-50013.
-    const bigDoc = '**aa**\n' + 'x\n'.repeat(25000) + '**zz**\n';
-    const FAR = 50007; // start of the far StrongEmphasis
+describe('Live Preview Extension — whole-document decoration build (no viewport cap)', () => {
+    // 150 lines of 80 'x' + '\n' = 12150 chars — well past the old 10000 PREFIX cap.
+    const filler = ('x'.repeat(80) + '\n').repeat(150);
 
-    it('does NOT decorate nodes outside the given range', () => {
-        // Cursor at 500: away from both bold spans, but inside the {0,1000} range.
-        const state = gfm(bigDoc, { anchor: 500 });
-        const field = buildDecorations(state, { from: 0, to: 1000 });
+    // A bare EditorState.create() does NOT run the Lezer markdown parser to the end
+    // of a long doc, so syntaxTree(state) is truncated at ~10k and buildDecorations
+    // can't see the tail regardless of the PREFIX removal. Drive the state through a
+    // real EditorView and forceParsing() to the doc end so the tree actually covers
+    // the tail — this is what the running editor does across transactions.
+    const forcedGfm = (doc, selection) => {
+        const view = new EditorView({ state: gfm(doc, selection), parent: document.createElement('div') });
+        forceParsing(view, view.state.doc.length, 5000);
+        const { state } = view;
+        view.destroy();
+        return state;
+    };
 
-        // In-range **aa** IS decorated (its EmphasisMarks are hidden).
-        expect(countDecos(field, 0, 10)).toBeGreaterThan(0);
+    // Bare Decoration.replace (empty spec, no widget) exactly spanning [from, to).
+    const bareReplacesAt = (field, from, to) =>
+        decosAt(field, from, to).filter((v) => v.spec && v.spec.widget === undefined);
 
-        // Out-of-range **zz** near offset 50007 is NOT touched.
-        expect(countDecos(field, FAR - 5, state.doc.length)).toBe(0);
+    it('buildDecorations(state) — one arg, no range — hides EmphasisMarks of a **bold** span past offset 12000', () => {
+        const base = 'hello **world** there'; // EmphasisMark ranges within base: [6,8] and [13,15]
+        const doc = filler + '\n' + base;
+        const off = filler.length + 1; // start of `base`
+        expect(off).toBeGreaterThan(10000);
+
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 })); // cursor far away, single arg
+        expect(bareReplacesAt(field, off + 6, off + 8).length).toBe(1);
+        expect(bareReplacesAt(field, off + 13, off + 15).length).toBe(1);
     });
 
-    it('with no range argument, falls back to a bounded prefix — not the whole doc', () => {
-        const state = gfm(bigDoc, { anchor: 500 });
-        const field = buildDecorations(state);
+    it('hides the leading "## " of an ATX heading past offset 11000', () => {
+        const doc = filler + '\n## Far Heading\n';
+        const hFrom = doc.indexOf('##');
+        expect(hFrom).toBeGreaterThan(11000);
 
-        // Prefix content still decorated.
-        expect(countDecos(field, 0, 10)).toBeGreaterThan(0);
-        // Content ~50k in is beyond the fallback bound → undecorated.
-        expect(countDecos(field, FAR - 5, state.doc.length)).toBe(0);
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 }));
+        expect(bareReplacesAt(field, hFrom, hFrom + 3).length).toBe(1); // "## "
     });
 
-    it('reveals raw syntax for a bold span the cursor is inside, hides it otherwise (in range)', () => {
+    it('replaces a "---" horizontal rule near the end with an HRWidget', () => {
+        const doc = filler + '\n---\n'; // blank line before --- => HorizontalRule (not a setext underline)
+        const hrFrom = doc.indexOf('---');
+        expect(hrFrom).toBeGreaterThan(10000);
+
+        const field = buildDecorations(forcedGfm(doc, { anchor: 0 }));
+        const vs = decosAt(field, hrFrom, hrFrom + 3);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeInstanceOf(HRWidget);
+    });
+
+    it('still decorates a node near the head (~offset 200) with the cursor parked at the end — no head regression', () => {
+        const head = 'y'.repeat(200) + '\n';
+        const doc = head + 'aa **bb** cc\n' + filler; // EmphasisMark ranges within the span: [3,5] and [7,9]
+        const off = head.length; // 201
+
+        const field = buildDecorations(gfm(doc, { anchor: doc.length }));
+        expect(bareReplacesAt(field, off + 3, off + 5).length).toBe(1);
+        expect(bareReplacesAt(field, off + 7, off + 9).length).toBe(1);
+    });
+
+    it('reveals raw syntax for a bold span the cursor is inside, hides it otherwise', () => {
         const doc = 'hello **world** there';
         // EmphasisMark ranges: 6-8 and 13-15; StrongEmphasis 6-15.
+        // (2nd arg is now ignored by buildDecorations; passing it keeps the call shape.)
         const full = { from: 0, to: doc.length };
 
-        // Cursor at 0: not touching the span → marks hidden (replace deco present).
         const away = buildDecorations(gfm(doc, { anchor: 0 }), full);
         expect(decosAt(away, 6, 8).length).toBe(1);
         expect(decosAt(away, 13, 15).length).toBe(1);
 
-        // Cursor at 10: inside the span → marks shown (no replace deco).
         const inside = buildDecorations(gfm(doc, { anchor: 10 }), full);
         expect(decosAt(inside, 6, 8).length).toBe(0);
         expect(decosAt(inside, 13, 15).length).toBe(0);
@@ -111,7 +141,6 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         const tTo = tFrom + table.length; // Table node 7..36
         const full = { from: 0, to: doc.length };
 
-        // Cursor at 0: not touching table → exactly one replace spanning the whole table.
         const collapsed = buildDecorations(gfm(doc, { anchor: 0 }), full);
         const widgets = [];
         collapsed.between(0, doc.length, (f, t, v) => {
@@ -122,7 +151,6 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         expect(widgets[0][1]).toBe(tTo);
         expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
 
-        // Cursor inside the table → no full-span table widget.
         const open = buildDecorations(gfm(doc, { anchor: tFrom + 4 }), full);
         let stillWidget = false;
         open.between(0, doc.length, (f, t, v) => {
@@ -131,26 +159,16 @@ describe('Live Preview Extension — viewport-scoped decoration build', () => {
         expect(stillWidget).toBe(false);
     });
 
-    it('setLivePreviewViewport moves the decorated region for later transactions', () => {
-        const parent = document.createElement('div');
-        const view = new EditorView({
-            state: gfm(bigDoc, { anchor: 500 }),
-            parent,
-        });
+    it('setLivePreviewViewport is no longer an export of the module', () => {
+        expect(lp.setLivePreviewViewport).toBeUndefined();
+    });
 
-        // Initial: prefix decorated, far span not.
-        expect(countDecos(getField(view.state), 0, 10)).toBeGreaterThan(0);
-        expect(countDecos(getField(view.state), FAR - 5, view.state.doc.length)).toBe(0);
-
-        // Point the live-preview viewport at the far span, then a normal
-        // selection transaction should decorate there instead.
-        view.dispatch({ effects: setLivePreviewViewport.of({ from: 49000, to: 51000 }) });
-        view.dispatch({ selection: { anchor: 49500 } }); // in new range, not touching **zz**
-
-        expect(countDecos(getField(view.state), FAR - 5, FAR + 12)).toBeGreaterThan(0);
-        expect(countDecos(getField(view.state), 0, 10)).toBe(0);
-
-        view.destroy();
+    it('the livePreview extension array drops the viewport field + plugin (2 members, field still first)', () => {
+        expect(livePreview.length).toBe(2);
+        const { state } = createEditor('**Bold**', livePreview);
+        const field = state.field(livePreview[0], false);
+        expect(field).toBeDefined();
+        expect(typeof field.between).toBe('function');
     });
 });
 
