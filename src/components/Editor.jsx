@@ -252,6 +252,11 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         search(),
         searchMatchHighlight,
         EditorView.lineWrapping,
+        // textDirection.js tags individual lines dir="rtl"; without this facet
+        // CodeMirror keeps doing cursor/selection geometry as if the whole
+        // editor were LTR, which garbles caret movement and highlighting on
+        // Hebrew/Arabic lines.
+        EditorView.perLineTextDirection.of(true),
         markdown({ base: markdownLanguage, codeLanguages }),
         livePreview,
         imagePreview,
