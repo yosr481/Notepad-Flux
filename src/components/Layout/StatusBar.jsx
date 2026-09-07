@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './StatusBar.module.css';
 
-const StatusBar = ({ stats, appVersion }) => {
+const StatusBar = ({ stats, appVersion, eol = 'LF', charset = 'UTF-8' }) => {
     const { line, col, wordCount, charCount } = stats;
 
     return (
@@ -21,13 +21,10 @@ const StatusBar = ({ stats, appVersion }) => {
                 {charCount} chars
             </div>
             <div className={styles.statusItem}>
-                100%
+                {eol}
             </div>
             <div className={styles.statusItem}>
-                Windows (CRLF)
-            </div>
-            <div className={styles.statusItem}>
-                UTF-8
+                {charset}
             </div>
         </div>
     );

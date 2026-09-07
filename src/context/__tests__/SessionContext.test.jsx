@@ -1019,3 +1019,125 @@ describe('SessionContext — fileMissing on restore (TASK 9 / QA finding 12)', (
         expect(api.tabs.every(t => !t.fileMissing)).toBe(true);
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 10 — per-tab eol + charset: detect on createTab, migrate on restore
+// ---------------------------------------------------------------------------
+//
+// Pinned contract (choices the spec fixed, restated as decisions):
+//
+//  * createTab({ content: <non-empty string> }) with NO explicit eol/charset:
+//      - eol     = detectEol(content)     ('CRLF' if it has a \r\n, else 'LF')
+//      - charset = detectCharset(content) ('UTF-8 BOM' if it starts U+FEFF)
+//  * createTab({}) — brand-new empty tab — gets eol: 'LF', charset: 'UTF-8'.
+//    (content === '' counts as empty: detection is skipped, defaults applied.)
+//  * An explicitly-passed eol / charset ALWAYS wins over detection, even when
+//    it contradicts the content.
+//  * Restore migration: loadAndSetupSession maps over the loaded tabs before
+//    setTabs — any tab with no `eol` gets detectEol(tab.content); any tab with
+//    no `charset` gets detectCharset(tab.content). A tab that already carries
+//    the field is left as-is.
+
+describe('SessionContext — createTab eol/charset detection (TASK 10)', () => {
+    const activeTab = (api) => api.tabs.find(t => t.id === api.activeTabId);
+
+    it('detects CRLF from content', () => {
+        const api = renderSession();
+        act(() => { api.createTab({ content: 'a\r\nb' }); });
+        expect(activeTab(api).eol).toBe('CRLF');
+        expect(activeTab(api).charset).toBe('UTF-8');
+    });
+
+    it('detects LF from content', () => {
+        const api = renderSession();
+        act(() => { api.createTab({ content: 'a\nb' }); });
+        expect(activeTab(api).eol).toBe('LF');
+    });
+
+    it('detects a UTF-8 BOM from content', () => {
+        const api = renderSession();
+        act(() => { api.createTab({ content: '﻿hello\r\nworld' }); });
+        expect(activeTab(api).charset).toBe('UTF-8 BOM');
+        expect(activeTab(api).eol).toBe('CRLF');
+    });
+
+    it('a brand-new empty tab gets eol: LF, charset: UTF-8', () => {
+        const api = renderSession();
+        act(() => { api.createTab({}); });
+        expect(activeTab(api).eol).toBe('LF');
+        expect(activeTab(api).charset).toBe('UTF-8');
+    });
+
+    it('an explicit eol wins over what the content would detect', () => {
+        const api = renderSession();
+        act(() => { api.createTab({ content: 'a\nb', eol: 'CRLF' }); });
+        expect(activeTab(api).eol).toBe('CRLF');
+    });
+
+    it('an explicit charset wins over detection', () => {
+        const api = renderSession();
+        act(() => { api.createTab({ content: '﻿x', charset: 'UTF-8' }); });
+        expect(activeTab(api).charset).toBe('UTF-8');
+    });
+});
+
+describe('SessionContext — eol/charset migration on session restore (TASK 10)', () => {
+    beforeEach(() => {
+        Object.defineProperty(navigator, 'locks', {
+            configurable: true, writable: true, value: createFakeLockManager(),
+        });
+    });
+    afterEach(() => {
+        delete navigator.locks;
+        vi.clearAllMocks();
+        storage.loadSession.mockImplementation(async () => ({ tabs: [] }));
+    });
+
+    function renderPrimary() {
+        const api = {};
+        function Probe() { Object.assign(api, useSession()); return null; }
+        render(<SessionProvider><Probe /></SessionProvider>);
+        return api;
+    }
+
+    it('a restored tab with no eol gets eol: CRLF derived from its content', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [{ id: 't1', title: 'a', content: 'x\r\ny', isDirty: false }],
+            activeTabId: 't1', recentFiles: [], settings: {},
+        });
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['t1']));
+
+        expect(api.tabs[0].eol).toBe('CRLF');
+        expect(api.tabs[0].charset).toBe('UTF-8');
+    });
+
+    it('a restored tab that already carries eol keeps its stored value', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [{ id: 't1', title: 'a', content: 'x\r\ny', isDirty: false, eol: 'LF' }],
+            activeTabId: 't1', recentFiles: [], settings: {},
+        });
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['t1']));
+
+        expect(api.tabs[0].eol).toBe('LF');
+    });
+
+    it('a restored tab with a leading BOM gets charset: "UTF-8 BOM"', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [{ id: 't1', title: 'a', content: '﻿plain\nlf', isDirty: false }],
+            activeTabId: 't1', recentFiles: [], settings: {},
+        });
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['t1']));
+
+        expect(api.tabs[0].charset).toBe('UTF-8 BOM');
+        expect(api.tabs[0].eol).toBe('LF');
+    });
+});
