@@ -69,7 +69,7 @@ try {
         try { await window.electronAPI.readFileContent('/etc/hostname'); return 'NOT DENIED' }
         catch (e) { return String(e) }
     })
-    ok(/Unauthorized|internal system error/i.test(denied), `unauthorized read denied (${denied})`)
+    ok(/not authorized|internal system error/i.test(denied), `unauthorized read denied (${denied})`)
 
     // 5. safeStorage available + encrypts
     const enc = await win.evaluate(async () => {

@@ -149,8 +149,9 @@ export const useCommands = (showToast, editorRef) => {
             }
         } catch (error) {
             console.error("Failed to open file", error);
+            showToast?.(`Could not open file: ${error?.message || 'unknown error'}`);
         }
-    }, [createTab, addRecentFile]);
+    }, [createTab, addRecentFile, showToast]);
 
     const saveFile = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);

@@ -15,6 +15,7 @@ vi.mock('../../context/SessionContext', () => ({
 // Mock utils
 vi.mock('../../utils/fileSystem', () => ({
     fileSystem: {
+        openFile: vi.fn(async () => null),
         saveFile: vi.fn(async () => undefined),
         saveFileAs: vi.fn(async (_content, name) => ({ name, handle: {} })),
         isSupported: vi.fn(() => true)
@@ -399,6 +400,67 @@ describe('useCommands — close-save throw shows a toast AND aborts the close (P
 
         expect(showToast).toHaveBeenCalledWith(expect.stringContaining('DirtyDoc'));
         expect(closeSpy).not.toHaveBeenCalled();
+    });
+});
+
+describe('useCommands — openFile failures surface a toast (QA-1 / finding-7 parity)', () => {
+    let mockTabState;
+    let mockActions;
+    let showToast;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.openFile.mockImplementation(async () => null);
+        showToast = vi.fn();
+        mockTabState = {
+            tabs: [{ id: '1', title: 'Tab 1', content: '', isDirty: false }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            addRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    it('openFile: when fileSystem.openFile rejects, showToast is called with a string containing the error message', async () => {
+        fileSystem.openFile.mockRejectedValueOnce(new Error('EACCES: permission denied'));
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.openFile();
+        });
+
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('EACCES: permission denied'));
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+    });
+
+    it('openFile: when the picker is cancelled (resolves null), showToast is NOT called and nothing throws', async () => {
+        fileSystem.openFile.mockResolvedValueOnce(null);
+        const { result } = renderHook(() => useCommands(showToast));
+
+        let threw = false;
+        await act(async () => {
+            try {
+                await result.current.openFile();
+            } catch {
+                threw = true;
+            }
+        });
+
+        expect(threw).toBe(false);
+        expect(showToast).not.toHaveBeenCalled();
+        expect(mockActions.createTab).not.toHaveBeenCalled();
     });
 });
 
