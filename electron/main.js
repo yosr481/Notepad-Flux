@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile, writeFile } from 'node:fs/promises'
-import { realpathSync, existsSync } from 'node:fs'
+import { realpathSync, existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
@@ -17,10 +17,25 @@ import { toUserMessage } from './ipcErrorMessage.js'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 
-// ponytail: allowedPaths grows unbounded for the process lifetime (one entry per
-// picked file). Ceiling is fine for a desktop notepad session; upgrade path is
-// per-session pruning (drop a path when its tab closes) if it ever matters.
+// Files the user granted access to through a native picker, a Save As dialog or a
+// drop. Persisted by MAIN (not the renderer) in <userData>/authorized-paths.json so
+// restored tabs and recent files keep working after a relaunch (QA finding 13)
+// without the renderer being able to grant itself paths. isPathSafe still
+// realpath-checks every read/write against this set.
 const allowedPaths = new Set()
+// ponytail: last 500 grants kept; older ones need a re-pick. Raise if anyone hits it.
+const MAX_GRANTS = 500
+const grantPath = (p) => {
+    const abs = resolve(p)
+    allowedPaths.delete(abs) // re-insert = most recent last
+    allowedPaths.add(abs)
+    while (allowedPaths.size > MAX_GRANTS) allowedPaths.delete(allowedPaths.values().next().value)
+    try {
+        writeFileSync(grantsFile, JSON.stringify([...allowedPaths]))
+    } catch (e) {
+        log.warn('could not persist authorized paths', e)
+    }
+}
 
 // Track the last directory used in file dialogs; starts at documents folder.
 let lastDir = app.getPath('documents')
@@ -75,6 +90,11 @@ log.transports.file.resolvePathFn = () => join(userDataPath, 'logs', 'main.log')
 Object.assign(console, log.functions)
 log.errorHandler.startCatching({ showDialog: false })
 
+const grantsFile = join(userDataPath, 'authorized-paths.json')
+try {
+    for (const p of filterAuthorizablePaths(JSON.parse(readFileSync(grantsFile, 'utf-8')))) allowedPaths.add(p)
+} catch { /* first run or unreadable: start empty */ }
+
 const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
 
 const safeHandle = (channel, handler) => {
@@ -120,7 +140,7 @@ safeHandle('read-file', async () => {
     log.info('open: picked', filePath)
     // Selecting a file in the native OS picker IS the authorization; we do not
     // call isPathSafe here (QA finding 3, user-confirmed).
-    allowedPaths.add(resolve(filePath))
+    grantPath(filePath)
     lastDir = dirname(filePath)
 
     const buf = await readFile(filePath)
@@ -157,7 +177,7 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
         if (canceled) return { canceled: true }
         filePath = savePath
         log.info('save-as: picked', filePath)
-        allowedPaths.add(resolve(filePath))
+        grantPath(filePath)
         lastDir = dirname(filePath)
     } else if (!isPathSafe(filePath)) {
         log.warn('save: denied (not in allowlist)', filePath)
@@ -172,33 +192,33 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     return { filePath, canceled: false }
 })
 
-// Re-seed the allowlist from paths the renderer persisted in a prior session
-// (restored tabs + recent files). allowedPaths starts empty each launch, so
-// without this every restored tab is unsaveable and every recent file
-// unopenable until re-picked (QA finding 13). The persisted list is the user's
-// prior consent; isPathSafe still realpath-checks each actual read/write, and
-// the same lexical guard as pathSafety Check 2 keeps junk out of the set.
-safeHandle('authorize-paths', async (event, paths) => {
-    const safe = filterAuthorizablePaths(paths)
-    for (const p of safe) allowedPaths.add(p)
-    log.info(`authorize-paths: ${safe.length}/${paths?.length ?? 0} re-seeded`)
-    return { added: safe.length }
+// A file dropped on the window. Only the preload calls this, with a path it got from
+// webUtils.getPathForFile on a real dropped File - main-world page script can't
+// reach ipcRenderer, and can't forge a File that maps to a native path. The drop is
+// the user's consent, like a picker selection.
+safeHandle('open-dropped-file', async (event, filePath) => {
+    if (filterAuthorizablePaths([filePath]).length === 0 || !statSync(filePath).isFile()) {
+        throw new Error('Access denied: Unauthorized file path.')
+    }
+    log.info('open: dropped', filePath)
+    const buf = await readFile(filePath)
+    if (!isProbablyText(buf)) {
+        throw new Error('Not a text file.')
+    }
+    grantPath(filePath)
+    lastDir = dirname(filePath)
+    return { filePath, content: buf.toString('utf-8') }
 })
 
-// ponytail: this uses only the lexical guard (absolute, no "..") and NOT the
-// isPathSafe allowlist check that read-file-content / save-file run — deliberate.
-// It returns a bare boolean (no content), and the SessionContext restore stat
-// that calls it runs before the fire-and-forget authorize-paths re-seed has
-// landed, so gating on the allowlist would false-flag every restored tab as
-// missing. Upgrade path: await the re-seed in the renderer, then tighten to isPathSafe.
+// Existence probe for restored tabs (QA finding 12). Only answers for granted
+// paths; anything else is null ("unknown"), so the page can't probe the disk.
 safeHandle('file-exists', async (event, p) => {
-    if (filterAuthorizablePaths([p]).length === 0) return false
+    if (typeof p !== 'string' || !allowedPaths.has(resolve(p))) return null
     let exists = false
     try { exists = existsSync(p) } catch { /* treat as missing */ }
     if (!exists) log.info('file-exists: missing', p)
     return exists
 })
-
 
 // --------- Auto Updater ---------
 autoUpdater.logger = log
@@ -263,6 +283,40 @@ process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
 let win = null
 let splash = null
 
+// Menu Close Window / Exit: close from main so guardClose's flush handshake runs.
+ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close())
+
+// Close handshake: hold every app window's close until its renderer confirms the
+// session snapshot is written (the async encrypt + IndexedDB write can't finish
+// inside beforeunload), max 3s. One-shot: a close the page then blocks (dirty
+// secondary window -> "Keep editing") re-runs the handshake next time.
+const CLOSE_FLUSH_TIMEOUT_MS = 3000
+const guardClose = (w) => {
+    let ready = false
+    let pending = false
+    w.on('close', (e) => {
+        if (ready) { ready = false; return }
+        e.preventDefault()
+        if (pending) return
+        pending = true
+        const done = () => {
+            clearTimeout(timer)
+            ipcMain.removeListener('close-ready', onReady)
+            pending = false
+            if (w.isDestroyed()) return
+            ready = true
+            w.close()
+        }
+        const onReady = (ev) => { if (ev.sender === w.webContents) done() }
+        const timer = setTimeout(() => {
+            log.warn('close: renderer did not confirm session flush within 3s; closing anyway')
+            done()
+        }, CLOSE_FLUSH_TIMEOUT_MS)
+        ipcMain.on('close-ready', onReady)
+        w.webContents.send('flush-before-close')
+    })
+}
+
 const dismissSplash = () => {
     if (splash && !splash.isDestroyed()) {
         splash.close()
@@ -294,6 +348,9 @@ function createWindow() {
             iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
         }),
     })
+
+    guardClose(win)
+    win.webContents.on('did-create-window', guardClose)
 
     win.webContents.setWindowOpenHandler(({ url }) => {
         const devUrl = process.env.VITE_DEV_SERVER_URL

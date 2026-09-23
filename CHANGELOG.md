@@ -22,7 +22,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop:** Keep the native window controls (minimise / maximise / close) on Linux and macOS — `titleBarStyle: 'hidden'` is now Windows-only, where the overlay draws replacements.
 
 - **Desktop:** Fix the preload bridge, which failed to load in every packaged build — file open/save now go through the validated IPC path and the encryption key uses the OS keychain (`safeStorage`).
-- **Desktop:** Restored tabs and recent files are re-authorized on launch, so they can be saved/opened without re-picking them.
+- **Desktop:** Files you opened, saved or dropped stay accessible after a relaunch, so restored tabs and recent files can be saved and opened without picking them again. The main process keeps this list, and the page can no longer grant itself access to a path.
+- **Desktop:** Closing the window waits (up to 3 s) until the session is saved, so edits typed just before closing are not lost.
+- **Editor:** Dragging selected text inside the editor, or dropping text from another app, works again (only file drops open tabs).
+- **Save As:** Keeps the file's line ending (CRLF) and BOM, the same as Save.
+- **Recent files:** A binary or permission failure now shows its reason and keeps the recent entry. Only a missing file offers "Locate…".
+- **Live Preview:** A reference link with no matching definition (`[text][nope]`, `[word]`) now shows as literal text; an inline image after a reference image on the same line renders correctly.
 - **Desktop:** Refuse binary files with a clear message instead of opening them as garbled text; failed opens and saves now say why.
 - **Desktop:** Open/Save dialogs offer Text and All Files filters, remember the last folder, and are parented to the app window.
 - **Desktop:** The window closes when a tab has unsaved changes (the session keeps them); a secondary window asks before discarding.

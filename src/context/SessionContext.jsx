@@ -149,20 +149,6 @@ export const SessionProvider = ({ children }) => {
                 setSettings(prev => ({ ...prev, ...diskSession.settings }));
             }
 
-            // Re-authorize the file paths the user picked in a prior session. The
-            // Electron main-process allowlist starts empty each launch, so without
-            // this a restored tab can't be saved and a recent file can't be
-            // reopened until it's picked again (QA finding 13). The persisted
-            // session/recents ARE the consent record; main still realpath-checks
-            // every actual read/write via isPathSafe.
-            const authPaths = new Set();
-            for (const t of (diskSession.tabs || [])) {
-                if (typeof t.filePath === 'string' && t.filePath) authPaths.add(t.filePath);
-            }
-            for (const r of (diskSession.recentFiles || [])) {
-                if (typeof r.filePath === 'string' && r.filePath) authPaths.add(r.filePath);
-            }
-            if (authPaths.size) fileSystem.authorizePaths([...authPaths]).catch(() => {});
         };
 
         const loadAndSetupSession = async (diskSession) => {
@@ -340,8 +326,11 @@ export const SessionProvider = ({ children }) => {
 
         (async () => {
             for (const tab of currentTabsRef.current) {
-                if (typeof tab.filePath === 'string' && (tab.filePath.includes('/') || tab.filePath.includes('\\'))) {
-                    const exists = await fileSystem.fileExists(tab.filePath);
+                // Electron keeps the absolute path in fileHandle (filePath is the
+                // display name); a string filePath with a separator is the fallback.
+                const diskPath = typeof tab.fileHandle === 'string' ? tab.fileHandle : tab.filePath;
+                if (typeof diskPath === 'string' && (diskPath.includes('/') || diskPath.includes('\\'))) {
+                    const exists = await fileSystem.fileExists(diskPath);
                     if (!cancelled.flag && exists !== null) {
                         const targetFileMissing = exists === false;
                         const currentFileMissing = !!tab.fileMissing;
@@ -552,8 +541,8 @@ export const SessionProvider = ({ children }) => {
             metadataTimer.current = null;
         }
 
-        // Persist via snapshot
-        storage.saveSnapshot({
+        // Persist via snapshot (returned so the Electron close handshake can await it)
+        return storage.saveSnapshot({
             tabs: currentTabsRef.current,
             metadata: {
                 activeTabId: currentActiveTabIdRef.current,
@@ -563,6 +552,17 @@ export const SessionProvider = ({ children }) => {
             }
         });
     }, [isPrimaryWindow, isSessionLoaded]);
+
+    // Electron: main waits for this before letting the window close.
+    useEffect(() => {
+        return window.electronAPI?.onCloseRequested?.(async () => {
+            try {
+                await flushPendingSaves();
+            } catch (err) {
+                console.error('Failed to save session on close:', err);
+            }
+        });
+    }, [flushPendingSaves]);
 
     useEffect(() => {
         const onHide = () => {

@@ -16,6 +16,10 @@ const nextPaint = () => new Promise(resolve => {
 
 const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
 
+// What goes to disk: the tab's detected line ending + charset (BOM) re-applied.
+const toDiskContent = (tab, content) =>
+    applyCharset(normalizeEol(content, tab.eol || 'LF'), tab.charset || 'UTF-8');
+
 export const useCommands = (showToast, editorRef) => {
     const {
         tabs,
@@ -42,7 +46,7 @@ export const useCommands = (showToast, editorRef) => {
     liveState.current = { tabs, activeTabId };
 
     const persistTab = useCallback(async (tab, content) => {
-        const outContent = applyCharset(normalizeEol(content, tab.eol || 'LF'), tab.charset || 'UTF-8');
+        const outContent = toDiskContent(tab, content);
 
         if (tab.fileHandle && !tab.fileMissing) {
             await fileSystem.saveFile(tab.fileHandle, outContent);
@@ -186,7 +190,7 @@ export const useCommands = (showToast, editorRef) => {
         const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
         try {
-            const result = await fileSystem.saveFileAs(content, tab.title);
+            const result = await fileSystem.saveFileAs(toDiskContent(tab, content), tab.title);
             if (result) {
                 updateTab(activeTabId, {
                     title: result.name,
@@ -208,11 +212,13 @@ export const useCommands = (showToast, editorRef) => {
     const openRecentFile = useCallback(async (filePath, fileName, fileHandle) => {
         try {
             let file = null;
+            let lastError = null;
             if (fileHandle && fileSystem.isSupported()) {
                 try {
                     file = await fileSystem.openFileFromHandle(fileHandle);
                 } catch (err) {
                     console.warn(`Could not open from handle, trying filePath:`, err);
+                    lastError = err;
                     file = null;
                 }
             }
@@ -222,8 +228,18 @@ export const useCommands = (showToast, editorRef) => {
                     file = await fileSystem.openFileFromPath(filePath);
                 } catch (err) {
                     console.warn(`Could not open from filePath, falling back to picker:`, err);
+                    lastError = err;
                     file = null;
                 }
+            }
+
+            // Only a missing (or no-longer-authorized) file is worth re-locating; a
+            // binary / permission failure is reported as-is and the entry kept.
+            const reason = lastError?.message || '';
+            const missing = !lastError || lastError.name === 'NotFoundError' || /not found/i.test(reason);
+            if (!file && !missing && !/not authorized/i.test(reason)) {
+                showToast?.(`Could not open "${fileName}": ${reason}`);
+                return;
             }
 
             if (!file) {
@@ -234,7 +250,7 @@ export const useCommands = (showToast, editorRef) => {
                     cancelLabel: 'Cancel',
                 });
                 if (!locate) {
-                    removeRecentFile(filePath);
+                    if (missing) removeRecentFile(filePath);
                     return;
                 }
                 file = await fileSystem.openFile();
@@ -253,7 +269,7 @@ export const useCommands = (showToast, editorRef) => {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
-    }, [createTab, addRecentFile, removeRecentFile]);
+    }, [createTab, addRecentFile, removeRecentFile, showToast]);
 
     const exportToPDF = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
@@ -403,7 +419,10 @@ export const useCommands = (showToast, editorRef) => {
                 }
             }
         }
-        window.close();
+        // Electron: close via main so the session-flush handshake runs (a page-side
+        // window.close() skips the BrowserWindow 'close' event).
+        if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
+        else window.close();
     }, [isPrimaryWindow, persistTab, closeTab, showToast, editorRef]);
 
     return useMemo(() => ({

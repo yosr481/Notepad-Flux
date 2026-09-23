@@ -96,3 +96,23 @@ export function resolveLinkDefs(state) {
     cache.set(state, map);
     return map;
 }
+
+// Visible text between a Link node's opening [ and closing ] LinkMarks.
+export function getVisibleTextBetweenMarks(linkNode, doc) {
+    const marks = [];
+    for (let child = linkNode.firstChild; child; child = child.nextSibling) {
+        if (child.name === "LinkMark") marks.push(child);
+    }
+    return marks.length >= 2 ? doc.sliceString(marks[0].to, marks[1].from) : '';
+}
+
+// A reference-style Link/Image ([text][id], [id][], [id]) whose label has no
+// matching [id]: url definition. CommonMark renders it as literal text, so live
+// preview must leave its brackets/label visible.
+export function isUnresolvedReference(linkNode, state) {
+    if (linkNode.getChild("URL")) return false;
+    const labelNode = linkNode.getChild("LinkLabel");
+    const label = (labelNode && normalizeLabel(state.doc.sliceString(labelNode.from, labelNode.to)))
+        || normalizeLabel(getVisibleTextBetweenMarks(linkNode, state.doc));
+    return !resolveLinkDefs(state).has(label);
+}

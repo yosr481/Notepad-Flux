@@ -376,6 +376,11 @@ describe('imagePreview — reference-style images (TASK 8)', () => {
         expect(urls).toEqual(['https://e/b.png', 'https://e/x.png']);
     });
 
+    it('the inline matcher does not swallow a preceding ref image: alts stay "a" and "b"', () => {
+        const view = withCursorOff('![a][x] ![b](https://e/b.png)\n\n[x]: https://e/x.png');
+        expect(imageWidgets(view).map((w) => w.alt).sort()).toEqual(['a', 'b']);
+    });
+
     // Multi-line: a reference image on an EARLIER line than an inline image. The
     // inline pass adds its range first (later doc offset), then the ref-full pass
     // adds an earlier offset -> RangeSetBuilder "Ranges must be added sorted"

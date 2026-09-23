@@ -844,6 +844,20 @@ describe('Task 8 — LRD nested in a blockquote', () => {
     });
 });
 
+describe('unresolved reference link stays literal (no matching definition)', () => {
+    it('[docs][nope] with no [nope]: definition hides neither brackets nor label', () => {
+        const doc = 'x\n\n[docs][nope]'; // Link[3,15]
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        expect(countDecos(field, 3, 15)).toBe(0);
+    });
+
+    it('bare [word] with no definition keeps its brackets', () => {
+        const doc = 'x\n\nsee [word] here';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        expect(countDecos(field, 7, 13)).toBe(0);
+    });
+});
+
 describe('Task 8 — LinkLabel hidden for reference links / images', () => {
     it('[text][id] cursor off: bare replace over LinkLabel[9,13], visible "text" NOT covered', () => {
         const doc = 'x\n\n[text][id]\n\n[id]: http://x';
