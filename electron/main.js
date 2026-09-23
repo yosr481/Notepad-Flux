@@ -67,6 +67,14 @@ const getPersistentDataPath = () => {
 const userDataPath = getPersistentDataPath()
 app.setPath('userData', userDataPath)
 
+// One rotating log file for retracing a session: <userData>/logs/main.log (1MB, then
+// main.old.log). Main-process console.* and uncaught errors land here, and every
+// renderer console message is forwarded below (web-contents-created). Never log file
+// content or safeStorage payloads - paths and outcomes only.
+log.transports.file.resolvePathFn = () => join(userDataPath, 'logs', 'main.log')
+Object.assign(console, log.functions)
+log.errorHandler.startCatching({ showDialog: false })
+
 const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
 
 const safeHandle = (channel, handler) => {
@@ -109,6 +117,7 @@ safeHandle('read-file', async () => {
     if (canceled) return { canceled }
 
     const filePath = filePaths[0]
+    log.info('open: picked', filePath)
     // Selecting a file in the native OS picker IS the authorization; we do not
     // call isPathSafe here (QA finding 3, user-confirmed).
     allowedPaths.add(resolve(filePath))
@@ -128,8 +137,10 @@ safeHandle('read-file-content', async (event, filePath) => {
     // attacker only; fully closing it means readFile'ing the realpath'd result,
     // which the new-file save path has no value for. Left as a known corner.
     if (!isPathSafe(filePath)) {
+        log.warn('read: denied (not in allowlist)', filePath)
         throw new Error('Access denied: Unauthorized file path.')
     }
+    log.info('read', filePath)
     const buf = await readFile(filePath)
     if (!isProbablyText(buf)) {
         throw new Error('Not a text file.')
@@ -145,9 +156,11 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
         })
         if (canceled) return { canceled: true }
         filePath = savePath
+        log.info('save-as: picked', filePath)
         allowedPaths.add(resolve(filePath))
         lastDir = dirname(filePath)
     } else if (!isPathSafe(filePath)) {
+        log.warn('save: denied (not in allowlist)', filePath)
         throw new Error('Access denied: Unauthorized file path.')
     }
 
@@ -155,6 +168,7 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     // binary exports like PDF. Buffer.from copies the typed array; no encoding arg.
     await writeFile(filePath, typeof content === 'string' ? content : Buffer.from(content))
     lastDir = dirname(filePath)
+    log.info('save: wrote', filePath, typeof content === 'string' ? `${content.length} chars` : `${content.length} bytes`)
     return { filePath, canceled: false }
 })
 
@@ -167,6 +181,7 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
 safeHandle('authorize-paths', async (event, paths) => {
     const safe = filterAuthorizablePaths(paths)
     for (const p of safe) allowedPaths.add(p)
+    log.info(`authorize-paths: ${safe.length}/${paths?.length ?? 0} re-seeded`)
     return { added: safe.length }
 })
 
@@ -178,7 +193,10 @@ safeHandle('authorize-paths', async (event, paths) => {
 // missing. Upgrade path: await the re-seed in the renderer, then tighten to isPathSafe.
 safeHandle('file-exists', async (event, p) => {
     if (filterAuthorizablePaths([p]).length === 0) return false
-    try { return existsSync(p) } catch { return false }
+    let exists = false
+    try { exists = existsSync(p) } catch { /* treat as missing */ }
+    if (!exists) log.info('file-exists: missing', p)
+    return exists
 })
 
 
@@ -368,6 +386,12 @@ app.on('window-all-closed', () => {
 // such a window does nothing (QA finding 10 follow-up). Give the user a real
 // choice. NOTE: preventDefault() HERE means "override the block and close".
 app.on('web-contents-created', (_event, contents) => {
+    // Forward renderer console (useCommands / SessionContext / crypto errors) into the log file.
+    contents.on('console-message', ({ level, message, sourceId, lineNumber }) => {
+        const fn = { error: log.error, warning: log.warn, debug: log.debug }[level] ?? log.info
+        fn(`[renderer] ${message} (${sourceId?.split('/').pop()}:${lineNumber})`)
+    })
+    contents.on('render-process-gone', (_e, details) => log.error('renderer process gone', details))
     contents.on('will-prevent-unload', (event) => {
         const owner = BrowserWindow.fromWebContents(contents)
         const choice = dialog.showMessageBoxSync(owner ?? undefined, {
@@ -386,7 +410,18 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
+app.on('before-quit', () => log.info('quit'))
+
 if (gotTheLock) app.whenReady().then(() => {
+    log.info('start', {
+        version: app.getVersion(),
+        electron: process.versions.electron,
+        platform: `${process.platform} ${process.arch}`,
+        packaged: app.isPackaged,
+        userData: userDataPath,
+        safeStorage: safeStorage.isEncryptionAvailable(),
+        safeStorageBackend: process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : 'os',
+    })
     splash = new BrowserWindow({
         width: 300,
         height: 300,
