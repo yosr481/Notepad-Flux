@@ -350,21 +350,17 @@ export const fileSystem = {
 
     openFileFromPath: (filePath) => getDriver().openFileFromPath(filePath),
 
-    // Electron-only: re-seed the main-process path allowlist with paths the user
-    // authorized in a prior session (restored tabs + recents). No-op on the web.
-    authorizePaths: (paths) => {
-        if (window.electronAPI?.authorizePaths) {
-            return window.electronAPI.authorizePaths(paths);
-        }
-        return Promise.resolve({ added: 0 });
+    // Electron-only: open a file dropped on the window -> { handle, content, name }.
+    // null on the web build (caller reads the File directly).
+    openDroppedFile: async (file) => {
+        if (!window.electronAPI?.openDroppedFile) return null;
+        const { filePath, content } = await window.electronAPI.openDroppedFile(file);
+        return { handle: filePath, content, name: getFilenameFromPath(filePath) };
     },
 
-    // Electron-only: resolve a dropped/File object to its absolute path
-    // (File.path was removed in Electron 32). null on the web build.
-    pathForFile: (file) => window.electronAPI?.getPathForFile?.(file) ?? null,
-
     // Electron-only: does this absolute path currently exist on disk?
-    // boolean in Electron; null on the web build (can't tell).
+    // boolean in Electron for granted paths; null when unknown (web build, or a
+    // path main never granted).
     fileExists: (p) => (window.electronAPI?.fileExists ? window.electronAPI.fileExists(p) : Promise.resolve(null)),
 
 };

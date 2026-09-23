@@ -11,6 +11,11 @@ import { join } from 'node:path'
 const userData = mkdtempSync(join(tmpdir(), 'nf-e2e-'))
 const workDir = mkdtempSync(join(tmpdir(), 'nf-work-'))
 let app, fail = 0
+// A file the user picked in a "previous session": main persisted the grant in
+// <userData>/authorized-paths.json, so this launch must honour it (QA finding 13).
+const target = join(workDir, 'note.md')
+writeFileSync(target, 'old\n')
+writeFileSync(join(userData, 'authorized-paths.json'), JSON.stringify([target]))
 const ok = (c, m) => { console.log(`${c ? 'PASS' : 'FAIL'}  ${m}`); if (!c) fail++ }
 
 try {
@@ -38,18 +43,19 @@ try {
     const hasApi = await win.evaluate(() => !!window.electronAPI && typeof window.electronAPI.saveFile === 'function')
     ok(hasApi, 'window.electronAPI exposed with saveFile')
 
-    // 2. save-file writes to disk. Simulate the finding-13 case: a file that
-    // already exists on disk (picked in a prior session) whose path the renderer
-    // re-authorizes on load. isPathSafe only matches allowlist entries that
-    // currently resolve, so the file must exist before authorize-paths.
-    const target = join(workDir, 'note.md')
+    // 2. the page cannot grant itself paths any more; persisted grants load in main
+    const surface = await win.evaluate(() => ({
+        authorizePaths: typeof window.electronAPI.authorizePaths,
+        getPathForFile: typeof window.electronAPI.getPathForFile,
+    }))
+    ok(surface.authorizePaths === 'undefined' && surface.getPathForFile === 'undefined',
+        `no self-authorization on the page bridge (${JSON.stringify(surface)})`)
+    const exists = await win.evaluate(async (p) => [
+        await window.electronAPI.fileExists(p.target),
+        await window.electronAPI.fileExists('/etc/hostname'),
+    ], { target })
+    ok(exists[0] === true && exists[1] === null, `file-exists answers only for granted paths (${JSON.stringify(exists)})`)
     const body = '# hello\n\nרשומה בעברית\n'
-    writeFileSync(target, 'old\n')
-    const authRes = await win.evaluate(async (p) => {
-        try { return await window.electronAPI.authorizePaths([p.target]) }
-        catch (e) { return { error: String(e) } }
-    }, { target })
-    ok(authRes && authRes.added === 1, `authorize-paths accepted the persisted path (${JSON.stringify(authRes)})`)
     const saveRes = await win.evaluate(async (p) => {
         try { return await window.electronAPI.saveFile({ filePath: p.target, content: p.body }) }
         catch (e) { return { error: String(e) } }
@@ -90,11 +96,22 @@ try {
     ok(/start \{/.test(logText) && logText.includes(`save: wrote ${target}`) &&
         /read: denied .*\/etc\/hostname/.test(logText) && logText.includes('[renderer] e2e-log-probe') &&
         !logText.includes('רשומה'), 'main.log has start/save/denied/renderer lines and no file content')
+
+    // 7. close handshake: the window closes promptly because the renderer confirms
+    // its session flush (no 3s timeout fallback in the log)
+    const t0 = Date.now()
+    const exited = new Promise(r => app.process().once('exit', r))
+    await win.evaluate(() => window.electronAPI.closeWindow()) // menu Close Window; main then runs the same close as the title-bar X
+    await Promise.race([exited, new Promise(r => setTimeout(r, 8000))])
+    const closeLog = readFileSync(join(userData, 'logs', 'main.log'), 'utf-8')
+    ok(app.process().exitCode !== null && !closeLog.includes('did not confirm session flush') && Date.now() - t0 < 3000,
+        `window close exits via the flush handshake (${Date.now() - t0}ms)`)
+    app = null
 } catch (e) {
     console.error('HARNESS ERROR', e)
     fail++
 } finally {
-    if (app) await app.close()
+    if (app) await app.close().catch(() => {})
     rmSync(userData, { recursive: true, force: true })
     rmSync(workDir, { recursive: true, force: true })
 }

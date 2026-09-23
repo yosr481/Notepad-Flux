@@ -226,6 +226,19 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
         expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
     });
 
+    it('saveFileAs writes with the tab line ending and charset, like Save', async () => {
+        mockTabState.tabs[0].eol = 'CRLF';
+        mockTabState.tabs[0].charset = 'UTF-8 BOM';
+        const editorRef = { current: { getCurrentContent: () => 'a\nb', markSaved: vi.fn() } };
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFileAs(editorRef);
+        });
+
+        expect(fileSystem.saveFileAs.mock.calls.at(-1)[0]).toBe('\uFEFFa\r\nb');
+    });
+
     it('does not call markSaved when saveFileAs is cancelled (no write happened)', async () => {
         fileSystem.saveFileAs.mockResolvedValueOnce(null);
         const editorRef = mkEditorRef();
@@ -556,6 +569,21 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         expect(fileSystem.saveFileAs).toHaveBeenCalledWith('LIVE', expect.anything());
     });
 
+    it('closeWindow(): in Electron closes through main (flush handshake), not window.close', async () => {
+        mockTabState.tabs.forEach(t => { t.isDirty = false; });
+        const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
+        window.electronAPI = { closeWindow: vi.fn() };
+        try {
+            const { result } = renderHook(() => useCommands(showToast, liveRef()));
+            await act(async () => { await result.current.closeWindow(); });
+            expect(window.electronAPI.closeWindow).toHaveBeenCalledTimes(1);
+            expect(closeSpy).not.toHaveBeenCalled();
+        } finally {
+            delete window.electronAPI;
+            closeSpy.mockRestore();
+        }
+    });
+
     it('closeWindow(): flushes the live content for the active tab', async () => {
         mockTabState.tabs[1].isDirty = false; // only the active tab is dirty
         const { result } = renderHook(() => useCommands(showToast, liveRef()));
@@ -622,8 +650,8 @@ describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
     beforeEach(() => {
         vi.clearAllMocks();
         fileSystem.isSupported.mockReturnValue(true);
-        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('nope'); });
-        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('nope'); });
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('File not found.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('File not found.'); });
         fileSystem.openFile.mockImplementation(async () => null);
 
         mockTabState = {
@@ -700,6 +728,31 @@ describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
         expect(fileSystem.openFile).toHaveBeenCalled();
         expect(mockActions.createTab).not.toHaveBeenCalled();
         expect(dialogs.alert).not.toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('a non-missing failure (binary file) is toasted with its reason; no confirm, entry kept', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        const showToast = vi.fn();
+
+        const { result } = renderHook(() => useCommands(showToast));
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Not a text file.'));
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('an unauthorized path offers Locate, but Cancel keeps the recent entry', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        dialogs.confirm.mockResolvedValue(false);
+
+        const { result } = renderHook(() => useCommands());
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).toHaveBeenCalled();
         expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
     });
 

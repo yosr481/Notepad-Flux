@@ -5,54 +5,47 @@ import { fileSystem } from '../../utils/fileSystem';
 
 vi.mock('../../utils/fileSystem', () => ({
     fileSystem: {
-        authorizePaths: vi.fn(async () => ({ added: 1 })),
-        openFileFromPath: vi.fn(async (p) => ({ content: 'FILE BODY', name: 'note.md', handle: p })),
-        // Electron 40: dropped File has no `.path`; the hook resolves the native
-        // path through this bridge (webUtils.getPathForFile). Web build → null.
-        pathForFile: vi.fn(() => null),
+        // Electron: preload resolves the native path and main reads + grants it.
+        // Web build → null (the hook reads the File itself).
+        openDroppedFile: vi.fn(async () => null),
     },
 }));
 
 beforeEach(() => {
     vi.clearAllMocks();
-    fileSystem.authorizePaths.mockImplementation(async () => ({ added: 1 }));
-    fileSystem.openFileFromPath.mockImplementation(async (p) => ({ content: 'FILE BODY', name: 'note.md', handle: p }));
-    fileSystem.pathForFile.mockImplementation(() => null);
+    fileSystem.openDroppedFile.mockImplementation(async () => null);
 });
 
 // ---------------------------------------------------------------------------
 // openDroppedFiles
 // ---------------------------------------------------------------------------
 describe('openDroppedFiles', () => {
-    it('Electron file (pathForFile resolves a path): authorizePaths + openFileFromPath + createTab with path-derived fields', async () => {
+    it('Electron file (openDroppedFile resolves): createTab with name as filePath, full path as fileHandle', async () => {
         const createTab = vi.fn();
         const showToast = vi.fn();
-        fileSystem.pathForFile.mockReturnValueOnce('/abs/note.md');
-        await openDroppedFiles([{ name: 'note.md' }], { createTab, showToast });
+        const file = { name: 'note.md' };
+        fileSystem.openDroppedFile.mockResolvedValueOnce({ handle: '/abs/note.md', content: 'FILE BODY', name: 'note.md' });
+        await openDroppedFiles([file], { createTab, showToast });
 
-        expect(fileSystem.pathForFile).toHaveBeenCalledTimes(1);
-        expect(fileSystem.authorizePaths).toHaveBeenCalledWith(['/abs/note.md']);
-        expect(fileSystem.openFileFromPath).toHaveBeenCalledWith('/abs/note.md');
+        expect(fileSystem.openDroppedFile).toHaveBeenCalledWith(file);
         expect(createTab).toHaveBeenCalledTimes(1);
         expect(createTab).toHaveBeenCalledWith({
             title: 'note.md',
             content: 'FILE BODY',
-            filePath: '/abs/note.md',
+            filePath: 'note.md',
             fileHandle: '/abs/note.md',
             isDirty: false,
         });
         expect(showToast).not.toHaveBeenCalled();
     });
 
-    it('web file (pathForFile returns null): uses file.text(), createTab with name-derived fields, openFileFromPath NOT called', async () => {
+    it('web file (openDroppedFile returns null): uses file.text(), createTab with name-derived fields, openFileFromPath NOT called', async () => {
         const createTab = vi.fn();
         const showToast = vi.fn();
         const text = vi.fn(async () => 'WEB BODY');
         await openDroppedFiles([{ name: 'w.md', text }], { createTab, showToast });
 
         expect(text).toHaveBeenCalledTimes(1);
-        expect(fileSystem.openFileFromPath).not.toHaveBeenCalled();
-        expect(fileSystem.authorizePaths).not.toHaveBeenCalled();
         expect(createTab).toHaveBeenCalledTimes(1);
         expect(createTab).toHaveBeenCalledWith({
             title: 'w.md',
@@ -67,7 +60,7 @@ describe('openDroppedFiles', () => {
         const createTab = vi.fn();
         const showToast = vi.fn();
         const text = vi.fn(async () => 'WEB BODY');
-        fileSystem.pathForFile.mockReturnValueOnce('/abs/a.md'); // file 1 → Electron; file 2 → default null
+        fileSystem.openDroppedFile.mockResolvedValueOnce({ handle: '/abs/a.md', content: 'FILE BODY', name: 'a.md' }); // file 2 → default null
         await openDroppedFiles(
             [
                 { name: 'note.md' },
@@ -78,9 +71,9 @@ describe('openDroppedFiles', () => {
 
         expect(createTab).toHaveBeenCalledTimes(2);
         expect(createTab).toHaveBeenNthCalledWith(1, {
-            title: 'note.md',
+            title: 'a.md',
             content: 'FILE BODY',
-            filePath: '/abs/a.md',
+            filePath: 'a.md',
             fileHandle: '/abs/a.md',
             isDirty: false,
         });
@@ -96,8 +89,7 @@ describe('openDroppedFiles', () => {
     it('error on file 1 of 2: showToast with a string containing file.name, loop continues to file 2', async () => {
         const createTab = vi.fn();
         const showToast = vi.fn();
-        fileSystem.pathForFile.mockReturnValueOnce('/abs/bad.md');
-        fileSystem.openFileFromPath.mockRejectedValueOnce(new Error('boom'));
+        fileSystem.openDroppedFile.mockRejectedValueOnce(new Error('boom'));
         const text = vi.fn(async () => 'WEB BODY');
 
         await openDroppedFiles(
@@ -126,8 +118,7 @@ describe('openDroppedFiles', () => {
 
     it('error path tolerates a missing showToast (optional chaining), still continues', async () => {
         const createTab = vi.fn();
-        fileSystem.pathForFile.mockReturnValueOnce('/abs/bad.md');
-        fileSystem.openFileFromPath.mockRejectedValueOnce(new Error('boom'));
+        fileSystem.openDroppedFile.mockRejectedValueOnce(new Error('boom'));
         const text = vi.fn(async () => 'WEB BODY');
 
         await expect(
@@ -161,33 +152,47 @@ describe('openDroppedFiles', () => {
 // ---------------------------------------------------------------------------
 // useFileDrop
 // ---------------------------------------------------------------------------
-function fireDrop(files) {
+function fireDrop(files, types = ['Files']) {
     const e = new Event('drop', { cancelable: true, bubbles: true });
-    e.dataTransfer = { files };
+    e.dataTransfer = { files, types };
     window.dispatchEvent(e);
     return e;
 }
 
 describe('useFileDrop', () => {
-    it('dragover on window is preventDefault-ed after mount', () => {
+    it('file dragover on window is preventDefault-ed after mount', () => {
         renderHook(() => useFileDrop({ createTab: vi.fn(), showToast: vi.fn() }));
         const e = new Event('dragover', { cancelable: true, bubbles: true });
+        e.dataTransfer = { types: ['Files'] };
         window.dispatchEvent(e);
         expect(e.defaultPrevented).toBe(true);
+    });
+
+    it('text drag/drop (no Files) is left alone so CodeMirror can handle it', async () => {
+        const createTab = vi.fn();
+        renderHook(() => useFileDrop({ createTab, showToast: vi.fn() }));
+        const over = new Event('dragover', { cancelable: true, bubbles: true });
+        over.dataTransfer = { types: ['text/plain'] };
+        window.dispatchEvent(over);
+        expect(over.defaultPrevented).toBe(false);
+        const e = fireDrop([], ['text/plain']);
+        expect(e.defaultPrevented).toBe(false);
+        await new Promise((r) => setTimeout(r, 0));
+        expect(createTab).not.toHaveBeenCalled();
     });
 
     it('drop on window is preventDefault-ed and eventually calls createTab', async () => {
         const createTab = vi.fn();
         renderHook(() => useFileDrop({ createTab, showToast: vi.fn() }));
 
-        fileSystem.pathForFile.mockReturnValue('/a/x.md');
+        fileSystem.openDroppedFile.mockResolvedValueOnce({ handle: '/a/x.md', content: 'FILE BODY', name: 'x.md' });
         const e = fireDrop([{ name: 'x.md' }]);
         expect(e.defaultPrevented).toBe(true);
         await waitFor(() => expect(createTab).toHaveBeenCalledTimes(1));
         expect(createTab).toHaveBeenCalledWith({
-            title: 'note.md',
+            title: 'x.md',
             content: 'FILE BODY',
-            filePath: '/a/x.md',
+            filePath: 'x.md',
             fileHandle: '/a/x.md',
             isDirty: false,
         });
@@ -199,7 +204,7 @@ describe('useFileDrop', () => {
 
         const e = new Event('drop', { cancelable: true, bubbles: true });
         expect(() => window.dispatchEvent(e)).not.toThrow();
-        expect(e.defaultPrevented).toBe(true);
+        expect(e.defaultPrevented).toBe(false);
         await new Promise((r) => setTimeout(r, 0));
         expect(createTab).not.toHaveBeenCalled();
     });
@@ -209,7 +214,6 @@ describe('useFileDrop', () => {
         const { unmount } = renderHook(() => useFileDrop({ createTab, showToast: vi.fn() }));
         unmount();
 
-        fileSystem.pathForFile.mockReturnValue('/a/x.md');
         const e = fireDrop([{ name: 'x.md' }]);
         expect(e.defaultPrevented).toBe(false);
         await new Promise((r) => setTimeout(r, 10));

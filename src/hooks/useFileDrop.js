@@ -10,16 +10,14 @@ export const openDroppedFiles = async (fileList, deps) => {
 
     for (const file of fileList) {
         try {
-            const nativePath = fileSystem.pathForFile(file);
-            if (nativePath) {
-                // Electron file
-                await fileSystem.authorizePaths([nativePath]);
-                const { content, name } = await fileSystem.openFileFromPath(nativePath);
+            const dropped = await fileSystem.openDroppedFile(file);
+            if (dropped) {
+                // Electron file: main read it and granted the path.
                 createTab({
-                    title: name,
-                    content,
-                    filePath: nativePath,
-                    fileHandle: nativePath,
+                    title: dropped.name,
+                    content: dropped.content,
+                    filePath: dropped.name,
+                    fileHandle: dropped.handle,
                     isDirty: false,
                 });
             } else {
@@ -43,11 +41,17 @@ export const useFileDrop = (deps) => {
     const { createTab, showToast } = deps;
 
     useEffect(() => {
+        // Only file drops are ours. Text drags (moving a selection inside the
+        // editor, dropping text from another app) must reach CodeMirror, which
+        // skips its own drop handling once defaultPrevented is set.
+        const hasFiles = (e) => !!e.dataTransfer?.types?.includes('Files');
+
         const handleDragOver = (e) => {
-            e.preventDefault();
+            if (hasFiles(e)) e.preventDefault();
         };
 
         const handleDrop = (e) => {
+            if (!hasFiles(e)) return;
             e.preventDefault();
             openDroppedFiles(e.dataTransfer?.files ?? [], { createTab, showToast });
         };

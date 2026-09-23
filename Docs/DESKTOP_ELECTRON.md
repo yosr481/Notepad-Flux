@@ -43,9 +43,14 @@ All file system operations go through the main process via IPC. Channels:
 - read-file: Opens native file picker; returns { canceled, filePath, content }
 - read-file-content(filePath): Reads text from disk; returns content
 - save-file({ filePath?, content }): Saves content; opens Save As if filePath is missing
+- open-dropped-file(path): Reads a file dropped on the window. Only the preload calls it, with a path from webUtils.getPathForFile on a real dropped File
+- file-exists(path): true/false for granted paths, null for anything else (restored-tab "moved/deleted" check)
+- close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot (max 3 s)
 - main-process-message: One-way message used for simple status pings
 
 Renderer should call these via preload-provided wrappers. Never enable nodeIntegration in the renderer.
+
+**Path grants.** A path becomes readable/writable only when the user picks it in a native dialog, saves to it via Save As, or drops it on the window. Main records each grant in `<userData>/authorized-paths.json` (last 500) and reloads it on launch, so restored tabs and recent files keep working. The page has no way to grant itself a path. `isPathSafe` realpath-checks every read/write against the grants.
 
 ---
 
@@ -57,6 +62,8 @@ I override app.getPath('userData') to a stable per-OS directory before the app i
 - Linux: ~/.config/notepad-flux
 
 Use this location for runtime data (session metadata, logs). Do not store user documents here.
+
+- Session log: `<userData>/logs/main.log` (rotates at 1 MB to `main.old.log`). It records startup (version, safeStorage backend), file open/save/deny events with paths, forwarded renderer console output and crashes. It never records file content.
 
 ---
 
@@ -72,7 +79,7 @@ Build outputs included in installer (electron-builder files config):
 
 - dist/**
 - dist-electron/main.js
-- dist-electron/preload.js
+- dist-electron/preload.cjs
 - package.json (runtime metadata)
 
 ---

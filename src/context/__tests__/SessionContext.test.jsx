@@ -6,7 +6,7 @@ import { storage } from '../../services/storage';
 import { fileSystem } from '../../utils/fileSystem';
 import { createFakeLockManager } from '../../test/fakeLocks';
 
-// Keep sanitizeFilename / authorizePaths real; only stub the new fileExists.
+// Keep sanitizeFilename real; only stub the new fileExists.
 vi.mock('../../utils/fileSystem', async (importOriginal) => {
     const actual = await importOriginal();
     return {
@@ -757,6 +757,30 @@ describe('SessionContext snapshot persistence (P2-atomic)', () => {
         expect(arg.metadata).toEqual(expect.objectContaining({ tabOrder: ['tab-1', 'tab-2'] }));
     });
 
+    it('Electron close handshake: the onCloseRequested callback resolves only after the snapshot write', async () => {
+        let closeCb = null;
+        const unsubscribe = vi.fn();
+        window.electronAPI = { onCloseRequested: vi.fn((cb) => { closeCb = cb; return unsubscribe; }) };
+        try {
+            const api = await renderPrimary();
+            act(() => { api.setTabs(twoTabs()); });
+            let finishWrite;
+            storage.saveSnapshot.mockClear();
+            storage.saveSnapshot.mockImplementationOnce(() => new Promise(r => { finishWrite = r; }));
+
+            let settled = false;
+            const p = closeCb().then(() => { settled = true; });
+            await new Promise(r => setTimeout(r, 0));
+            expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+            expect(settled).toBe(false);
+            finishWrite();
+            await p;
+            expect(settled).toBe(true);
+        } finally {
+            delete window.electronAPI;
+        }
+    });
+
     it('flushPendingSaves folds in a pending debounced tab edit and cancels that per-tab timer', async () => {
         const api = await renderPrimary();
         act(() => { api.setTabs(twoTabs()); });
@@ -949,6 +973,22 @@ describe('SessionContext — fileMissing on restore (TASK 9 / QA finding 12)', (
 
         const stated = fileSystem.fileExists.mock.calls.map(c => c[0]);
         expect(stated).toEqual(['/abs/real.md']);
+    });
+
+    it('stats the absolute path in fileHandle for an Electron tab (filePath is only the name)', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [
+                { id: 'el', title: 'notes.md', content: 'x', isDirty: false, filePath: 'notes.md', fileHandle: '/home/u/notes.md' },
+            ],
+            activeTabId: 'el',
+            recentFiles: [],
+            settings: {},
+        });
+        fileSystem.fileExists.mockResolvedValue(false);
+
+        const api = renderPrimary();
+        await waitFor(() => expect(api.tabs.find(t => t.id === 'el')?.fileMissing).toBe(true));
+        expect(fileSystem.fileExists.mock.calls.map(c => c[0])).toEqual(['/home/u/notes.md']);
     });
 
     it('a non-primary window runs no stat pass', async () => {
