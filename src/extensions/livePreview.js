@@ -3,6 +3,7 @@ import { syntaxTree } from "@codemirror/language";
 import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget, OrderedMarkerWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
+import { isUnresolvedReference } from "./linkDefs";
 
 const namedEntities = {
     'amp': '&',
@@ -96,7 +97,8 @@ export const buildDecorations = (state, range) => {
 
             if (name === "LinkMark" || name === "URL") {
                 const parent = node.node.parent;
-                if (parent && (parent.name === "Link" || (parent.name === "Autolink" && name === "LinkMark"))) {
+                if (parent && (parent.name === "Link" || (parent.name === "Autolink" && name === "LinkMark"))
+                    && !(parent.name === "Link" && isUnresolvedReference(parent, state))) {
                     let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
                     if (!isTouching) {
@@ -339,7 +341,7 @@ export const buildDecorations = (state, range) => {
 
             if (name === "LinkLabel") {
                 const parent = node.node.parent;
-                if (parent && (parent.name === "Link" || parent.name === "Image")) {
+                if (parent && (parent.name === "Link" || parent.name === "Image") && !isUnresolvedReference(parent, state)) {
                     if (!isCursorTouching(selection, parent.from, parent.to)) {
                         decorations.push({ from: nodeFrom, to: nodeTo, value: Decoration.replace({}) });
                     }

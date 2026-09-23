@@ -4,23 +4,7 @@ import { syntaxTree } from "@codemirror/language";
 import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
-import { resolveLinkDefs, normalizeLabel } from "./linkDefs";
-
-// Helper: visible text between opening [and closing] LinkMarks
-function getVisibleTextBetweenMarks(linkNode, doc) {
-    const markSiblings = [];
-    let child = linkNode.firstChild;
-    while (child) {
-        if (child.name === "LinkMark") {
-            markSiblings.push(child);
-        }
-        child = child.nextSibling;
-    }
-    if (markSiblings.length >= 2) {
-        return doc.sliceString(markSiblings[0].to, markSiblings[1].from);
-    }
-    return '';
-}
+import { resolveLinkDefs, normalizeLabel, getVisibleTextBetweenMarks } from "./linkDefs";
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {

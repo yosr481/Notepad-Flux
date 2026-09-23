@@ -124,7 +124,8 @@ class ImageWidget extends WidgetType {
     }
 }
 
-const imageMatcher = /!\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
+// Alt excludes "]" so `![a][ref] and ![b](x.png)` can't match as one inline image.
+const imageMatcher = /!\[([^\]]*)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
 const imageRefFullMatcher = /!\[([^\]]*)\]\[([^\]]*)\]/g;
 const imageRefShortcutMatcher = /!\[([^\]]+)\](?!\[|\()/g;
 
