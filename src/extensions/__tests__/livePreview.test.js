@@ -851,6 +851,12 @@ describe('unresolved reference link stays literal (no matching definition)', () 
         expect(countDecos(field, 3, 15)).toBe(0);
     });
 
+    it('inline link with an empty destination [text]() still hides its marks', () => {
+        const doc = 'x\n\n[text]()';
+        const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });
+        expect(t8bareReplacesAt(field, 3, 4).length).toBe(1); // "["
+    });
+
     it('bare [word] with no definition keeps its brackets', () => {
         const doc = 'x\n\nsee [word] here';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), { from: 0, to: doc.length });

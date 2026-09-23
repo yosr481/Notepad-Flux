@@ -106,13 +106,28 @@ export function getVisibleTextBetweenMarks(linkNode, doc) {
     return marks.length >= 2 ? doc.sliceString(marks[0].to, marks[1].from) : '';
 }
 
-// A reference-style Link/Image ([text][id], [id][], [id]) whose label has no
-// matching [id]: url definition. CommonMark renders it as literal text, so live
-// preview must leave its brackets/label visible.
-export function isUnresolvedReference(linkNode, state) {
-    if (linkNode.getChild("URL")) return false;
+// Is this Link/Image inline ([t](url), [t](), [t](<>))? Inline ones carry the
+// "(" ")" LinkMarks (4 total); reference forms ([t][id], [id][], [id]) carry 2.
+function isInlineLink(linkNode) {
+    if (linkNode.getChild("URL")) return true;
+    let marks = 0;
+    for (let c = linkNode.firstChild; c; c = c.nextSibling) if (c.name === "LinkMark") marks++;
+    return marks > 2;
+}
+
+// The [id]: url definition a reference-style Link/Image points at, or null
+// (also null for inline links). Label = LinkLabel, else the visible text
+// (shortcut [id] / collapsed [id][]).
+export function resolveReference(linkNode, state) {
+    if (isInlineLink(linkNode)) return null;
     const labelNode = linkNode.getChild("LinkLabel");
     const label = (labelNode && normalizeLabel(state.doc.sliceString(labelNode.from, labelNode.to)))
         || normalizeLabel(getVisibleTextBetweenMarks(linkNode, state.doc));
-    return !resolveLinkDefs(state).has(label);
+    return resolveLinkDefs(state).get(label) ?? null;
+}
+
+// A reference-style Link/Image with no matching definition. CommonMark renders
+// it as literal text, so live preview must leave its brackets/label visible.
+export function isUnresolvedReference(linkNode, state) {
+    return !isInlineLink(linkNode) && !resolveReference(linkNode, state);
 }
