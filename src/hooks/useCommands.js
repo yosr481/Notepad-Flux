@@ -228,7 +228,7 @@ export const useCommands = (showToast, editorRef) => {
                     file = await fileSystem.openFileFromPath(filePath);
                 } catch (err) {
                     console.warn(`Could not open from filePath, falling back to picker:`, err);
-                    lastError = err;
+                    lastError = lastError ?? err; // the handle attempt's reason is the real one
                     file = null;
                 }
             }

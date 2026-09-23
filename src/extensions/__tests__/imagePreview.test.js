@@ -376,6 +376,13 @@ describe('imagePreview — reference-style images (TASK 8)', () => {
         expect(urls).toEqual(['https://e/b.png', 'https://e/x.png']);
     });
 
+    it('alt text with balanced brackets still renders: ![Figure [1]](fig.png)', () => {
+        const view = withCursorOff('![Figure [1]](https://e/fig.png)');
+        const [w] = imageWidgets(view);
+        expect(w?.url).toBe('https://e/fig.png');
+        expect(w?.alt).toBe('Figure [1]');
+    });
+
     it('the inline matcher does not swallow a preceding ref image: alts stay "a" and "b"', () => {
         const view = withCursorOff('![a][x] ![b](https://e/b.png)\n\n[x]: https://e/x.png');
         expect(imageWidgets(view).map((w) => w.alt).sort()).toEqual(['a', 'b']);

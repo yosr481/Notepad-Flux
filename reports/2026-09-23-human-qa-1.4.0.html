@@ -252,7 +252,8 @@ sudo apt install ./release/"Notepad Flux-1.4.0-qa.1-linux-amd64.deb"</pre>
       <p class="lg"><code class="log">file-exists: missing</code> + old path.</p></div></li>
     <li data-test="D5"><span class="id">D5</span><div>
       <p class="do">Open <code class="fx">gone-soon.md</code> and close its tab. Delete the file with <code>rm</code>, then pick it from File → Recent.</p>
-      <p class="exp">A dialog appears: "<code class="err">was moved or can't be found. Pick a new location?</code>". Cancel leaves the app idle. OK opens the picker.</p></div></li>
+      <p class="exp">A dialog appears: "<code class="err">was moved or can't be found. Pick a new location?</code>". Cancel removes it from Recent. Locate opens the picker.</p>
+      <p class="lg"><code class="log">read: missing</code> + path.</p></div></li>
     <li data-test="D6"><span class="id">D6</span><div>
       <p class="do">After a relaunch, open <code>basic1.md</code> from File → Recent (it must have been opened in this QA build, e.g. by B10; entries from older builds need one re-pick).</p>
       <p class="exp">It opens directly, without a picker or an error.</p>
