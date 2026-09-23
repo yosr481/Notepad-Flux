@@ -82,6 +82,14 @@ try {
         } catch (e) { return { error: String(e) } }
     })
     ok(enc.avail === false || (enc.roundTrip && enc.looksCiphered), `safeStorage encrypt/decrypt (${JSON.stringify(enc)})`)
+
+    // 6. session log captured the run: startup, the save, the denial, forwarded renderer console
+    await win.evaluate(() => console.warn('e2e-log-probe'))
+    await new Promise(r => setTimeout(r, 300))
+    const logText = readFileSync(join(userData, 'logs', 'main.log'), 'utf-8')
+    ok(/start \{/.test(logText) && logText.includes(`save: wrote ${target}`) &&
+        /read: denied .*\/etc\/hostname/.test(logText) && logText.includes('[renderer] e2e-log-probe') &&
+        !logText.includes('רשומה'), 'main.log has start/save/denied/renderer lines and no file content')
 } catch (e) {
     console.error('HARNESS ERROR', e)
     fail++
