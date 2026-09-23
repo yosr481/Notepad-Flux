@@ -4,7 +4,7 @@ import log from 'electron-log'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { readFile, writeFile } from 'node:fs/promises'
-import { realpathSync, existsSync, statSync, readFileSync, writeFileSync } from 'node:fs'
+import { realpathSync, existsSync, statSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
@@ -31,7 +31,9 @@ const grantPath = (p) => {
     allowedPaths.add(abs)
     while (allowedPaths.size > MAX_GRANTS) allowedPaths.delete(allowedPaths.values().next().value)
     try {
-        writeFileSync(grantsFile, JSON.stringify([...allowedPaths]))
+        // tmp + rename: a crash mid-write can't leave a torn file that loses every grant
+        writeFileSync(`${grantsFile}.tmp`, JSON.stringify([...allowedPaths]))
+        renameSync(`${grantsFile}.tmp`, grantsFile)
     } catch (e) {
         log.warn('could not persist authorized paths', e)
     }
@@ -93,7 +95,9 @@ log.errorHandler.startCatching({ showDialog: false })
 const grantsFile = join(userDataPath, 'authorized-paths.json')
 try {
     for (const p of filterAuthorizablePaths(JSON.parse(readFileSync(grantsFile, 'utf-8')))) allowedPaths.add(p)
-} catch { /* first run or unreadable: start empty */ }
+} catch (e) {
+    if (e.code !== 'ENOENT') log.warn('authorized-paths.json unreadable; starting with no grants', e)
+}
 
 const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
 
@@ -156,6 +160,11 @@ safeHandle('read-file-content', async (event, filePath) => {
     // raw path - a symlink swapped in between the two is a TOCTOU race. Local
     // attacker only; fully closing it means readFile'ing the realpath'd result,
     // which the new-file save path has no value for. Left as a known corner.
+    if (typeof filePath === 'string' && allowedPaths.has(resolve(filePath)) && !existsSync(filePath)) {
+        // Granted earlier, gone now: say so (isPathSafe would call it unauthorized).
+        log.info('read: missing', filePath)
+        throw Object.assign(new Error('File not found.'), { code: 'ENOENT' })
+    }
     if (!isPathSafe(filePath)) {
         log.warn('read: denied (not in allowlist)', filePath)
         throw new Error('Access denied: Unauthorized file path.')

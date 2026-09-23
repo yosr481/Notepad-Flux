@@ -77,6 +77,14 @@ try {
     })
     ok(/not authorized|internal system error/i.test(denied), `unauthorized read denied (${denied})`)
 
+    // 4b. a granted file that was deleted reports "not found" (recents can then drop it)
+    rmSync(target)
+    const gone = await win.evaluate(async (p) => {
+        try { await window.electronAPI.readFileContent(p.target); return 'NO ERROR' }
+        catch (e) { return String(e) }
+    }, { target })
+    ok(/File not found/.test(gone), `deleted granted file -> not found (${gone})`)
+
     // 5. safeStorage available + encrypts
     const enc = await win.evaluate(async () => {
         try {

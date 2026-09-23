@@ -31,9 +31,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // the renderer reserves top-right space for them on that platform only.
     platform: process.platform,
     // Resolve the native path HERE (isolated world) so the page can only open files
-    // the user actually dropped; '' for a File built in script -> refused.
+    // the user actually dropped. No native path (virtual file from a browser or
+    // archive, or a File built in script) -> null: the page reads it, no disk grant.
     openDroppedFile: (file) => {
         const p = webUtils.getPathForFile(file)
-        return p ? ipcRenderer.invoke('open-dropped-file', p) : Promise.reject(new Error('Not a dropped file.'))
+        return p ? ipcRenderer.invoke('open-dropped-file', p) : Promise.resolve(null)
     },
 })

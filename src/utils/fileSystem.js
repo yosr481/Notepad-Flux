@@ -353,9 +353,9 @@ export const fileSystem = {
     // Electron-only: open a file dropped on the window -> { handle, content, name }.
     // null on the web build (caller reads the File directly).
     openDroppedFile: async (file) => {
-        if (!window.electronAPI?.openDroppedFile) return null;
-        const { filePath, content } = await window.electronAPI.openDroppedFile(file);
-        return { handle: filePath, content, name: getFilenameFromPath(filePath) };
+        const result = await window.electronAPI?.openDroppedFile?.(file);
+        if (!result) return null;
+        return { handle: result.filePath, content: result.content, name: getFilenameFromPath(result.filePath) };
     },
 
     // Electron-only: does this absolute path currently exist on disk?

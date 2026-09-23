@@ -744,6 +744,18 @@ describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
         expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
     });
 
+    it('Electron shape: the handle error (binary) wins over the bare-name fallback error', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        const showToast = vi.fn();
+
+        const { result } = renderHook(() => useCommands(showToast));
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Not a text file.'));
+    });
+
     it('an unauthorized path offers Locate, but Cancel keeps the recent entry', async () => {
         fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
         fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
