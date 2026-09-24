@@ -4,6 +4,7 @@ import { syntaxTree } from "@codemirror/language";
 import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
+import { resolveReference, getVisibleTextBetweenMarks } from "./linkDefs";
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -124,7 +125,8 @@ function computeLinkDecorations(view) {
             }
 
             if (!shouldReveal) {
-                let urlNode = node.node.getChild("URL");
+                // #14: skip image-in-link
+                if (node.node.getChild("Image")) return;
 
                 // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
                 const textContentFull = doc.sliceString(from, to);
@@ -145,6 +147,16 @@ function computeLinkDecorations(view) {
                         widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
                         inclusive: false
                     }));
+                } else {
+                    // #8: reference-style link resolution (shared with livePreview)
+                    const visibleText = getVisibleTextBetweenMarks(node.node, doc);
+                    const def = resolveReference(node.node, state);
+                    if (def) {
+                        builder.add(from, to, Decoration.replace({
+                            widget: new LinkWidget(visibleText, def.url, { bold, italic }),
+                            inclusive: false
+                        }));
+                    }
                 }
             }
         }

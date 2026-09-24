@@ -3,6 +3,7 @@ import { useTabState, useSessionActions } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
 import { exportToHtml } from '../utils/export';
+import { normalizeEol, applyCharset } from '../utils/eol';
 import { createRoot } from 'react-dom/client';
 import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
@@ -14,6 +15,10 @@ const nextPaint = () => new Promise(resolve => {
 });
 
 const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
+
+// What goes to disk: the tab's detected line ending + charset (BOM) re-applied.
+const toDiskContent = (tab, content) =>
+    applyCharset(normalizeEol(content, tab.eol || 'LF'), tab.charset || 'UTF-8');
 
 export const useCommands = (showToast, editorRef) => {
     const {
@@ -30,7 +35,8 @@ export const useCommands = (showToast, editorRef) => {
         updateTab,
         switchTab,
         reorderTabs,
-        addRecentFile
+        addRecentFile,
+        removeRecentFile
     } = useSessionActions();
 
     // Mirror the live tab state so multi-close loops (closeOtherTabs /
@@ -40,22 +46,25 @@ export const useCommands = (showToast, editorRef) => {
     liveState.current = { tabs, activeTabId };
 
     const persistTab = useCallback(async (tab, content) => {
-        if (tab.fileHandle) {
-            await fileSystem.saveFile(tab.fileHandle, content);
+        const outContent = toDiskContent(tab, content);
+
+        if (tab.fileHandle && !tab.fileMissing) {
+            await fileSystem.saveFile(tab.fileHandle, outContent);
             updateTab(tab.id, { content, isDirty: false });
-        } else if (!canSaveInPlace() && tab.filePath) {
-            const result = await fileSystem.saveFileAs(content, tab.filePath);
+        } else if (!canSaveInPlace() && tab.filePath && !tab.fileMissing) {
+            const result = await fileSystem.saveFileAs(outContent, tab.filePath);
             if (!result) return false;
             updateTab(tab.id, { content, isDirty: false });
         } else {
-            const result = await fileSystem.saveFileAs(content, tab.title);
+            const result = await fileSystem.saveFileAs(outContent, tab.title);
             if (!result) return false;
             updateTab(tab.id, {
                 title: result.name,
                 filePath: result.name,
                 fileHandle: result.handle,
                 content: content,
-                isDirty: false
+                isDirty: false,
+                fileMissing: false
             });
         }
         return true;
@@ -149,8 +158,9 @@ export const useCommands = (showToast, editorRef) => {
             }
         } catch (error) {
             console.error("Failed to open file", error);
+            showToast?.(`Could not open file: ${error?.message || 'unknown error'}`);
         }
-    }, [createTab, addRecentFile]);
+    }, [createTab, addRecentFile, showToast]);
 
     const saveFile = useCallback(async (editorRef) => {
         const tab = tabs.find(t => t.id === activeTabId);
@@ -180,14 +190,15 @@ export const useCommands = (showToast, editorRef) => {
         const content = editorRef?.current ? editorRef.current.getCurrentContent() : tab.content;
 
         try {
-            const result = await fileSystem.saveFileAs(content, tab.title);
+            const result = await fileSystem.saveFileAs(toDiskContent(tab, content), tab.title);
             if (result) {
                 updateTab(activeTabId, {
                     title: result.name,
                     filePath: result.name,
                     fileHandle: result.handle,
                     content: content,
-                    isDirty: false
+                    isDirty: false,
+                    fileMissing: false
                 });
                 addRecentFile(result.name, result.name, result.handle);
                 editorRef?.current?.markSaved?.();
@@ -201,11 +212,13 @@ export const useCommands = (showToast, editorRef) => {
     const openRecentFile = useCallback(async (filePath, fileName, fileHandle) => {
         try {
             let file = null;
+            let lastError = null;
             if (fileHandle && fileSystem.isSupported()) {
                 try {
                     file = await fileSystem.openFileFromHandle(fileHandle);
                 } catch (err) {
                     console.warn(`Could not open from handle, trying filePath:`, err);
+                    lastError = err;
                     file = null;
                 }
             }
@@ -215,16 +228,33 @@ export const useCommands = (showToast, editorRef) => {
                     file = await fileSystem.openFileFromPath(filePath);
                 } catch (err) {
                     console.warn(`Could not open from filePath, falling back to picker:`, err);
+                    lastError = lastError ?? err; // the handle attempt's reason is the real one
                     file = null;
                 }
             }
 
+            // Only a missing (or no-longer-authorized) file is worth re-locating; a
+            // binary / permission failure is reported as-is and the entry kept.
+            const reason = lastError?.message || '';
+            const missing = !lastError || lastError.name === 'NotFoundError' || /not found/i.test(reason);
+            if (!file && !missing && !/not authorized/i.test(reason)) {
+                showToast?.(`Could not open "${fileName}": ${reason}`);
+                return;
+            }
+
             if (!file) {
-                file = await fileSystem.openFile();
-                if (!file) {
-                    await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
+                const locate = await dialogs.confirm({
+                    title: 'File not found',
+                    message: `"${fileName}" was moved or can't be found. Pick a new location?`,
+                    confirmLabel: 'Locate…',
+                    cancelLabel: 'Cancel',
+                });
+                if (!locate) {
+                    if (missing) removeRecentFile(filePath);
                     return;
                 }
+                file = await fileSystem.openFile();
+                if (!file) return;
             }
 
             createTab({
@@ -239,7 +269,7 @@ export const useCommands = (showToast, editorRef) => {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
         }
-    }, [createTab, addRecentFile]);
+    }, [createTab, addRecentFile, removeRecentFile, showToast]);
 
     const exportToPDF = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
@@ -356,8 +386,6 @@ export const useCommands = (showToast, editorRef) => {
             // Take a snapshot of current order to iterate deterministically
             let toProcess = [...liveState.current.tabs];
             for (let i = 0; i < toProcess.length; i++) {
-                // Refresh current tabs length on each iteration (live state, M4)
-                if (liveState.current.tabs.length <= 1) break; // leave one default tab
                 const tab = toProcess[i];
                 // If this tab has already been closed due to side effects, skip
                 const current = liveState.current.tabs.find(t => t.id === tab.id);
@@ -385,10 +413,16 @@ export const useCommands = (showToast, editorRef) => {
                     // if 'dontsave', proceed without saving
                 }
 
-                await closeTab(current.id, { skipPrompt: true });
+                // Only close the tab if not the last one (leave one default tab)
+                if (liveState.current.tabs.length > 1) {
+                    await closeTab(current.id, { skipPrompt: true });
+                }
             }
         }
-        window.close();
+        // Electron: close via main so the session-flush handshake runs (a page-side
+        // window.close() skips the BrowserWindow 'close' event).
+        if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
+        else window.close();
     }, [isPrimaryWindow, persistTab, closeTab, showToast, editorRef]);
 
     return useMemo(() => ({
@@ -410,6 +444,7 @@ export const useCommands = (showToast, editorRef) => {
         tabs,
         reorderTabs,
         recentFiles,
-        closeWindow
-    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs]);
+        closeWindow,
+        isPrimaryWindow
+    }), [newTab, openFile, openRecentFile, saveFile, saveFileAs, exportToPDF, exportToHTML, print, closeTab, closeOtherTabs, closeTabsToRight, switchTab, updateTab, setActiveTabId, closeWindow, tabs, activeTabId, recentFiles, reorderTabs, isPrimaryWindow]);
 };

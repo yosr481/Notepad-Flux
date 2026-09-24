@@ -3,8 +3,8 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, undo, redo, selectAll } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { SearchQuery, setSearchQuery, findNext, findPrevious, search } from '@codemirror/search';
+import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -252,7 +252,12 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         search(),
         searchMatchHighlight,
         EditorView.lineWrapping,
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        // textDirection.js tags individual lines dir="rtl"; without this facet
+        // CodeMirror keeps doing cursor/selection geometry as if the whole
+        // editor were LTR, which garbles caret movement and highlighting on
+        // Hebrew/Arabic lines.
+        EditorView.perLineTextDirection.of(true),
+        markdown({ base: markdownLanguage, codeLanguages }),
         livePreview,
         imagePreview,
         linkPreview,

@@ -53,6 +53,7 @@ export default defineConfig([
         describe: 'readonly',
         it: 'readonly',
         expect: 'readonly',
+        beforeAll: 'readonly',
         beforeEach: 'readonly',
         global: 'readonly',
       },

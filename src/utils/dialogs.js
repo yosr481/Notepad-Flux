@@ -55,13 +55,43 @@ export const dialogs = {
     },
 
     /**
-     * Show an alert dialog.
-     * @param {string} message - The message to display.
-     * @returns {Promise<void>}
+     * Show an alert dialog using the design-system MessageBox.
+     * @param {string|object} arg - Plain string message or options object
+     * @param {string} [arg.title] - Dialog title
+     * @param {string} [arg.message] - Dialog message
+     * @returns {Promise<undefined>} - Resolves undefined when OK is clicked or Escape/Enter is pressed
      */
-    alert: async (message) => {
-        // if (window.electron) ...
-        return window.alert(message);
+    alert(arg) {
+        const opts = typeof arg === 'string' ? { message: arg } : (arg || {});
+        const { title, message } = opts;
+
+        return new Promise((resolve) => {
+            const container = document.createElement('div');
+            document.body.appendChild(container);
+            const root = createRoot(container);
+
+            const handleClose = (result) => {
+                try {
+                    root.unmount();
+                } catch (_err) {
+                    // noop: unmount can throw if already unmounted
+                }
+                container.remove();
+                resolve(result);
+            };
+
+            flushSync(() => root.render(
+                React.createElement(MessageBox, {
+                    title,
+                    message,
+                    primaryLabel: 'OK',
+                    secondaryLabel: null,
+                    cancelLabel: null,
+                    onPrimary: () => handleClose(undefined),
+                    onCancel: () => handleClose(undefined)
+                })
+            ));
+        });
     },
 
     /**

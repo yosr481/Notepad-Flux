@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<meta name="ledger:date" content="2026-09-23">
+<meta name="ledger:title" content="Notepad Flux 1.4.0 — Human QA run sheet">
+<meta name="ledger:cat" content="QA">
+<meta name="ledger:summary" content="The last gate before tagging v1.4.0: 37 hands-on tests to run against the installed 1.4.0-qa.1 .deb, with a log line to check for each and a copy-out results button.">
+
+<title>Notepad Flux Human QA</title>
+<style>
+:root{
+  --paper:#f3ecdb; --card:#fbf6ea; --card2:#f7f0df; --ink:#1b2436; --mut:#575043;
+  --brass:#7a5d13; --rule:#ddd2b7; --rule2:#c8bb99;
+  --pos:#3f5c3a; --neg:#8e402f; --warn:#7a5d13; --onacc:#fbf6ea;
+  --disp:"Frank Ruhl Libre",Georgia,serif;
+  --body:Heebo,Assistant,system-ui,-apple-system,Segoe UI,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:15.5px;line-height:1.6}
+.wrap{max-width:860px;margin:0 auto;padding:26px 18px 0}
+.layout{display:grid;grid-template-columns:210px minmax(0,1fr);gap:36px;max-width:1120px;margin:0 auto;padding:18px 18px 60px}
+.col{min-width:0}
+.toc{position:sticky;top:16px;align-self:start;max-height:calc(100vh - 32px);overflow-y:auto;font-family:var(--mono)}
+.toc .toc-h{font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--brass);margin:0 0 8px}
+.toc ol{list-style:none;margin:0;padding:0}
+.toc a{display:block;padding:4px 9px;font-size:11.5px;line-height:1.45;color:var(--mut);text-decoration:none;border-inline-start:2px solid var(--rule)}
+.toc a.sub{padding-inline-start:20px;font-size:10.5px}
+.toc a:hover,.toc a:focus{color:var(--ink);background:var(--card2)}
+.toc a.here{color:var(--ink);background:var(--card);border-inline-start-color:var(--brass)}
+@media(max-width:820px){
+  .layout{display:block;max-width:860px;padding-top:0}
+  .toc{position:static;max-height:42vh;margin:0 0 22px;padding:12px 14px;background:var(--card);border:1px solid var(--rule);border-radius:8px}
+}
+.masthead{border-bottom:3px double var(--brass);padding-bottom:12px}
+.mast-top{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10.5px;letter-spacing:1.3px;text-transform:uppercase;color:var(--mut)}
+h1{font-family:var(--disp);font-size:34px;line-height:1.15;margin:10px 0 4px}
+h2{font-family:var(--disp);font-size:22px;margin:30px 0 8px;border-bottom:1px solid var(--rule);padding-bottom:5px}
+.backnav{margin-top:10px;font-family:var(--mono);font-size:11px;letter-spacing:.6px}
+.backnav a{color:var(--brass);text-decoration:none;border-bottom:1px solid var(--rule2)}
+.backnav a:hover,.backnav a:focus{color:var(--ink);border-bottom-color:var(--brass)}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:14px 16px;margin:14px 0}
+.verdict{border-inline-start:4px solid var(--brass)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:12px;margin:16px 0}
+.kpi{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:12px 14px}
+.kpi .k{font-family:var(--mono);font-size:10px;letter-spacing:1.1px;text-transform:uppercase;color:var(--mut)}
+.kpi .v{font-family:var(--mono);font-size:25px;font-variant-numeric:tabular-nums;margin-top:4px}
+.v.pos{color:var(--pos)} .v.neg{color:var(--neg)} .v.warn{color:var(--warn)}
+code,pre,kbd{font-family:var(--mono);font-size:13px;background:var(--card2);color:var(--ink);border:1px solid var(--rule);border-radius:4px;padding:0 4px}
+pre{padding:10px 12px;overflow-x:auto;white-space:pre}
+kbd{border-bottom-width:2px}
+code.log{color:var(--pos)} code.err{color:var(--neg)}
+ol.tests{list-style:none;margin:10px 0;padding:0}
+ol.tests li{background:var(--card);border:1px solid var(--rule);border-radius:8px;padding:12px 14px;margin:10px 0;display:grid;grid-template-columns:48px minmax(0,1fr);gap:4px 12px}
+ol.tests li.pass{border-inline-start:5px solid var(--pos)}
+ol.tests li.fail{border-inline-start:5px solid var(--neg)}
+ol.tests li.skip{border-inline-start:5px solid var(--rule2)}
+.id{font-family:var(--mono);font-weight:600;color:var(--brass)}
+.do,.exp,.lg{margin:0}
+.exp::before{content:"Expect  ";font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--mut)}
+.lg::before{content:"Log  ";font-family:var(--mono);font-size:10.5px;letter-spacing:1px;color:var(--mut)}
+.res{grid-column:2;display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-top:6px}
+.res button{font-family:var(--mono);font-size:12px;padding:5px 12px;border-radius:5px;border:1px solid var(--rule2);background:var(--paper);color:var(--ink);cursor:pointer}
+.res button[aria-pressed=true][data-v=pass]{background:var(--pos);color:var(--onacc);border-color:var(--pos)}
+.res button[aria-pressed=true][data-v=fail]{background:var(--neg);color:var(--onacc);border-color:var(--neg)}
+.res button[aria-pressed=true][data-v=skip]{background:var(--mut);color:var(--onacc);border-color:var(--mut)}
+.res button:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+.res input{flex:1;min-width:160px;font:inherit;font-size:13.5px;padding:5px 8px;border:1px solid var(--rule2);border-radius:5px;background:var(--paper);color:var(--ink)}
+.tools{display:flex;gap:10px;flex-wrap:wrap}
+.tools button{font-family:var(--mono);font-size:12.5px;padding:7px 14px;border-radius:5px;border:1px solid var(--brass);background:var(--brass);color:var(--onacc);cursor:pointer}
+.tools button.ghost{background:var(--paper);color:var(--brass)}
+#copied{font-family:var(--mono);font-size:12px;color:var(--pos);align-self:center}
+footer{margin-top:36px;border-top:1px solid var(--rule);padding-top:12px;font-family:var(--mono);font-size:10.5px;color:var(--mut)}
+.hero{margin:16px 0 0;border:1px solid var(--rule);border-radius:8px;overflow:hidden;background:var(--card)}
+.hero img{display:block;width:100%;height:auto;aspect-ratio:16/9;object-fit:cover;background:var(--card2);filter:grayscale(1) contrast(1.06);transition:filter .5s ease}
+.hero:hover img,.hero:focus-within img{filter:grayscale(0) saturate(1.04)}
+.hero figcaption{display:flex;justify-content:space-between;gap:12px;padding:6px 12px;background:var(--card2);color:var(--mut);border-top:1px solid var(--rule);font-family:var(--mono);font-size:10px;letter-spacing:1.1px;text-transform:uppercase}
+@media(prefers-reduced-motion:reduce){.hero img{transition:none}}
+@media(max-width:560px){h1{font-size:26px} ol.tests li{grid-template-columns:1fr} .res{grid-column:1}}
+@media print{body{background:#fff}.card,.kpi,ol.tests li{break-inside:avoid}.hero img{filter:none}.toc,.tools{display:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <div class="mast-top"><span>Notepad Flux · QA</span><span>2026-09-23</span></div>
+    <h1>Notepad Flux 1.4.0 — human QA run sheet</h1>
+    <nav class="backnav">
+      <a href="../../../site/index.html">All LifeOS reports ←</a> ·
+      <a href="../Docs/audit/architecture-review-2026-09-02.html">Architecture review</a>
+    </nav>
+  </header>
+  <figure class="hero">
+    <img src="assets/2026-09-23-human-qa-1.4.0.png" alt="" width="1344" height="768" loading="lazy" decoding="async">
+    <figcaption><span>Notepad Flux</span><span>2026-09-23</span></figcaption>
+  </figure>
+</div>
+
+<div class="layout">
+  <aside class="toc" id="toc" aria-label="Contents"></aside>
+  <main class="col">
+
+  <div class="kpis">
+    <div class="kpi"><div class="k">Tests</div><div class="v" id="kpi-total">37</div></div>
+    <div class="kpi"><div class="k">Pass</div><div class="v pos" id="kpi-pass">0</div></div>
+    <div class="kpi"><div class="k">Fail</div><div class="v neg" id="kpi-fail">0</div></div>
+    <div class="kpi"><div class="k">Not run</div><div class="v warn" id="kpi-left">37</div></div>
+  </div>
+
+  <div class="card verdict">
+    <p style="margin:0"><strong>This is the last gate before <code>v1.4.0</code> is tagged.</strong>
+    Unit tests, lint, the Electron smoke test and Claude's code review are already done. Run every test below on the
+    <em>installed</em> build, mark each Pass / Fail / Skip, then press <strong>Copy results</strong> and paste the
+    text back to Claude. A Fail blocks the release. Your ticks are saved in this browser only.</p>
+  </div>
+
+  <h2>Before you start</h2>
+  <p>Install the QA build (it replaces any installed Notepad Flux; your saved session in
+  <code>~/.config/notepad-flux</code> is kept):</p>
+<pre>cd ~/Documents/LifeOS/05-Utilities/Notepad_Flux
+sudo apt install ./release/"Notepad Flux-1.4.0-qa.1-linux-amd64.deb"</pre>
+  <p>Package file: <code class="pkg">Notepad Flux-1.4.0-qa.1-linux-amd64.deb</code>. If you would rather not install it, the
+  <code class="pkg">Notepad Flux-1.4.0-qa.1-linux-x86_64.AppImage</code> in the same folder runs without installing, but test A2 (dock icon) needs the <code>.deb</code>.</p>
+  <p>Keep the session log open in a second terminal. Every test below names the line it should add:</p>
+<pre>tail -f ~/.config/notepad-flux/logs/main.log</pre>
+  <p>The log holds file paths and outcomes, never file content. Test files are in <code>~/Documents/notepad-flux-qa/</code>.
+  <code>crlf-real.md</code>, <code>readonly.md</code> (mode 444), <code>moved-me.md</code> and <code>gone-soon.md</code> were created for this run.</p>
+  <p><strong>Expected noise:</strong> with the <code>-qa.1</code> version the update check logs <code>No published versions on GitHub</code>.
+  That's because a pre-release version looks for pre-release builds on GitHub. Ignore it; the real <code>1.4.0</code> build checks the normal channel.</p>
+  <div class="tools">
+    <button type="button" id="copy">Copy results</button>
+    <button type="button" class="ghost" id="reset">Clear all marks</button>
+    <span id="copied" role="status"></span>
+  </div>
+
+  <h2>A · Install &amp; launch</h2>
+  <ol class="tests">
+    <li data-test="A1"><span class="id">A1</span><div>
+      <p class="do">Launch Notepad Flux from the app grid.</p>
+      <p class="exp">Splash, then the main window. No white flash if the system is in dark mode. Status bar shows version 1.4.0-qa.1.</p>
+      <p class="lg"><code class="log">start</code> block with <code>version: '1.4.0-qa.1'</code>, <code>packaged: true</code>.</p></div></li>
+    <li data-test="A2"><span class="id">A2</span><div>
+      <p class="do">Look at the dock / dash while the app runs. In a terminal: <code>xprop WM_CLASS</code>, then click the Notepad Flux window.</p>
+      <p class="exp">Real Notepad Flux icon (not a generic gear). WM_CLASS mentions <code>notepad-flux</code>.</p></div></li>
+    <li data-test="A3"><span class="id">A3</span><div>
+      <p class="do">Read the <code>start</code> block in the log.</p>
+      <p class="exp"><code>safeStorage: true</code> and <code>safeStorageBackend: 'gnome_libsecret'</code>, meaning the session key is in the system keyring.</p></div></li>
+    <li data-test="A4"><span class="id">A4</span><div>
+      <p class="do">With the app open, launch it again from the app grid.</p>
+      <p class="exp">The existing window comes to the front. No second window, no second <code>start</code> block in the log.</p></div></li>
+    <li data-test="A5"><span class="id">A5</span><div>
+      <p class="do">Use the title-bar minimise / maximise / close buttons (restart the app after close).</p>
+      <p class="exp">Native Linux window buttons are present and all three work.</p></div></li>
+  </ol>
+
+  <h2>B · Open &amp; save</h2>
+  <ol class="tests">
+    <li data-test="B1"><span class="id">B1</span><div>
+      <p class="do"><kbd>Ctrl+O</kbd> and pick <code class="fx">basic.md</code>.</p>
+      <p class="exp">The picker offers Text and All Files filters. The file opens in a new tab.</p>
+      <p class="lg"><code class="log">open: picked</code> + path.</p></div></li>
+    <li data-test="B2"><span class="id">B2</span><div>
+      <p class="do">Type a line in <code>basic.md</code>, then <kbd>Ctrl+S</kbd>.</p>
+      <p class="exp">Saved in place, no dialog. The dirty mark clears. <code>cat</code> the file and check that the line is there.</p>
+      <p class="lg"><code class="log">save: wrote</code> + path + char count.</p></div></li>
+    <li data-test="B3"><span class="id">B3</span><div>
+      <p class="do"><kbd>Ctrl+Shift+S</kbd>, then save as <code>subdir/copy.md</code>.</p>
+      <p class="exp">The dialog opens in the folder you last used. The tab now points to <code>copy.md</code>.</p>
+      <p class="lg"><code class="log">save-as: picked</code> then <code>save: wrote</code>.</p></div></li>
+    <li data-test="B4"><span class="id">B4</span><div>
+      <p class="do"><kbd>Ctrl+N</kbd>, type text, <kbd>Ctrl+S</kbd>.</p>
+      <p class="exp">A new tab opens the Save As dialog (it has no file yet).</p></div></li>
+    <li data-test="B5"><span class="id">B5</span><div>
+      <p class="do"><kbd>Ctrl+O</kbd>, switch the filter to All Files, and pick <code class="fx">binary.bin</code>. Repeat with <code class="fx">random.bin</code>.</p>
+      <p class="exp">A toast says <code class="err">Not a text file.</code>. No tab opens, and no garbled text appears.</p>
+      <p class="lg"><code>[error]</code> line naming <code>read-file</code>.</p></div></li>
+    <li data-test="B6"><span class="id">B6</span><div>
+      <p class="do">Open <code class="fx">empty.md</code>, then <code class="fx">spaced ünïcode name.md</code>. Edit the second file and save it.</p>
+      <p class="exp">Both open. The file with the unicode name saves in place, and its tab title is correct.</p></div></li>
+    <li data-test="B7"><span class="id">B7</span><div>
+      <p class="do">Open <code class="fx">shadow-symlink.md</code> (it links to <code>/etc/shadow</code>).</p>
+      <p class="exp">A toast with a reason (<code class="err">Permission denied.</code>). The app keeps working, and opening <code>basic.md</code> afterwards still works.</p></div></li>
+    <li data-test="B8"><span class="id">B8</span><div>
+      <p class="do">Open <code class="fx">readonly.md</code>, type something, <kbd>Ctrl+S</kbd>.</p>
+      <p class="exp">A toast with a reason (<code class="err">Permission denied.</code>). The text you typed stays in the tab, which stays dirty.</p></div></li>
+    <li data-test="B9"><span class="id">B9</span><div>
+      <p class="do">Open <code class="fx">crlf-real.md</code>. Check the status bar. Add a line, save, then run <code>file ~/Documents/notepad-flux-qa/crlf-real.md</code>.</p>
+      <p class="exp">The status bar shows <code>CRLF</code> and <code>UTF-8</code>. <code>file</code> still reports <em>CRLF line terminators</em> after the save. Opening <code>basic.md</code> shows <code>LF</code>.</p></div></li>
+    <li data-test="B10"><span class="id">B10</span><div>
+      <p class="do">Drag <code class="fx">basic1.md</code> from the Files app onto the editor.</p>
+      <p class="exp">It opens as a new tab. The file's text is not pasted into the current tab.</p>
+      <p class="lg"><code class="log">open: dropped</code> + path.</p></div></li>
+    <li data-test="B12"><span class="id">B12</span><div>
+      <p class="do">With <code class="fx">crlf-real.md</code> open, <kbd>Ctrl+Shift+S</kbd> to <code>crlf-copy.md</code>, then run <code>file</code> on the copy.</p>
+      <p class="exp">The copy also has <em>CRLF line terminators</em>. Save As keeps the line ending, like Save.</p></div></li>
+    <li data-test="B11"><span class="id">B11</span><div>
+      <p class="do">Open <code class="fx">large.md</code> (1.3 MB). Scroll to the end, and type near the end.</p>
+      <p class="exp">It opens in a few seconds. Scrolling and typing stay responsive.</p></div></li>
+  </ol>
+
+  <h2>C · Editor &amp; live preview</h2>
+  <ol class="tests">
+    <li data-test="C1"><span class="id">C1</span><div>
+      <p class="do">Open <code class="fx">long.md</code> and jump to the end (Ctrl+End).</p>
+      <p class="exp">Headings, lists and tables at the end of the file render just like the ones at the top (no raw <code>#</code> / <code>|</code>).</p></div></li>
+    <li data-test="C2"><span class="id">C2</span><div>
+      <p class="do">Open <code class="fx">rtl-mixed.md</code>. Arrow through Hebrew/English lines, Shift-select across a language boundary, and try a code-block line, a table line and a long wrapping Hebrew paragraph.</p>
+      <p class="exp">The caret moves one character per key press with no jumps or stutter, and the selection matches what you dragged.</p></div></li>
+    <li data-test="C3"><span class="id">C3</span><div>
+      <p class="do">In a new tab type <code>- [ ] task</code>, a small table and <code>[site](https://example.com)</code>. Move the cursor away, click the checkbox, then Ctrl+click the link.</p>
+      <p class="exp">The checkbox toggles, and the underlying text changes to <code>[x]</code>. The table renders. The link opens in your system browser.</p></div></li>
+    <li data-test="C4"><span class="id">C4</span><div>
+      <p class="do">Ctrl+click a link like <code>[x](file:///etc/passwd)</code>.</p>
+      <p class="exp">Nothing opens.</p>
+      <p class="lg"><code class="log">Blocked open-external</code> or a <code>[renderer] Blocked unsafe link scheme</code> line.</p></div></li>
+    <li data-test="C5"><span class="id">C5</span><div>
+      <p class="do">Export <code>basic.md</code> via File → Export to PDF and Export to HTML. Then File → Print (<kbd>Ctrl+P</kbd>) and cancel.</p>
+      <p class="exp">Both exported files open correctly in a viewer or browser. The print dialog appears.</p></div></li>
+    <li data-test="C6"><span class="id">C6</span><div>
+      <p class="do">Trigger a long error toast (for example, B8 with a very long file name) in a narrow window.</p>
+      <p class="exp">The toast text wraps inside the window. Nothing is cut off at the edge.</p></div></li>
+    <li data-test="C7"><span class="id">C7</span><div>
+      <p class="do">Select a word in the editor and drag it to another line. Then drag a phrase from a web page into the editor.</p>
+      <p class="exp">The word moves and the phrase is inserted. No new tab opens.</p></div></li>
+    <li data-test="C8"><span class="id">C8</span><div>
+      <p class="do">In a new tab type <code>see [docs][nope] and [word] here</code> (no definitions), then move the cursor to another line.</p>
+      <p class="exp">The text stays exactly as typed, brackets included. Nothing is hidden.</p></div></li>
+  </ol>
+
+  <h2>D · Session, restore &amp; encryption</h2>
+  <ol class="tests">
+    <li data-test="D1"><span class="id">D1</span><div>
+      <p class="do">Have 3 tabs: <code>basic.md</code> with an unsaved edit, a new unsaved tab with text, and <code>long.md</code>. Close the window with the title-bar X.</p>
+      <p class="exp">The window closes with no prompt (the session keeps the edits).</p>
+      <p class="lg"><code class="log">quit</code>, and no <code class="log">did not confirm session flush</code>.</p></div></li>
+    <li data-test="D2"><span class="id">D2</span><div>
+      <p class="do">Relaunch.</p>
+      <p class="exp">All 3 tabs are back, including the unsaved text, the dirty marks and the active tab.</p>
+      <p class="lg">No <code>Failed to decrypt</code> and no <code class="log">read: denied (not in allowlist)</code> lines.</p></div></li>
+    <li data-test="D9"><span class="id">D9</span><div>
+      <p class="do">Type a sentence in <code>basic.md</code> and press <kbd>Alt+F4</kbd> within one second. Relaunch.</p>
+      <p class="exp">The sentence is there (unsaved, tab dirty). Repeat using File → Exit instead of <kbd>Alt+F4</kbd>.</p></div></li>
+    <li data-test="D3"><span class="id">D3</span><div>
+      <p class="do">On the restored <code>basic.md</code>, <kbd>Ctrl+S</kbd>.</p>
+      <p class="exp">It saves in place, with no "not authorized" error and no picker.</p></div></li>
+    <li data-test="D4"><span class="id">D4</span><div>
+      <p class="do">Open <code class="fx">moved-me.md</code> and quit. Run <code>mv ~/Documents/notepad-flux-qa/moved-me.md ~/Documents/notepad-flux-qa/moved-away.md</code>, then relaunch. Then <kbd>Ctrl+S</kbd> on that tab.</p>
+      <p class="exp">The tab shows ⚠ (tooltip: <code class="err">File moved or deleted — saving will ask for a new location</code>), and its text is still there. Ctrl+S opens Save As.</p>
+      <p class="lg"><code class="log">file-exists: missing</code> + old path.</p></div></li>
+    <li data-test="D5"><span class="id">D5</span><div>
+      <p class="do">Open <code class="fx">gone-soon.md</code> and close its tab. Delete the file with <code>rm</code>, then pick it from File → Recent.</p>
+      <p class="exp">A dialog appears: "<code class="err">was moved or can't be found. Pick a new location?</code>". Cancel removes it from Recent. Locate opens the picker.</p>
+      <p class="lg"><code class="log">read: missing</code> + path.</p></div></li>
+    <li data-test="D6"><span class="id">D6</span><div>
+      <p class="do">After a relaunch, open <code>basic1.md</code> from File → Recent (it must have been opened in this QA build, e.g. by B10; entries from older builds need one re-pick).</p>
+      <p class="exp">It opens directly, without a picker or an error.</p>
+      <p class="lg"><code class="log">read</code> + path. No <code class="log">read: denied (not in allowlist)</code>.</p></div></li>
+    <li data-test="D7"><span class="id">D7</span><div>
+      <p class="do">Open File → New Window (<kbd>Ctrl+Shift+N</kbd>), type text in it, then close that second window with X.</p>
+      <p class="exp">A dialog asks whether to discard unsaved changes. "Keep editing" keeps the window open, and "Discard" closes only that window. The first window is untouched.</p></div></li>
+    <li data-test="D8"><span class="id">D8</span><div>
+      <p class="do">Quit the app, wait 3 s, then run <code>pgrep -af notepad-flux</code>.</p>
+      <p class="exp">No output, meaning no leftover process.</p></div></li>
+  </ol>
+
+  <h2>E · Log sanity</h2>
+  <ol class="tests">
+    <li data-test="E1"><span class="id">E1</span><div>
+      <p class="do">Run <code>grep -c '\[error\]' ~/.config/notepad-flux/logs/main.log</code> and read each error.</p>
+      <p class="exp">Every error matches something you did on purpose (B5, B7, B8, D4, D5) or is the known update-check noise. Anything else is a Fail; note it.</p></div></li>
+    <li data-test="E2"><span class="id">E2</span><div>
+      <p class="do">Search the log for a word you typed into a file (for example, the line from B2).</p>
+      <p class="exp">No matches. File content must never reach the log.</p></div></li>
+    <li data-test="E3"><span class="id">E3</span><div>
+      <p class="do">Run <code>cat ~/.config/notepad-flux/authorized-paths.json</code>.</p>
+      <p class="exp">It lists only files you opened, saved or dropped during this run. It has no folders and no paths you never touched.</p></div></li>
+  </ol>
+
+  <h2>After the run</h2>
+  <p>Press <strong>Copy results</strong> and paste the text to Claude. All Pass means Claude bumps
+  <code>package.json</code> to <code>1.4.0</code>, moves CHANGELOG <code>[Unreleased]</code> to <code>[1.4.0]</code> and tags
+  <code>v1.4.0</code>. The tag runs the release workflow (Windows + Linux installers), and it is only done with your go-ahead.
+  To uninstall the QA build: <code>sudo apt remove notepad-flux</code>.</p>
+  <p>Windows is not covered here. The NSIS installer is built only by the release workflow.</p>
+
+  <footer>
+    Built <span id="built"></span> · LifeOS · verified by reports/verify/2026-09-23-human-qa-1.4.0.py · 2026-09-23
+  </footer>
+  </main>
+</div>
+<script>
+built.textContent = document.querySelector('meta[name="ledger:date"]').content;
+(function(){
+  var KEY = 'nf-qa-1.4.0-qa.1', st = {};
+  try { st = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e) {}
+  var save = function(){ try { localStorage.setItem(KEY, JSON.stringify(st)); } catch(e) {} };
+  var items = [].slice.call(document.querySelectorAll('li[data-test]'));
+  function paint(){
+    var p = 0, f = 0, s = 0;
+    items.forEach(function(li){
+      var r = (st[li.dataset.test] || {}).r;
+      li.className = r || '';
+      li.querySelectorAll('.res button').forEach(function(b){ b.setAttribute('aria-pressed', String(b.dataset.v === r)); });
+      if (r === 'pass') p++; else if (r === 'fail') f++; else if (r === 'skip') s++;
+    });
+    document.getElementById('kpi-pass').textContent = p;
+    document.getElementById('kpi-fail').textContent = f;
+    document.getElementById('kpi-left').textContent = items.length - p - f - s;
+  }
+  items.forEach(function(li){
+    var id = li.dataset.test, box = document.createElement('div');
+    box.className = 'res';
+    ['pass','fail','skip'].forEach(function(v){
+      var b = document.createElement('button');
+      b.type = 'button'; b.dataset.v = v; b.textContent = v[0].toUpperCase() + v.slice(1);
+      b.setAttribute('aria-label', id + ' ' + v);
+      b.onclick = function(){ st[id] = st[id] || {}; st[id].r = st[id].r === v ? undefined : v; save(); paint(); };
+      box.appendChild(b);
+    });
+    var n = document.createElement('input');
+    n.placeholder = 'note (what you saw)'; n.setAttribute('aria-label', id + ' note');
+    n.value = (st[id] || {}).n || '';
+    n.oninput = function(){ st[id] = st[id] || {}; st[id].n = n.value; save(); };
+    box.appendChild(n);
+    li.appendChild(box);
+  });
+  document.getElementById('copy').onclick = function(){
+    var lines = ['Notepad Flux 1.4.0-qa.1 human QA — ' + new Date().toISOString().slice(0,10)];
+    items.forEach(function(li){
+      var o = st[li.dataset.test] || {};
+      lines.push(li.dataset.test + ': ' + (o.r ? o.r.toUpperCase() : 'NOT RUN') + (o.n ? ' — ' + o.n : ''));
+    });
+    var txt = lines.join('\n'), msg = document.getElementById('copied');
+    (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject())
+      .then(function(){ msg.textContent = 'Copied ' + items.length + ' results.'; })
+      .catch(function(){ window.prompt('Copy the results:', txt); });
+  };
+  document.getElementById('reset').onclick = function(){ st = {}; save(); items.forEach(function(li){ li.querySelector('input').value=''; }); paint(); };
+  paint();
+})();
+</script>
+<script>
+(function(){
+  var col = document.querySelector('.col'), toc = document.getElementById('toc');
+  var hs = [].slice.call(col.querySelectorAll('h2, h3'));
+  if (hs.length < 2){ toc.hidden = true; return; }
+  var slug = function(t){ return (t.trim().toLowerCase().replace(/[^\w]+/g,'-').replace(/^-+|-+$/g,'')) || 'sec'; };
+  var ol = document.createElement('ol'), links = {};
+  hs.forEach(function(h){
+    var id = h.id || slug(h.textContent); h.id = id;
+    var a = document.createElement('a'); a.href = '#' + id; a.textContent = h.textContent;
+    if (h.tagName === 'H3') a.className = 'sub';
+    var li = document.createElement('li'); li.appendChild(a); ol.appendChild(li); links[id] = a;
+  });
+  var head = document.createElement('p'); head.className = 'toc-h'; head.textContent = 'Contents';
+  toc.appendChild(head); toc.appendChild(ol);
+  var io = new IntersectionObserver(function(es){
+    es.forEach(function(e){
+      if (!e.isIntersecting) return;
+      for (var k in links) links[k].classList.remove('here');
+      if (links[e.target.id]) links[e.target.id].classList.add('here');
+    });
+  }, {rootMargin:'0px 0px -72% 0px'});
+  hs.forEach(function(h){ io.observe(h); });
+})();
+</script>
+</body>
+</html>

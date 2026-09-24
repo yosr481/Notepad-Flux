@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
-import { sanitizeFilename } from '../utils/fileSystem';
+import { sanitizeFilename, fileSystem } from '../utils/fileSystem';
+import { detectEol, detectCharset } from '../utils/eol';
 
 const SettingsContext = createContext();
 const TabStateContext = createContext();
@@ -147,6 +148,7 @@ export const SessionProvider = ({ children }) => {
             if (diskSession.settings) {
                 setSettings(prev => ({ ...prev, ...diskSession.settings }));
             }
+
         };
 
         const loadAndSetupSession = async (diskSession) => {
@@ -161,6 +163,13 @@ export const SessionProvider = ({ children }) => {
                         return indexA - indexB;
                     });
                 }
+
+                // Migrate missing eol/charset fields
+                loadedTabs = loadedTabs.map(t => ({
+                    ...t,
+                    eol: t.eol ?? detectEol(t.content),
+                    charset: t.charset ?? detectCharset(t.content)
+                }));
 
                 setTabs(loadedTabs);
             }
@@ -309,6 +318,37 @@ export const SessionProvider = ({ children }) => {
         saveMetadataDebounced({ activeTabId, recentFiles, settings });
     }, [activeTabId, recentFiles, settings, saveMetadataDebounced]);
 
+    // Check for missing files after session load (TASK 9 / QA finding 12)
+    useEffect(() => {
+        if (!isSessionLoaded || !isPrimaryWindow) return;
+
+        const cancelled = { flag: false };
+
+        (async () => {
+            for (const tab of currentTabsRef.current) {
+                // Electron keeps the absolute path in fileHandle (filePath is the
+                // display name); a string filePath with a separator is the fallback.
+                const diskPath = typeof tab.fileHandle === 'string' ? tab.fileHandle : tab.filePath;
+                if (typeof diskPath === 'string' && (diskPath.includes('/') || diskPath.includes('\\'))) {
+                    const exists = await fileSystem.fileExists(diskPath);
+                    if (!cancelled.flag && exists !== null) {
+                        const targetFileMissing = exists === false;
+                        const currentFileMissing = !!tab.fileMissing;
+                        if (targetFileMissing !== currentFileMissing) {
+                            setTabs(prev => prev.map(x =>
+                                x.id === tab.id ? { ...x, fileMissing: targetFileMissing } : x
+                            ));
+                        }
+                    }
+                }
+            }
+        })();
+
+        return () => {
+            cancelled.flag = true;
+        };
+    }, [isSessionLoaded, isPrimaryWindow]);
+
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
         nextTabId.current += 1;
@@ -319,8 +359,18 @@ export const SessionProvider = ({ children }) => {
             content: '',
             filePath: null,
             fileHandle: null,
-            ...initialData
+            eol: 'LF',
+            charset: 'UTF-8',
         };
+
+        // Detect eol/charset from content if provided and non-empty
+        if (typeof initialData.content === 'string' && initialData.content !== '') {
+            newTab.eol = detectEol(initialData.content);
+            newTab.charset = detectCharset(initialData.content);
+        }
+
+        // Spread initialData AFTER detection so explicit eol/charset wins
+        Object.assign(newTab, initialData);
 
         setTabs(curr => [...curr, newTab]);
         setActiveTabId(newId);
@@ -392,6 +442,10 @@ export const SessionProvider = ({ children }) => {
         });
     }, []);
 
+    const removeRecentFile = useCallback((filePath) => {
+        setRecentFiles(prev => prev.filter(f => f.filePath !== filePath));
+    }, []);
+
     const switchTab = useCallback((direction) => {
         setTabs(currentTabs => {
             const currentIndex = currentTabs.findIndex(t => t.id === currentActiveTabIdRef.current);
@@ -450,6 +504,8 @@ export const SessionProvider = ({ children }) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
     }, []);
 
+    // Retained as public API (actionsValue) though the close path now uses
+    // flushPendingSaves; callers that want an awaitable persist still use this.
     const saveSession = useCallback(async () => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
@@ -485,8 +541,8 @@ export const SessionProvider = ({ children }) => {
             metadataTimer.current = null;
         }
 
-        // Persist via snapshot
-        storage.saveSnapshot({
+        // Persist via snapshot (returned so the Electron close handshake can await it)
+        return storage.saveSnapshot({
             tabs: currentTabsRef.current,
             metadata: {
                 activeTabId: currentActiveTabIdRef.current,
@@ -496,6 +552,17 @@ export const SessionProvider = ({ children }) => {
             }
         });
     }, [isPrimaryWindow, isSessionLoaded]);
+
+    // Electron: main waits for this before letting the window close.
+    useEffect(() => {
+        return window.electronAPI?.onCloseRequested?.(async () => {
+            try {
+                await flushPendingSaves();
+            } catch (err) {
+                console.error('Failed to save session on close:', err);
+            }
+        });
+    }, [flushPendingSaves]);
 
     useEffect(() => {
         const onHide = () => {
@@ -509,22 +576,23 @@ export const SessionProvider = ({ children }) => {
         };
     }, [flushPendingSaves]);
 
-    // Save session before window closes (last-resort best-effort; beforeunload is
-    // synchronous so IndexedDB writes may not land — flushPendingSaves above is
-    // the reliable path).
+    // Flush pending saves before window closes: persist snapshot + clear debounced
+    // timers synchronously (last-resort best-effort; beforeunload is synchronous
+    // so IndexedDB writes may not land — flushPendingSaves above on blur is the
+    // reliable path).
     useEffect(() => {
         const handleBeforeUnload = () => {
             if (isPrimaryWindow && isSessionLoaded) {
                 // Since beforeunload is synchronous, we can't wait for the promise.
                 // However, storage operations might still complete if they start before the process dies.
                 // In Electron, we could use synchronous storage or IPC, but with IDB we do our best.
-                saveSession();
+                flushPendingSaves();
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [saveSession, isPrimaryWindow, isSessionLoaded]);
+    }, [flushPendingSaves, isPrimaryWindow, isSessionLoaded]);
 
     const clearRestoreWarning = useCallback(() => {
         setRestoreWarning(null);
@@ -558,10 +626,11 @@ export const SessionProvider = ({ children }) => {
         setTabs,
         reorderTabs,
         addRecentFile,
+        removeRecentFile,
         saveSession,
         clearSessionData,
         clearRestoreWarning
-    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
+    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, removeRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
 
     return (
         <SettingsContext.Provider value={settingsValue}>

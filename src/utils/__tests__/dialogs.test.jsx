@@ -128,6 +128,98 @@ describe('dialogs.confirm — resolution', () => {
     });
 });
 
+/**
+ * TASK 6 — dialogs.alert -> non-blocking design-system MessageBox (QA finding 9).
+ *
+ * Pinned contract:
+ *  - dialogs.alert(message) still returns a Promise.
+ *  - It mounts a MessageBox (role="dialog") via the same createRoot + flushSync +
+ *    container pattern as confirm/saveChangesPrompt — NOT window.alert.
+ *  - Exactly ONE button, labelled "OK" (primaryLabel: 'OK', secondaryLabel: null,
+ *    cancelLabel: null). No "Cancel", no "Don't Save".
+ *  - Resolves undefined when the user clicks OK or presses Escape/Enter.
+ *  - After resolution the mount container is removed from document.body.
+ *  - The plain-string signature must work (an { title, message } object may also
+ *    be accepted, but the string form is the pinned one).
+ */
+describe('dialogs.alert — non-blocking MessageBox (not window.alert)', () => {
+    it('returns a Promise', () => {
+        const p = dialogs.alert('Heads up');
+        expect(typeof p.then).toBe('function');
+        return flush().then(() => {
+            findButtonByText('OK')?.click();
+            return p;
+        });
+    });
+
+    it('mounts a design-system dialog (role="dialog") into document.body', async () => {
+        const p = dialogs.alert('Heads up');
+        await flush();
+        expect(findDialog()).toBeTruthy();
+        findButtonByText('OK').click();
+        await p;
+    });
+
+    it('shows the message text', async () => {
+        const p = dialogs.alert('The file could not be found');
+        await flush();
+        expect(findDialog().textContent).toContain('The file could not be found');
+        findButtonByText('OK').click();
+        await p;
+    });
+
+    it('renders exactly one button, labelled "OK" — no cancel button', async () => {
+        const p = dialogs.alert('x');
+        await flush();
+        const labels = [...document.querySelectorAll('[role="dialog"] button')]
+            .map(b => b.textContent.trim());
+        expect(labels).toEqual(['OK']);
+        findButtonByText('OK').click();
+        await p;
+    });
+
+    it('resolves undefined when OK is clicked', async () => {
+        const p = dialogs.alert('x');
+        await flush();
+        findButtonByText('OK').click();
+        await expect(p).resolves.toBeUndefined();
+    });
+
+    it('resolves undefined when Escape is pressed', async () => {
+        // Same act()-wrapping rationale as the confirm Escape test above: the
+        // keydown listener is registered in a useEffect.
+        let p;
+        await act(async () => {
+            p = dialogs.alert('x');
+        });
+        await act(async () => {
+            fireEvent.keyDown(document, { key: 'Escape' });
+        });
+        await expect(p).resolves.toBeUndefined();
+    });
+
+    it('removes the mount container from document.body after resolving', async () => {
+        const before = document.body.childElementCount;
+        const p = dialogs.alert('x');
+        await flush();
+        expect(document.body.childElementCount).toBe(before + 1);
+        findButtonByText('OK').click();
+        await p;
+        await flush();
+        expect(findDialog()).toBeNull();
+        expect(document.body.childElementCount).toBe(before);
+    });
+
+    it('accepts a plain string and treats it as the message', async () => {
+        const p = dialogs.alert('Just a string message');
+        await flush();
+        expect(findDialog()).toBeTruthy();
+        expect(findDialog().textContent).toContain('Just a string message');
+        findButtonByText('OK').click();
+        await p;
+    });
+});
+
 describe('dialogs.confirm — defaults & back-compat', () => {
     it('uses default labels "OK" and "Cancel"', async () => {
         const p = dialogs.confirm({ message: 'Proceed?' });

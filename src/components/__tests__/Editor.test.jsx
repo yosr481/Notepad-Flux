@@ -251,3 +251,41 @@ describe('Editor — replaceAll() guards a bad regex (P1-11)', () => {
         expect(getView(container).state.doc.toString()).toBe('bar bar bar');
     });
 });
+
+// TASK 1 — regression guard: per-line text direction is enabled.
+//
+// textDirection.js tags individual lines dir="rtl" for Hebrew/Arabic. Without
+// CodeMirror's EditorView.perLineTextDirection facet === true, CM computes
+// caret/selection geometry as if the whole editor were LTR, garbling arrow-key
+// caret movement and selection highlight on mixed-bidi lines ("RTL caret
+// stutter"). The one-line fix lives in Editor.jsx's extension list. jsdom can't
+// compute bidi caret geometry, so this pins the CONFIGURATION only.
+describe('Editor — per-line text direction facet (RTL caret stutter guard)', () => {
+    it('the mounted EditorView has state.facet(perLineTextDirection) === true', () => {
+        const { container } = mountEditor({ initialContent: 'שלום hello' });
+        expect(getView(container).state.facet(EditorView.perLineTextDirection)).toBe(true);
+    });
+
+    it('the facet stays true after switching tabs (survives view rebuild)', () => {
+        const { container, onContentChange, rerender } = mountEditor({
+            activeTabId: '1',
+            tabIds: ['1', '2'],
+            initialContent: 'aaa',
+        });
+
+        rerender(
+            <Editor
+                activeTabId="2"
+                tabIds={['1', '2']}
+                initialContent="ببب"
+                initialCursor={0}
+                initialScroll={0}
+                onContentChange={onContentChange}
+                onStatsUpdate={vi.fn()}
+                onStateChange={vi.fn()}
+            />
+        );
+
+        expect(getView(container).state.facet(EditorView.perLineTextDirection)).toBe(true);
+    });
+});

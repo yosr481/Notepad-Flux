@@ -15,8 +15,12 @@ vi.mock('../../context/SessionContext', () => ({
 // Mock utils
 vi.mock('../../utils/fileSystem', () => ({
     fileSystem: {
+        openFile: vi.fn(async () => null),
+        openFileFromHandle: vi.fn(async () => { throw new Error('nope'); }),
+        openFileFromPath: vi.fn(async () => { throw new Error('nope'); }),
         saveFile: vi.fn(async () => undefined),
         saveFileAs: vi.fn(async (_content, name) => ({ name, handle: {} })),
+        fileExists: vi.fn(async () => true),
         isSupported: vi.fn(() => true)
     }
 }));
@@ -50,7 +54,8 @@ describe('useCommands Hook', () => {
             switchTab: vi.fn(),
             reorderTabs: vi.fn(),
             setTabs: vi.fn(),
-            addRecentFile: vi.fn()
+            addRecentFile: vi.fn(),
+            removeRecentFile: vi.fn()
         };
         SessionContext.useTabState.mockReturnValue(mockTabState);
         SessionContext.useSessionActions.mockReturnValue(mockActions);
@@ -219,6 +224,19 @@ describe('useCommands — a successful save clears dirty via editorRef.markSaved
 
         expect(mockActions.updateTab).toHaveBeenCalledWith('1', expect.objectContaining({ isDirty: false }));
         expect(editorRef.current.markSaved).toHaveBeenCalled(); // fails today: never invoked
+    });
+
+    it('saveFileAs writes with the tab line ending and charset, like Save', async () => {
+        mockTabState.tabs[0].eol = 'CRLF';
+        mockTabState.tabs[0].charset = 'UTF-8 BOM';
+        const editorRef = { current: { getCurrentContent: () => 'a\nb', markSaved: vi.fn() } };
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => {
+            await result.current.saveFileAs(editorRef);
+        });
+
+        expect(fileSystem.saveFileAs.mock.calls.at(-1)[0]).toBe('\uFEFFa\r\nb');
     });
 
     it('does not call markSaved when saveFileAs is cancelled (no write happened)', async () => {
@@ -402,6 +420,67 @@ describe('useCommands — close-save throw shows a toast AND aborts the close (P
     });
 });
 
+describe('useCommands — openFile failures surface a toast (QA-1 / finding-7 parity)', () => {
+    let mockTabState;
+    let mockActions;
+    let showToast;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.openFile.mockImplementation(async () => null);
+        showToast = vi.fn();
+        mockTabState = {
+            tabs: [{ id: '1', title: 'Tab 1', content: '', isDirty: false }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            addRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    it('openFile: when fileSystem.openFile rejects, showToast is called with a string containing the error message', async () => {
+        fileSystem.openFile.mockRejectedValueOnce(new Error('EACCES: permission denied'));
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.openFile();
+        });
+
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('EACCES: permission denied'));
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+    });
+
+    it('openFile: when the picker is cancelled (resolves null), showToast is NOT called and nothing throws', async () => {
+        fileSystem.openFile.mockResolvedValueOnce(null);
+        const { result } = renderHook(() => useCommands(showToast));
+
+        let threw = false;
+        await act(async () => {
+            try {
+                await result.current.openFile();
+            } catch {
+                threw = true;
+            }
+        });
+
+        expect(threw).toBe(false);
+        expect(showToast).not.toHaveBeenCalled();
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+    });
+});
+
 describe('useCommands — close-save flushes the live editor for the active tab (P1-7)', () => {
     let mockTabState;
     let mockActions;
@@ -490,6 +569,21 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         expect(fileSystem.saveFileAs).toHaveBeenCalledWith('LIVE', expect.anything());
     });
 
+    it('closeWindow(): in Electron closes through main (flush handshake), not window.close', async () => {
+        mockTabState.tabs.forEach(t => { t.isDirty = false; });
+        const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
+        window.electronAPI = { closeWindow: vi.fn() };
+        try {
+            const { result } = renderHook(() => useCommands(showToast, liveRef()));
+            await act(async () => { await result.current.closeWindow(); });
+            expect(window.electronAPI.closeWindow).toHaveBeenCalledTimes(1);
+            expect(closeSpy).not.toHaveBeenCalled();
+        } finally {
+            delete window.electronAPI;
+            closeSpy.mockRestore();
+        }
+    });
+
     it('closeWindow(): flushes the live content for the active tab', async () => {
         mockTabState.tabs[1].isDirty = false; // only the active tab is dirty
         const { result } = renderHook(() => useCommands(showToast, liveRef()));
@@ -535,5 +629,451 @@ describe('useCommands — close-save flushes the live editor for the active tab 
         });
 
         expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'LIVE');
+    });
+});
+
+describe('openRecentFile when the file is gone (QA finding 9 / TASK 6)', () => {
+    // Pinned flow when BOTH the fileHandle open and the filePath open fail:
+    //  1. dialogs.confirm({ title: 'File not found', ... , confirmLabel: 'Locate…',
+    //     cancelLabel: 'Cancel' }) is shown FIRST — before any native picker.
+    //  2. confirm -> false: removeRecentFile(filePath) is called, then return.
+    //     The native picker (fileSystem.openFile) is NOT invoked. No toast, no alert.
+    //  3. confirm -> true: fileSystem.openFile() runs. If it returns null (picker
+    //     cancelled) -> just return: no createTab, no alert, no throw, no
+    //     removeRecentFile.
+    //  4. confirm -> true and openFile returns a file -> createTab with that file.
+    //  The outer catch (genuine unexpected errors) still uses dialogs.alert — not
+    //  exercised here.
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.isSupported.mockReturnValue(true);
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('File not found.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('File not found.'); });
+        fileSystem.openFile.mockImplementation(async () => null);
+
+        mockTabState = {
+            tabs: [{ id: '1', title: 'Tab 1', content: '', isDirty: false }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            setTabs: vi.fn(),
+            addRecentFile: vi.fn(),
+            removeRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const FILE_PATH = '/old/path/notes.md';
+    const FILE_NAME = 'notes.md';
+
+    const callOpenRecent = async (result) => {
+        let threw = false;
+        await act(async () => {
+            try {
+                await result.current.openRecentFile(FILE_PATH, FILE_NAME, {});
+            } catch {
+                threw = true;
+            }
+        });
+        return threw;
+    };
+
+    it('calls dialogs.confirm BEFORE fileSystem.openFile', async () => {
+        const order = [];
+        dialogs.confirm.mockImplementation(async () => { order.push('confirm'); return true; });
+        fileSystem.openFile.mockImplementation(async () => { order.push('openFile'); return null; });
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(order).toEqual(['confirm', 'openFile']);
+    });
+
+    it('confirm -> false: picker NOT opened, removeRecentFile(filePath) called, no throw', async () => {
+        dialogs.confirm.mockResolvedValue(false);
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(fileSystem.openFile).not.toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).toHaveBeenCalledWith(FILE_PATH);
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+        expect(dialogs.alert).not.toHaveBeenCalled();
+    });
+
+    it('confirm -> true, picker cancelled (null): no createTab, no alert, no removeRecentFile, no throw', async () => {
+        dialogs.confirm.mockResolvedValue(true);
+        fileSystem.openFile.mockResolvedValue(null);
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(fileSystem.openFile).toHaveBeenCalled();
+        expect(mockActions.createTab).not.toHaveBeenCalled();
+        expect(dialogs.alert).not.toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('a non-missing failure (binary file) is toasted with its reason; no confirm, entry kept', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        const showToast = vi.fn();
+
+        const { result } = renderHook(() => useCommands(showToast));
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Not a text file.'));
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('Electron shape: the handle error (binary) wins over the bare-name fallback error', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('Not a text file.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        const showToast = vi.fn();
+
+        const { result } = renderHook(() => useCommands(showToast));
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).not.toHaveBeenCalled();
+        expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Not a text file.'));
+    });
+
+    it('an unauthorized path offers Locate, but Cancel keeps the recent entry', async () => {
+        fileSystem.openFileFromHandle.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        fileSystem.openFileFromPath.mockImplementation(async () => { throw new Error('That file path is not authorized.'); });
+        dialogs.confirm.mockResolvedValue(false);
+
+        const { result } = renderHook(() => useCommands());
+        await callOpenRecent(result);
+
+        expect(dialogs.confirm).toHaveBeenCalled();
+        expect(mockActions.removeRecentFile).not.toHaveBeenCalled();
+    });
+
+    it('confirm -> true, picker returns a file: createTab is called with that file', async () => {
+        dialogs.confirm.mockResolvedValue(true);
+        fileSystem.openFile.mockResolvedValue({ name: 'relocated.md', content: 'hello', handle: {} });
+
+        const { result } = renderHook(() => useCommands());
+        const threw = await callOpenRecent(result);
+
+        expect(threw).toBe(false);
+        expect(mockActions.createTab).toHaveBeenCalledWith(
+            expect.objectContaining({ title: 'relocated.md', content: 'hello', isDirty: false })
+        );
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 7 / QA finding 10 — closeWindow must still prompt for a LONE dirty tab
+// on a non-primary window, and the hook must expose isPrimaryWindow.
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * useCommands()'s returned object includes `isPrimaryWindow` (passed through
+//    from useTabState) so App.jsx can gate its beforeunload guard on it.
+//  * closeWindow() on a NON-primary window: the dirty-check + saveChangesPrompt
+//    + save runs for EVERY dirty tab, including the last remaining one. The
+//    old `if (liveState.current.tabs.length <= 1) break;` guard must not skip
+//    the prompt (data-loss gap). Only the final context closeTab is still
+//    guarded so one default tab survives.
+//  * choice 'cancel' aborts the whole close: window.close() is not reached.
+//  * choice 'save' + a successful persist: window.close() IS reached; the
+//    context-level closeTab is NOT called for that last tab (it stays).
+
+describe('useCommands — isPrimaryWindow passthrough + lone-dirty-tab closeWindow prompt (TASK 7)', () => {
+    let mockTabState;
+    let mockActions;
+    let showToast;
+    let closeSpy;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async (_c, name) => ({ name, handle: {} }));
+        fileSystem.isSupported.mockReturnValue(true);
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
+
+        showToast = vi.fn();
+        mockTabState = {
+            tabs: [{ id: '1', title: 'LoneDirty', content: 'old', isDirty: true, fileHandle: {} }],
+            activeTabId: '1',
+            isPrimaryWindow: false,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(),
+            createTab: vi.fn(),
+            closeTab: vi.fn(),
+            updateTab: vi.fn(),
+            switchTab: vi.fn(),
+            reorderTabs: vi.fn(),
+            addRecentFile: vi.fn()
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+        closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {});
+    });
+
+    afterEach(() => {
+        closeSpy.mockRestore();
+    });
+
+    it('exposes isPrimaryWindow from the hook (mirrors useTabState)', () => {
+        const { result } = renderHook(() => useCommands(showToast));
+        expect(result.current.isPrimaryWindow).toBe(false);
+
+        mockTabState.isPrimaryWindow = true;
+        const { result: r2 } = renderHook(() => useCommands(showToast));
+        expect(r2.current.isPrimaryWindow).toBe(true);
+    });
+
+    it('closeWindow(): a single dirty tab still triggers dialogs.saveChangesPrompt', async () => {
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(dialogs.saveChangesPrompt).toHaveBeenCalled();
+    });
+
+    it('closeWindow(): choice "cancel" on the lone dirty tab aborts — window.close not called', async () => {
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'cancel');
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(closeSpy).not.toHaveBeenCalled();
+    });
+
+    it('closeWindow(): choice "save" on the lone dirty tab saves, then closes, keeping the last tab', async () => {
+        dialogs.saveChangesPrompt.mockImplementation(async () => 'save');
+        const { result } = renderHook(() => useCommands(showToast));
+
+        await act(async () => {
+            await result.current.closeWindow();
+        });
+
+        expect(fileSystem.saveFile).toHaveBeenCalled();
+        expect(closeSpy).toHaveBeenCalled();
+        expect(mockActions.closeTab).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 9 — a fileMissing tab must NOT save in place; it routes to Save As,
+// and a successful Save As clears the flag (QA finding 12).
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * persistTab's in-place branches are gated on `!tab.fileMissing`:
+//      - `tab.fileHandle && !tab.fileMissing`  (native handle write)
+//      - `!canSaveInPlace() && tab.filePath && !tab.fileMissing` (path write)
+//    So a fileMissing tab — even one that still has a fileHandle / filePath —
+//    falls through to the title-based `fileSystem.saveFileAs(content, tab.title)`
+//    branch. `fileSystem.saveFile` is never called for it.
+//  * On a successful Save As the tab's update payload carries `fileMissing:false`
+//    (both via persistTab's final branch and via the saveFileAs command).
+//  * The cached buffer is still the content that gets written.
+//  * A normal tab (fileMissing falsy) with a fileHandle is unaffected — it still
+//    saves in place via fileSystem.saveFile.
+
+describe('useCommands — a fileMissing tab saves through Save As (TASK 9 / QA finding 12)', () => {
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async () => ({ name: 'x.md', handle: '/new/x.md' }));
+        fileSystem.isSupported.mockReturnValue(true);
+
+        mockTabState = {
+            tabs: [{
+                id: '1', title: 'x.md', content: 'cached', isDirty: true,
+                fileHandle: '/abs/x.md', filePath: '/abs/x.md', fileMissing: true,
+            }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null,
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(), createTab: vi.fn(), closeTab: vi.fn(),
+            updateTab: vi.fn(), switchTab: vi.fn(), reorderTabs: vi.fn(),
+            setTabs: vi.fn(), addRecentFile: vi.fn(), removeRecentFile: vi.fn(),
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const mkEditorRef = () => ({ current: { getCurrentContent: () => 'live text', markSaved: vi.fn() } });
+
+    it('saveFile: routes a fileMissing tab to fileSystem.saveFileAs, never fileSystem.saveFile', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(fileSystem.saveFileAs).toHaveBeenCalledWith('live text', 'x.md');
+        expect(fileSystem.saveFile).not.toHaveBeenCalled();
+    });
+
+    it('saveFile: a successful Save As clears fileMissing (updateTab { fileMissing: false, isDirty: false })', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ fileMissing: false, isDirty: false }),
+        );
+    });
+
+    it('saveFileAs command: a successful write clears fileMissing on the active tab', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFileAs(mkEditorRef()); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ fileMissing: false }),
+        );
+    });
+
+    it('regression: a normal tab (fileMissing falsy) with a fileHandle still saves in place', async () => {
+        mockTabState.tabs[0].fileMissing = false;
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef()); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalled();
+        expect(fileSystem.saveFileAs).not.toHaveBeenCalled();
+    });
+});
+
+// ---------------------------------------------------------------------------
+// TASK 10 — persistTab normalizes line endings + charset on the disk write only
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//  * persistTab computes the on-disk form ONCE at the top:
+//      outContent = applyCharset(normalizeEol(content, tab.eol || 'LF'),
+//                                tab.charset || 'UTF-8')
+//    and passes `outContent` to every fileSystem.saveFile / saveFileAs call.
+//  * The editor works in LF internally: the updateTab({ content, ... }) calls
+//    still store the ORIGINAL `content`, NOT the normalized bytes.
+//  * A tab with eol 'LF' + charset 'UTF-8' (or missing both) writes the content
+//    through unchanged — regression guard.
+
+describe('useCommands — persistTab EOL + charset normalization on save (TASK 10)', () => {
+    let mockTabState;
+    let mockActions;
+
+    beforeEach(() => {
+        vi.clearAllMocks();
+        fileSystem.saveFile.mockImplementation(async () => undefined);
+        fileSystem.saveFileAs.mockImplementation(async (_c, name) => ({ name, handle: {} }));
+        fileSystem.isSupported.mockReturnValue(true);
+
+        mockTabState = {
+            tabs: [{
+                id: '1', title: 'note.md', content: 'a\nb', isDirty: true,
+                fileHandle: {}, eol: 'CRLF', charset: 'UTF-8',
+            }],
+            activeTabId: '1',
+            isPrimaryWindow: true,
+            isSessionLoaded: true,
+            recentFiles: [],
+            restoreWarning: null,
+        };
+        mockActions = {
+            setActiveTabId: vi.fn(), createTab: vi.fn(), closeTab: vi.fn(),
+            updateTab: vi.fn(), switchTab: vi.fn(), reorderTabs: vi.fn(),
+            setTabs: vi.fn(), addRecentFile: vi.fn(), removeRecentFile: vi.fn(),
+        };
+        SessionContext.useTabState.mockReturnValue(mockTabState);
+        SessionContext.useSessionActions.mockReturnValue(mockActions);
+    });
+
+    const mkEditorRef = (text = 'a\nb') => ({
+        current: { getCurrentContent: () => text, markSaved: vi.fn() },
+    });
+
+    it('eol "CRLF": the bytes handed to fileSystem.saveFile use \\r\\n', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'a\r\nb');
+    });
+
+    it('the cached tab content stays LF — updateTab still stores the original', async () => {
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(mockActions.updateTab).toHaveBeenCalledWith(
+            '1',
+            expect.objectContaining({ content: 'a\nb', isDirty: false }),
+        );
+    });
+
+    it('charset "UTF-8 BOM": the bytes handed to fileSystem.saveFile start with U+FEFF', async () => {
+        mockTabState.tabs[0].charset = 'UTF-8 BOM';
+        mockTabState.tabs[0].eol = 'LF';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        const written = fileSystem.saveFile.mock.calls[0][1];
+        expect(written.charCodeAt(0)).toBe(0xFEFF);
+        expect(written).toBe('﻿a\nb');
+    });
+
+    it('regression: eol "LF" + charset "UTF-8" writes the content through unchanged', async () => {
+        mockTabState.tabs[0].eol = 'LF';
+        mockTabState.tabs[0].charset = 'UTF-8';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFile).toHaveBeenCalledWith(expect.anything(), 'a\nb');
+    });
+
+    // persistTab's else branch (no fileHandle, no filePath) also routes through
+    // the same normalized `outContent`.
+    it('persistTab Save-As fallback: a CRLF tab hands \\r\\n bytes to fileSystem.saveFileAs', async () => {
+        mockTabState.tabs[0].fileHandle = undefined;
+        mockTabState.tabs[0].filePath = undefined;
+        mockTabState.tabs[0].eol = 'CRLF';
+        const { result } = renderHook(() => useCommands());
+
+        await act(async () => { await result.current.saveFile(mkEditorRef('a\nb')); });
+
+        expect(fileSystem.saveFileAs).toHaveBeenCalledWith('a\r\nb', 'note.md');
     });
 });

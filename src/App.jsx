@@ -9,6 +9,7 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
+import { useFileDrop } from './hooks/useFileDrop';
 import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
@@ -24,6 +25,11 @@ function App() {
         if (window.electronAPI?.getAppVersion) {
             window.electronAPI.getAppVersion().then(setAppVersion).catch(() => { });
         }
+        // Windows draws overlay caption buttons over the top-right of the page;
+        // mark the body so the tab bar can reserve room for them (that platform only).
+        if (window.electronAPI?.platform === 'win32') {
+            document.body.classList.add('platform-win32');
+        }
     }, []);
     const [stats, setStats] = useState({
         line: 1,
@@ -34,7 +40,7 @@ function App() {
 
     const { settings, updateSettings } = useSettings();
     const { restoreWarning } = useTabState();
-    const { clearRestoreWarning } = useSessionActions();
+    const { clearRestoreWarning, createTab } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -55,6 +61,8 @@ function App() {
     const hideToast = useCallback(() => {
         setToast({ message: '', show: false });
     }, []);
+
+    useFileDrop({ createTab, showToast });
 
     useEffect(() => {
         if (restoreWarning) {
@@ -95,12 +103,13 @@ function App() {
         recentFiles,
         closeWindow,
         tabs,
-        activeTabId
+        activeTabId,
+        isPrimaryWindow
     } = useCommands(showToast, editorRef);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (tabs.some(t => t.isDirty)) {
+            if (!isPrimaryWindow && tabs.some(t => t.isDirty)) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -108,7 +117,7 @@ function App() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [tabs]);
+    }, [tabs, isPrimaryWindow]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
@@ -277,7 +286,7 @@ function App() {
                 />
             </div>
 
-            <StatusBar stats={stats} appVersion={appVersion} />
+            <StatusBar stats={stats} appVersion={appVersion} eol={activeTab.eol} charset={activeTab.charset} />
 
             {contextMenu && (
                 <ContextMenu

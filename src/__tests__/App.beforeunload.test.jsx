@@ -35,6 +35,7 @@ vi.mock('../components/Layout/MenuBar', () => ({
 const mockCtl = {
     tabs: [{ id: 'tab-1', title: 'Untitled', content: '', isDirty: false }],
     closeTab: vi.fn(),
+    isPrimaryWindow: true,
 };
 
 vi.mock('../hooks/useCommands', () => ({
@@ -58,7 +59,7 @@ vi.mock('../hooks/useCommands', () => ({
         reorderTabs: vi.fn(),
         recentFiles: [],
         closeWindow: vi.fn(),
-        isPrimaryWindow: true,
+        isPrimaryWindow: mockCtl.isPrimaryWindow,
     }),
 }));
 
@@ -72,7 +73,7 @@ const renderApp = () =>
         </SessionProvider>
     );
 
-describe('App beforeunload dirty guard — synchronous, all windows (P1-6a)', () => {
+describe('App beforeunload dirty guard — only non-primary windows block (TASK 7 / QA-10)', () => {
     beforeEach(() => {
         Object.defineProperty(navigator, 'locks', {
             configurable: true,
@@ -81,6 +82,7 @@ describe('App beforeunload dirty guard — synchronous, all windows (P1-6a)', ()
         });
         mockCtl.tabs = [{ id: 'tab-1', title: 'Untitled', content: '', isDirty: false }];
         mockCtl.closeTab = vi.fn();
+        mockCtl.isPrimaryWindow = true;
     });
 
     afterEach(() => {
@@ -88,7 +90,22 @@ describe('App beforeunload dirty guard — synchronous, all windows (P1-6a)', ()
         vi.clearAllMocks();
     });
 
-    it('preventDefaults beforeunload when a tab is dirty (even the primary window)', () => {
+    // The primary window persists the session on close and must never block or
+    // nag — session-restore brings unsaved buffers back next launch.
+    it('primary window: does NOT preventDefault even when a tab is dirty', () => {
+        mockCtl.isPrimaryWindow = true;
+        mockCtl.tabs = [{ id: 'tab-1', title: 'X', content: '', isDirty: true }];
+        renderApp();
+
+        const e = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(e);
+
+        expect(e.defaultPrevented).toBe(false);
+    });
+
+    // A non-primary window does NOT persist tabs, so it keeps the dirty-guard.
+    it('non-primary window: preventDefaults when a tab is dirty', () => {
+        mockCtl.isPrimaryWindow = false;
         mockCtl.tabs = [{ id: 'tab-1', title: 'X', content: '', isDirty: true }];
         renderApp();
 
@@ -98,7 +115,19 @@ describe('App beforeunload dirty guard — synchronous, all windows (P1-6a)', ()
         expect(e.defaultPrevented).toBe(true);
     });
 
-    it('does not preventDefault beforeunload when no tab is dirty', () => {
+    it('non-primary window: does NOT preventDefault when no tab is dirty', () => {
+        mockCtl.isPrimaryWindow = false;
+        mockCtl.tabs = [{ id: 'tab-1', title: 'X', content: '', isDirty: false }];
+        renderApp();
+
+        const e = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(e);
+
+        expect(e.defaultPrevented).toBe(false);
+    });
+
+    it('primary window: does NOT preventDefault when no tab is dirty', () => {
+        mockCtl.isPrimaryWindow = true;
         mockCtl.tabs = [{ id: 'tab-1', title: 'X', content: '', isDirty: false }];
         renderApp();
 
@@ -118,6 +147,7 @@ describe('App wiring — close paths thread the live editor ref (P1-7)', () => {
         });
         mockCtl.tabs = [{ id: 'tab-1', title: 'Untitled', content: '', isDirty: false }];
         mockCtl.closeTab = vi.fn();
+        mockCtl.isPrimaryWindow = true;
     });
 
     afterEach(() => {

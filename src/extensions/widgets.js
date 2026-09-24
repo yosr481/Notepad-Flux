@@ -36,8 +36,8 @@ export class CheckboxWidget extends WidgetType {
             const lineText = line.text;
 
             // Find the checkbox pattern in the line
-            // We look for - [ ] or - [x]
-            const match = lineText.match(/^(\s*[-*] )\[([ x])\]/);
+            // We look for - [ ] or - [x] or - [X] or * [ ] etc.
+            const match = lineText.match(/^(\s*[-*] )\[([ xX])\]/);
 
             if (match) {
                 const prefix = match[1];
@@ -104,5 +104,49 @@ export class TableWidget extends WidgetType {
     eq(other) { return other.htmlContent === this.htmlContent; }
 
     ignoreEvent() { return true; }
+}
+
+export class EntityWidget extends WidgetType {
+    constructor(ch) {
+        super();
+        this.ch = ch;
+    }
+
+    toDOM() {
+        const span = document.createElement("span");
+        span.className = "cm-entity";
+        span.textContent = this.ch;
+        return span;
+    }
+
+    eq(other) {
+        return other.ch === this.ch;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
+}
+
+export class OrderedMarkerWidget extends WidgetType {
+    constructor(text) {
+        super();
+        this.text = text;
+    }
+
+    toDOM() {
+        const span = document.createElement("span");
+        span.className = "cm-ordered-marker";
+        span.textContent = this.text;
+        return span;
+    }
+
+    eq(other) {
+        return other.text === this.text;
+    }
+
+    ignoreEvent() {
+        return false;
+    }
 }
 

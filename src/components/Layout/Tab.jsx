@@ -2,7 +2,7 @@ import React from 'react';
 import { X } from 'lucide-react';
 import styles from './Tabs.module.css';
 
-const Tab = React.forwardRef(({ id, title, isActive, isDirty, onClick, onClose, onContextMenu, style, attributes, listeners }, ref) => {
+const Tab = React.forwardRef(({ id, title, isActive, isDirty, fileMissing, onClick, onClose, onContextMenu, style, attributes, listeners }, ref) => {
     const handleClose = (e) => {
         e.stopPropagation();
         onClose(id);
@@ -24,6 +24,7 @@ const Tab = React.forwardRef(({ id, title, isActive, isDirty, onClick, onClose, 
                     {title}
                 </span>
                 <div className={styles.tabIndicator}>
+                    {fileMissing && <span data-testid="tab-file-missing" className={styles.missingIndicator} title="File moved or deleted — saving will ask for a new location">⚠</span>}
                     {isDirty && <div className={styles.dirtyIndicator}></div>}
                     <button className={styles.closeButton} onClick={handleClose} onPointerDown={(e) => e.stopPropagation()}>
                         <X />

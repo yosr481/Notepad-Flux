@@ -51,7 +51,9 @@ const MessageBox = ({
           <p className={styles.message}>{message}</p>
         </div>
         <div className={styles.actions}>
-          <button className={styles.cancelButton} onClick={onCancel}>{cancelLabel}</button>
+          {cancelLabel != null && (
+            <button className={styles.cancelButton} onClick={onCancel}>{cancelLabel}</button>
+          )}
           <div className={styles.spacer} />
           {secondaryLabel != null && (
             <button className={styles.secondaryButton} onClick={onSecondary}>{secondaryLabel}</button>

@@ -350,4 +350,17 @@ export const fileSystem = {
 
     openFileFromPath: (filePath) => getDriver().openFileFromPath(filePath),
 
+    // Electron-only: open a file dropped on the window -> { handle, content, name }.
+    // null on the web build (caller reads the File directly).
+    openDroppedFile: async (file) => {
+        const result = await window.electronAPI?.openDroppedFile?.(file);
+        if (!result) return null;
+        return { handle: result.filePath, content: result.content, name: getFilenameFromPath(result.filePath) };
+    },
+
+    // Electron-only: does this absolute path currently exist on disk?
+    // boolean in Electron for granted paths; null when unknown (web build, or a
+    // path main never granted).
+    fileExists: (p) => (window.electronAPI?.fileExists ? window.electronAPI.fileExists(p) : Promise.resolve(null)),
+
 };
