@@ -1,8 +1,9 @@
 import { useEffect } from 'react';
 import { fileSystem } from '../utils/fileSystem';
+import { openIntoTab } from '../utils/openIntoTab';
 
 export const openDroppedFiles = async (fileList, deps) => {
-    const { createTab, showToast } = deps;
+    const { createTab, addRecentFile, showToast } = deps;
 
     if (!fileList || typeof fileList[Symbol.iterator] !== 'function') {
         return;
@@ -13,23 +14,11 @@ export const openDroppedFiles = async (fileList, deps) => {
             const dropped = await fileSystem.openDroppedFile(file);
             if (dropped) {
                 // Electron file: main read it and granted the path.
-                createTab({
-                    title: dropped.name,
-                    content: dropped.content,
-                    filePath: dropped.name,
-                    fileHandle: dropped.handle,
-                    isDirty: false,
-                });
+                openIntoTab({ name: dropped.name, content: dropped.content, handle: dropped.handle }, { createTab, addRecentFile });
             } else {
                 // Web file
                 const content = await file.text();
-                createTab({
-                    title: file.name,
-                    content,
-                    filePath: file.name,
-                    fileHandle: null,
-                    isDirty: false,
-                });
+                openIntoTab({ name: file.name, content, handle: null }, { createTab, addRecentFile });
             }
         } catch (err) {
             showToast?.(`Could not open "${file.name || 'file'}": ${err?.message || 'unknown error'}`);
@@ -38,7 +27,7 @@ export const openDroppedFiles = async (fileList, deps) => {
 };
 
 export const useFileDrop = (deps) => {
-    const { createTab, showToast } = deps;
+    const { createTab, addRecentFile, showToast } = deps;
 
     useEffect(() => {
         // Only file drops are ours. Text drags (moving a selection inside the
@@ -53,7 +42,7 @@ export const useFileDrop = (deps) => {
         const handleDrop = (e) => {
             if (!hasFiles(e)) return;
             e.preventDefault();
-            openDroppedFiles(e.dataTransfer?.files ?? [], { createTab, showToast });
+            openDroppedFiles(e.dataTransfer?.files ?? [], { createTab, addRecentFile, showToast });
         };
 
         window.addEventListener('dragover', handleDragOver, { capture: true });
@@ -63,5 +52,5 @@ export const useFileDrop = (deps) => {
             window.removeEventListener('dragover', handleDragOver, { capture: true });
             window.removeEventListener('drop', handleDrop, { capture: true });
         };
-    }, [createTab, showToast]);
+    }, [createTab, addRecentFile, showToast]);
 };

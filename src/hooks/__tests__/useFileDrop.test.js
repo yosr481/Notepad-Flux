@@ -20,12 +20,13 @@ beforeEach(() => {
 // openDroppedFiles
 // ---------------------------------------------------------------------------
 describe('openDroppedFiles', () => {
-    it('Electron file (openDroppedFile resolves): createTab with name as filePath, full path as fileHandle', async () => {
+    it('Electron file (openDroppedFile resolves): createTab with name as filePath, full path as fileHandle, and lands in Recent Files', async () => {
         const createTab = vi.fn();
+        const addRecentFile = vi.fn();
         const showToast = vi.fn();
         const file = { name: 'note.md' };
         fileSystem.openDroppedFile.mockResolvedValueOnce({ handle: '/abs/note.md', content: 'FILE BODY', name: 'note.md' });
-        await openDroppedFiles([file], { createTab, showToast });
+        await openDroppedFiles([file], { createTab, addRecentFile, showToast });
 
         expect(fileSystem.openDroppedFile).toHaveBeenCalledWith(file);
         expect(createTab).toHaveBeenCalledTimes(1);
@@ -36,14 +37,16 @@ describe('openDroppedFiles', () => {
             fileHandle: '/abs/note.md',
             isDirty: false,
         });
+        expect(addRecentFile).toHaveBeenCalledWith('note.md', 'note.md', '/abs/note.md');
         expect(showToast).not.toHaveBeenCalled();
     });
 
-    it('web file (openDroppedFile returns null): uses file.text(), createTab with name-derived fields, openFileFromPath NOT called', async () => {
+    it('web file (openDroppedFile returns null): uses file.text(), createTab with name-derived fields, and lands in Recent Files', async () => {
         const createTab = vi.fn();
+        const addRecentFile = vi.fn();
         const showToast = vi.fn();
         const text = vi.fn(async () => 'WEB BODY');
-        await openDroppedFiles([{ name: 'w.md', text }], { createTab, showToast });
+        await openDroppedFiles([{ name: 'w.md', text }], { createTab, addRecentFile, showToast });
 
         expect(text).toHaveBeenCalledTimes(1);
         expect(createTab).toHaveBeenCalledTimes(1);
@@ -54,6 +57,7 @@ describe('openDroppedFiles', () => {
             fileHandle: null,
             isDirty: false,
         });
+        expect(addRecentFile).toHaveBeenCalledWith('w.md', 'w.md', null);
     });
 
     it('two files (Electron + web): createTab called twice, once per file, correct args each', async () => {
@@ -181,9 +185,10 @@ describe('useFileDrop', () => {
         expect(createTab).not.toHaveBeenCalled();
     });
 
-    it('drop on window is preventDefault-ed and eventually calls createTab', async () => {
+    it('drop on window is preventDefault-ed and eventually calls createTab + addRecentFile', async () => {
         const createTab = vi.fn();
-        renderHook(() => useFileDrop({ createTab, showToast: vi.fn() }));
+        const addRecentFile = vi.fn();
+        renderHook(() => useFileDrop({ createTab, addRecentFile, showToast: vi.fn() }));
 
         fileSystem.openDroppedFile.mockResolvedValueOnce({ handle: '/a/x.md', content: 'FILE BODY', name: 'x.md' });
         const e = fireDrop([{ name: 'x.md' }]);
@@ -196,6 +201,8 @@ describe('useFileDrop', () => {
             fileHandle: '/a/x.md',
             isDirty: false,
         });
+        // final-architect follow-up: a drag-opened file must land in Recents too.
+        expect(addRecentFile).toHaveBeenCalledWith('x.md', 'x.md', '/a/x.md');
     });
 
     it('drop with missing dataTransfer does not throw and does not call createTab', async () => {

@@ -40,7 +40,7 @@ function App() {
 
     const { settings, updateSettings } = useSettings();
     const { restoreWarning } = useTabState();
-    const { clearRestoreWarning, createTab } = useSessionActions();
+    const { clearRestoreWarning, createTab, addRecentFile } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -62,7 +62,7 @@ function App() {
         setToast({ message: '', show: false });
     }, []);
 
-    useFileDrop({ createTab, showToast });
+    useFileDrop({ createTab, addRecentFile, showToast });
 
     useEffect(() => {
         if (restoreWarning) {
