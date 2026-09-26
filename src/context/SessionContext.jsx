@@ -368,6 +368,7 @@ export const SessionProvider = ({ children }) => {
             fileHandle: null,
             eol: 'LF',
             charset: 'UTF-8',
+            fileMissing: false,
         };
 
         // Detect eol/charset from content if provided and non-empty

@@ -1131,6 +1131,15 @@ describe('SessionContext — createTab eol/charset detection (TASK 10)', () => {
         expect(activeTab(api).charset).toBe('UTF-8');
     });
 
+    // final-architect follow-up: fileMissing was not defaulted in createTab
+    // while eol/charset were — symmetry only (all reads were already
+    // truthy-guarded, no observed bug).
+    it('a brand-new tab defaults fileMissing: false, same as eol/charset', () => {
+        const api = renderSession();
+        act(() => { api.createTab({}); });
+        expect(activeTab(api).fileMissing).toBe(false);
+    });
+
     it('an explicit eol wins over what the content would detect', () => {
         const api = renderSession();
         act(() => { api.createTab({ content: 'a\nb', eol: 'CRLF' }); });
