@@ -4,6 +4,7 @@ import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
 import { exportToHtml } from '../utils/export';
 import { normalizeEol, applyCharset } from '../utils/eol';
+import { openIntoTab } from '../utils/openIntoTab';
 import { createRoot } from 'react-dom/client';
 import PrintDocument from '../components/Print/PrintDocument';
 import jsPDF from 'jspdf';
@@ -147,14 +148,7 @@ export const useCommands = (showToast, editorRef) => {
         try {
             const file = await fileSystem.openFile();
             if (file) {
-                createTab({
-                    title: file.name,
-                    content: file.content,
-                    filePath: file.name,
-                    fileHandle: file.handle,
-                    isDirty: false
-                });
-                addRecentFile(file.name, file.name, file.handle);
+                openIntoTab(file, { createTab, addRecentFile });
             }
         } catch (error) {
             console.error("Failed to open file", error);
@@ -257,14 +251,7 @@ export const useCommands = (showToast, editorRef) => {
                 if (!file) return;
             }
 
-            createTab({
-                title: file.name,
-                content: file.content,
-                filePath: file.name,
-                fileHandle: file.handle,
-                isDirty: false
-            });
-            addRecentFile(file.name, file.name, file.handle);
+            openIntoTab(file, { createTab, addRecentFile });
         } catch (error) {
             console.error(`Failed to open recent file: ${fileName}`, error);
             await dialogs.alert(`Could not open file "${fileName}". The file may have been moved or deleted.`);
