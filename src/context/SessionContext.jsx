@@ -227,9 +227,16 @@ export const SessionProvider = ({ children }) => {
 
             setIsPrimaryWindow(true);
             try {
-                // Reload the on-disk session as the base
+                // Reload the on-disk session as the base. Migrate missing eol/charset
+                // fields, same as loadAndSetupSession, so a promoted window's disk
+                // tabs don't reach StatusBar/persistTab without them.
                 const diskSession = await storage.loadSession();
-                const diskTabMap = new Map((diskSession.tabs || []).map(t => [t.id, t]));
+                const diskTabs = (diskSession.tabs || []).map(t => ({
+                    ...t,
+                    eol: t.eol ?? detectEol(t.content),
+                    charset: t.charset ?? detectCharset(t.content)
+                }));
+                const diskTabMap = new Map(diskTabs.map(t => [t.id, t]));
 
                 // Identify meaningful local tabs (use ref to avoid effect dependency)
                 // A tab is NOT meaningful if: content === '' && isDirty !== true && filePath == null &&
@@ -247,7 +254,7 @@ export const SessionProvider = ({ children }) => {
                 });
 
                 // Build merged tabs: disk tabs + meaningful local tabs
-                const mergedTabs = [...(diskSession.tabs || [])];
+                const mergedTabs = [...diskTabs];
                 for (const localTab of meaningfulLocalTabs) {
                     const idx = mergedTabs.findIndex(t => t.id === localTab.id);
                     if (idx !== -1) {

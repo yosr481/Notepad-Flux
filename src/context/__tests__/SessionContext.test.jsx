@@ -296,6 +296,29 @@ describe('SessionContext primary-window failover (P0-4 / A1 / A2)', () => {
         expect(storage.saveTab).not.toHaveBeenCalled();
     });
 
+    // final-architect follow-up: onPromoted must backfill eol/charset the same
+    // way loadAndSetupSession does — a promoted window's disk tabs previously
+    // reached StatusBar/persistTab with eol/charset undefined.
+    it('backfills eol/charset on the disk tabs adopted during promotion', async () => {
+        storage.loadSession.mockResolvedValue({
+            tabs: [{ id: 'disk-a', title: 'Alpha', content: 'a\r\nb', isDirty: false, filePath: null, fileHandle: null }],
+            activeTabId: 'disk-a', recentFiles: [], settings: {},
+        });
+
+        const { apiA, apiB } = renderWindows(2);
+        await waitFor(() => expect(apiA.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(navigator.locks.__queueLength(LOCK_NAME)).toBe(1));
+
+        await act(async () => {
+            navigator.locks.__release(LOCK_NAME);
+        });
+
+        await waitFor(() => expect(apiB.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(apiB.tabs.map(t => t.id)).toEqual(['disk-a']));
+        expect(apiB.tabs[0].eol).toBe('CRLF');
+        expect(apiB.tabs[0].charset).toBe('UTF-8');
+    });
+
     // #7 — A2: restoreWarning surfaces failed-to-decrypt tabs.
     it('exposes a restoreWarning string when one restored tab failed to decrypt', async () => {
         storage.loadSession.mockResolvedValue({
