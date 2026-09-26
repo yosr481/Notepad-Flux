@@ -36,6 +36,7 @@ describe('openDroppedFiles', () => {
             filePath: 'note.md',
             fileHandle: '/abs/note.md',
             isDirty: false,
+            charset: 'UTF-8',
         });
         expect(addRecentFile).toHaveBeenCalledWith('note.md', 'note.md', '/abs/note.md');
         expect(showToast).not.toHaveBeenCalled();
@@ -56,6 +57,7 @@ describe('openDroppedFiles', () => {
             filePath: 'w.md',
             fileHandle: null,
             isDirty: false,
+            charset: 'UTF-8',
         });
         expect(addRecentFile).toHaveBeenCalledWith('w.md', 'w.md', null);
     });
@@ -80,6 +82,7 @@ describe('openDroppedFiles', () => {
             filePath: 'a.md',
             fileHandle: '/abs/a.md',
             isDirty: false,
+            charset: 'UTF-8',
         });
         expect(createTab).toHaveBeenNthCalledWith(2, {
             title: 'w.md',
@@ -87,6 +90,7 @@ describe('openDroppedFiles', () => {
             filePath: 'w.md',
             fileHandle: null,
             isDirty: false,
+            charset: 'UTF-8',
         });
     });
 
@@ -117,6 +121,7 @@ describe('openDroppedFiles', () => {
             filePath: 'good.md',
             fileHandle: null,
             isDirty: false,
+            charset: 'UTF-8',
         });
     });
 
@@ -200,6 +205,7 @@ describe('useFileDrop', () => {
             filePath: 'x.md',
             fileHandle: '/a/x.md',
             isDirty: false,
+            charset: 'UTF-8',
         });
         // final-architect follow-up: a drag-opened file must land in Recents too.
         expect(addRecentFile).toHaveBeenCalledWith('x.md', 'x.md', '/a/x.md');

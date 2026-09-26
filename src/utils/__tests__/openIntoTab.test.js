@@ -18,6 +18,7 @@ describe('openIntoTab', () => {
             filePath: 'note.md',
             fileHandle: '/abs/note.md',
             isDirty: false,
+            charset: 'UTF-8',
         });
         expect(addRecentFile).toHaveBeenCalledWith('note.md', 'note.md', '/abs/note.md');
     });
@@ -28,5 +29,34 @@ describe('openIntoTab', () => {
 
         expect(() => openIntoTab(file, { createTab })).not.toThrow();
         expect(createTab).toHaveBeenCalledTimes(1);
+    });
+
+    // final-architect follow-up: BOM was never stripped from the CM doc on
+    // load. Strip it here; charset still records 'UTF-8 BOM' so save re-applies it.
+    it('strips a leading BOM from the tab content but keeps charset: "UTF-8 BOM"', () => {
+        const createTab = vi.fn();
+        const file = { name: 'note.md', content: '﻿hello', handle: null };
+
+        openIntoTab(file, { createTab });
+
+        expect(createTab).toHaveBeenCalledWith({
+            title: 'note.md',
+            content: 'hello',
+            filePath: 'note.md',
+            fileHandle: null,
+            isDirty: false,
+            charset: 'UTF-8 BOM',
+        });
+    });
+
+    it('a file with no BOM gets charset: "UTF-8" and untouched content', () => {
+        const createTab = vi.fn();
+        const file = { name: 'note.md', content: 'hello', handle: null };
+
+        openIntoTab(file, { createTab });
+
+        expect(createTab).toHaveBeenCalledWith(
+            expect.objectContaining({ content: 'hello', charset: 'UTF-8' })
+        );
     });
 });
