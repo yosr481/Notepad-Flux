@@ -3,8 +3,8 @@ import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { readFile, writeFile } from 'node:fs/promises'
-import { realpathSync, existsSync, statSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
+import { open, readFile, writeFile } from 'node:fs/promises'
+import { realpathSync, existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
 import { createIsPathSafe } from './pathSafety.js'
@@ -206,11 +206,19 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
 // reach ipcRenderer, and can't forge a File that maps to a native path. The drop is
 // the user's consent, like a picker selection.
 safeHandle('open-dropped-file', async (event, filePath) => {
-    if (filterAuthorizablePaths([filePath]).length === 0 || !statSync(filePath).isFile()) {
+    if (filterAuthorizablePaths([filePath]).length === 0) {
         throw new Error('Access denied: Unauthorized file path.')
     }
+    // Stat and read through one handle, so the file checked is the file read (CodeQL #56).
+    const fh = await open(filePath, 'r')
+    let buf
+    try {
+        if (!(await fh.stat()).isFile()) throw new Error('Access denied: Unauthorized file path.')
+        buf = await fh.readFile()
+    } finally {
+        await fh.close()
+    }
     log.info('open: dropped', filePath)
-    const buf = await readFile(filePath)
     if (!isProbablyText(buf)) {
         throw new Error('Not a text file.')
     }
