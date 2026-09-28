@@ -158,7 +158,9 @@
       ]
     },
     "appImage": {
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "compression": "gzip"
     },
     "publish": [
       {
