@@ -5,6 +5,7 @@ import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
 import { resolveReference, getVisibleTextBetweenMarks } from "./linkDefs";
+import { isSafeExternalUrl } from "./linkHandler";
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -17,7 +18,7 @@ class LinkWidget extends WidgetType {
     toDOM(view) {
         const link = document.createElement("a");
         link.className = "cm-link";
-        link.href = this.url;
+        if (isSafeExternalUrl(this.url)) link.href = this.url;   // no href for javascript:/file:/etc; same allowlist as ctrl+click
         link.target = "_blank";
         link.rel = "noopener noreferrer";
 

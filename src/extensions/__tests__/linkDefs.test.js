@@ -65,6 +65,11 @@ describe('normalizeLabel', () => {
 });
 
 describe('resolveLinkDefs', () => {
+    it('collects a definition nested inside a list item (FUTURE-8)', () => {
+        const res = resolveLinkDefs(mk('- item\n\n  [id]: http://x'));
+        expect(res.get('id')).toEqual({ url: 'http://x' });
+    });
+
     it('returns a Map', () => {
         expect(resolveLinkDefs(mk(''))).toBeInstanceOf(Map);
     });

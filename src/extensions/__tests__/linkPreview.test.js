@@ -318,6 +318,14 @@ describe('linkPreview — TASK 8 (image-in-link + reference links)', () => {
         expect(ws[0].text).toBe('text');
     });
 
+    // ---- FUTURE-8: scheme gate on rendered widgets ----
+    it('ref link to javascript: renders a widget anchor with NO href; https keeps it', () => {
+        const bad = linkWidgets(mount('intro\n[t][id]\n\n[id]: javascript:alert(1)', 0))[0].toDOM();
+        expect(bad.getAttribute('href')).toBeNull();
+        const ok = linkWidgets(mount('intro\n[t][id]\n\n[id]: https://x.com', 0))[0].toDOM();
+        expect(ok.getAttribute('href')).toBe('https://x.com');
+    });
+
     // ---- #8 reference-style link resolution ----
     it('full ref [text][id] resolves: widget text "text", url from the LRD (FAILS before fix)', () => {
         const view = mount('intro\n[text][id]\n\n[id]: http://x', 0);

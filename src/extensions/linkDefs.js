@@ -41,8 +41,8 @@ export function resolveLinkDefs(state) {
         enter: (node) => {
             const { name } = node;
 
-            // Only descend into Document and Blockquote
-            if (name !== "Document" && name !== "Blockquote") {
+            // Only descend into containers that can hold a definition
+            if (!["Document", "Blockquote", "BulletList", "OrderedList", "ListItem"].includes(name)) {
                 // Skip non-container nodes to avoid walking inline subtrees
                 if (name !== "LinkReference") {
                     return false;

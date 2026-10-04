@@ -930,3 +930,14 @@ describe('Task 8 — off-viewport LRD is simply not visited (design point, not a
         expect(countDecos(field, 3, 17)).toBe(0);
     });
 });
+
+describe('FUTURE-8 — multi-line setext heading underline', () => {
+    it('cursor on the 2nd text line keeps the underline visible; cursor away hides it', () => {
+        const doc = 'x\n\nLine one\nLine two\n===\n';
+        const ul = doc.indexOf('===');
+        const on = buildDecorations(gfm(doc, { anchor: doc.indexOf('Line two') + 2 }), t7full(doc));
+        expect(t7bareReplacesAt(on, ul, ul + 3).length).toBe(0);
+        const off = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
+        expect(t7bareReplacesAt(off, ul, ul + 3).length).toBe(1);
+    });
+});

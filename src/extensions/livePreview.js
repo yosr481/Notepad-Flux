@@ -238,10 +238,13 @@ export const buildDecorations = (state, range) => {
             if (name === "SetextHeading1" || name === "SetextHeading2") {
                 const headerMark = node.node.getChild("HeaderMark");
                 if (headerMark) {
-                    const textLineFrom = nodeFrom;
-                    const underlineLineFrom = headerMark.from;
-                    // Hide underline only if cursor is on neither the text line nor the underline line
-                    if (!isCursorOnLine(selection, doc, textLineFrom) && !isCursorOnLine(selection, doc, underlineLineFrom)) {
+                    // Hide underline only if cursor is on none of the heading's lines (multi-line text + underline)
+                    const lastLine = doc.lineAt(headerMark.from).number;
+                    let cursorIn = false;
+                    for (let n = doc.lineAt(nodeFrom).number; n <= lastLine && !cursorIn; n++) {
+                        cursorIn = isCursorOnLine(selection, doc, doc.line(n).from);
+                    }
+                    if (!cursorIn) {
                         decorations.push({ from: headerMark.from, to: headerMark.to, value: Decoration.replace({}) });
                     }
                 }
@@ -443,19 +446,23 @@ const livePreviewField = StateField.define({
 });
 
 // Split a table row on unescaped `|`, unescaping `\|` -> `|` in each cell.
-// Placeholder swap avoids a lookbehind regex (Safari <16.4 has none).
-const CELL_PH = String.fromCharCode(0); // NUL — never appears in table markdown
+// `\\` is consumed as a pair so `\\|` is a backslash followed by a real separator.
 function splitCells(row) {
-    return row
-        .split('\\|').join(CELL_PH)   // protect escaped pipes
-        .split('|')                   // split on real separators
-        .map(c => c.split(CELL_PH).join('|')); // restore as literal pipe
+    const cells = [""];
+    for (let i = 0; i < row.length; i++) {
+        const c = row[i], n = row[i + 1];
+        if (c === "\\" && n === "|") { cells[cells.length - 1] += "|"; i++; }
+        else if (c === "\\" && n === "\\") { cells[cells.length - 1] += "\\\\"; i++; }
+        else if (c === "|") cells.push("");
+        else cells[cells.length - 1] += c;
+    }
+    return cells;
 }
 
 export function convertTableToHTML(text) {
     let rows = text.trim().split('\n');
-    // Strip blockquote prefix from each row (audit #6)
-    rows = rows.map(r => r.replace(/^>\s?/, ''));
+    // Strip blockquote prefix (any nesting depth) from each row (audit #6)
+    rows = rows.map(r => r.replace(/^(?:\s*>)+\s?/, ''));
     if (rows.length < 2) return "<div class='cm-table-empty'>Empty Table</div>";
 
     let alignments = [];

@@ -218,14 +218,6 @@ describe('convertTableToHTML — blockquote-prefixed rows (TASK 6 / audit #6)', 
         expect(html).toMatch(/<th[^>]*>a<\/th>/);
     });
 
-    it('pinned: strips ONLY ONE quote level — a "> >" nested table falls back to Empty Table', () => {
-        // /^>\s?/ removes one "> "; the delimiter row is left as "> | - | - |",
-        // which fails /^\|?[\s\-:|]+\|?$/, so convertTableToHTML bails to the
-        // Empty-Table div. Deeper nesting is a deliberate non-feature, not a bug.
-        const html = convertTableToHTML(T('> > | a | b |', '> > | - | - |', '> > | 1 | 2 |'));
-        expect(html).toBe("<div class='cm-table-empty'>Empty Table</div>");
-    });
-
     it('regression: a plain non-quoted table renders with no stray ">" leaked into a cell', () => {
         const html = convertTableToHTML(T('| a | b |', '| --- | --- |', '| 1 | 2 |'));
         expect(html).toBe(
@@ -314,5 +306,19 @@ describe('convertTableToHTML — blockquote strip + escaped pipe compose (TASK 6
         expect(html).toMatch(/<th[^>]*class="cm-align-right"[^>]*>c<\/th>/);
         expect(html).toMatch(/<td[^>]*class="cm-align-center"[^>]*>1<\/td>/);
         expect(html).toMatch(/<td[^>]*class="cm-align-right"[^>]*>2<\/td>/);
+    });
+});
+
+describe('convertTableToHTML — FUTURE-8 edge cases', () => {
+    it('escaped backslash before a pipe: "a\\\\|b" is two cells, not one with a stray backslash', () => {
+        const html = convertTableToHTML('| h1 | h2 |\n| - | - |\n| a\\\\|b |');
+        expect(html).toContain('<td>b</td>');
+        expect(html).not.toContain('\\|');
+    });
+
+    it('nested blockquote "> > |" table renders, not "Empty Table"', () => {
+        const html = convertTableToHTML('> > | a | b |\n> > | - | - |\n> > | 1 | 2 |');
+        expect(html).toContain('<table');
+        expect(html).not.toContain('Empty Table');
     });
 });
