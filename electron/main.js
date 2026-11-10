@@ -76,10 +76,12 @@ if (!gotTheLock) {
     app.quit()
 } else {
     app.on('second-instance', () => {
-        if (win && !win.isDestroyed()) {
-            if (win.isMinimized()) win.restore()
-            win.show()
-            win.focus()
+        // Any live app window: the first one may be closed while a New Window lives on.
+        const w = appWindows()[0]
+        if (w) {
+            if (w.isMinimized()) w.restore()
+            w.show()
+            w.focus()
         }
     })
 }
@@ -169,8 +171,8 @@ safeHandle('safe-storage-available', async () => {
     return safeStorage.isEncryptionAvailable()
 })
 
-safeHandle('read-file', async () => {
-    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.getFocusedWindow(), {
+safeHandle('read-file', async (event) => {
+    const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
         properties: ['openFile'],
         filters: OPEN_FILTERS,
         defaultPath: lastDir
@@ -216,7 +218,7 @@ safeHandle('read-file-content', async (event, filePath) => {
 
 safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     if (!filePath) {
-        const { canceled, filePath: savePath } = await dialog.showSaveDialog(BrowserWindow.getFocusedWindow(), {
+        const { canceled, filePath: savePath } = await dialog.showSaveDialog(BrowserWindow.fromWebContents(event.sender), {
             defaultPath: suggestedName ? join(lastDir, suggestedName) : lastDir,
             filters: filtersForName(suggestedName)
         })
@@ -334,11 +336,17 @@ process.env.VITE_PUBLIC = process.env.VITE_DEV_SERVER_URL
     ? join(__dirname, '../public')
     : process.env.DIST
 
-let win = null
 let splash = null
 
-// Menu Close Window / Exit: close from main so guardClose's flush handshake runs.
+// Every open app window (the first one and each New Window), newest last. Windows
+// are equals: the app lives until the last one closes, whichever was first.
+const appWindows = () => BrowserWindow.getAllWindows().filter(w => w !== splash && !w.isDestroyed())
+
+// Menu Close Window: close from main so guardClose's flush handshake runs.
 ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender)?.close())
+// Menu Exit: close every window, each through its own close guard (flush handshake,
+// unsaved-changes prompt). A window the user keeps open keeps the app running.
+ipcMain.on('quit-app', () => appWindows().forEach(w => w.close()))
 
 // Close handshake: hold every app window's close until its renderer confirms the
 // session snapshot is written (the async encrypt + IndexedDB write can't finish
@@ -385,11 +393,11 @@ function createWindow() {
         if (splash) {
             log.warn('ready-to-show not fired within 15s; forcing window visible')
             dismissSplash()
-            if (win && !win.isDestroyed()) win.show()
+            if (!win.isDestroyed()) win.show()
         }
     }, 15000)
 
-    win = new BrowserWindow({
+    const win = new BrowserWindow({
         width: 1200,
         height: 800,
         minWidth: 400,
@@ -403,48 +411,7 @@ function createWindow() {
         }),
     })
 
-    guardClose(win)
-    win.webContents.on('did-create-window', guardClose)
-
-    win.webContents.setWindowOpenHandler(({ url }) => {
-        const isOwnOrigin = isOwnPage(url)
-
-        if (!isOwnOrigin) {
-            if (url.startsWith('http:') || url.startsWith('https:')) {
-                shell.openExternal(url)
-            } else {
-                log.warn(`Blocked window.open for disallowed URL: ${url}`)
-            }
-            return { action: 'deny' }
-        }
-
-        // App's own origin (dev server in dev, file: index in prod) — real Electron window.
-        // "New Window" menu opens window.location.href, which lands here.
-        return {
-            action: 'allow',
-            overrideBrowserWindowOptions: {
-                ...buildWindowOptions({
-                    platform: process.platform,
-                    prefersDark: nativeTheme.shouldUseDarkColors,
-                    preloadPath: join(process.env.DIST_ELECTRON, 'preload.cjs'),
-                    iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
-                }),
-            }
-        }
-    })
-
-    win.webContents.on('will-navigate', (event, navigationUrl) => {
-        if (isOwnPage(navigationUrl)) {
-            return
-        }
-        event.preventDefault()
-        // A local file is never handed to the OS to open; only web links leave the app.
-        if (/^(https?|mailto):/i.test(navigationUrl)) {
-            shell.openExternal(navigationUrl)
-        } else {
-            log.warn(`Blocked navigation to disallowed URL: ${navigationUrl}`)
-        }
-    })
+    wireWindow(win)
 
     win.once('ready-to-show', () => {
         clearTimeout(showTimeout)
@@ -464,28 +431,75 @@ function createWindow() {
             'Notepad Flux failed to start',
             `The application window could not load (${errorDescription || errorCode}).`
         )
-        if (win && !win.isDestroyed()) win.destroy()
+        if (!win.isDestroyed()) win.destroy()
         app.quit()
     })
 
     Menu.setApplicationMenu(null)
 
-
-    // Test active push message to Renderer-process
-    win.webContents.on('did-finish-load', () => {
-        win?.webContents.send('main-process-message', (new Date).toLocaleString())
-    })
-
     if (process.env.VITE_DEV_SERVER_URL) {
         win.loadURL(process.env.VITE_DEV_SERVER_URL)
     } else {
-        // win.loadFile('dist/index.html')
         win.loadFile(join(process.env.DIST, 'index.html'))
     }
 }
 
+// Close guard, window.open / navigation rules and the main-process-message push for
+// one app window. Applied to the first window and to every window any app window
+// opens (New Window from a New Window too), so all of them follow the same rules.
+function wireWindow(w) {
+    guardClose(w)
+    w.webContents.on('did-create-window', wireWindow)
+
+    w.webContents.on('did-finish-load', () => {
+        if (!w.isDestroyed()) w.webContents.send('main-process-message', (new Date).toLocaleString())
+    })
+
+    w.webContents.setWindowOpenHandler(({ url }) => {
+        const isOwnOrigin = isOwnPage(url)
+
+        if (!isOwnOrigin) {
+            if (url.startsWith('http:') || url.startsWith('https:')) {
+                shell.openExternal(url)
+            } else {
+                log.warn(`Blocked window.open for disallowed URL: ${url}`)
+            }
+            return { action: 'deny' }
+        }
+
+        // App's own origin (dev server in dev, file: index in prod) — real Electron window.
+        // "New Window" menu opens window.location.href, which lands here.
+        return {
+            action: 'allow',
+            // Electron closes a window.open child with its opener by default; that
+            // took every New Window (and its unsaved text) down with the first window.
+            outlivesOpener: true,
+            overrideBrowserWindowOptions: {
+                ...buildWindowOptions({
+                    platform: process.platform,
+                    prefersDark: nativeTheme.shouldUseDarkColors,
+                    preloadPath: join(process.env.DIST_ELECTRON, 'preload.cjs'),
+                    iconPath: join(process.env.VITE_PUBLIC, 'icons/desktop/icon.png'),
+                }),
+            }
+        }
+    })
+
+    w.webContents.on('will-navigate', (event, navigationUrl) => {
+        if (isOwnPage(navigationUrl)) {
+            return
+        }
+        event.preventDefault()
+        // A local file is never handed to the OS to open; only web links leave the app.
+        if (/^(https?|mailto):/i.test(navigationUrl)) {
+            shell.openExternal(navigationUrl)
+        } else {
+            log.warn(`Blocked navigation to disallowed URL: ${navigationUrl}`)
+        }
+    })
+}
+
 app.on('window-all-closed', () => {
-    win = null
     if (process.platform !== 'darwin') app.quit()
 })
 

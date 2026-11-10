@@ -266,7 +266,7 @@ function App() {
                     onPrint={print}
                     onCloseTab={() => closeTab(activeTabId)}
                     onCloseWindow={() => closeWindow()}
-                    onExit={() => closeWindow()}
+                    onExit={() => closeWindow({ quit: true })}
                     onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />

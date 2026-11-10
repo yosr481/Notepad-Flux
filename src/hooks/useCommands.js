@@ -367,7 +367,7 @@ export const useCommands = (showToast, editorRef) => {
         });
     }, [tabs, activeTabId]);
 
-    const closeWindow = useCallback(async () => {
+    const closeWindow = useCallback(async ({ quit = false } = {}) => {
         if (!isPrimaryWindow) {
             // Iterate tabs and prompt/save/close one by one until only one default tab remains
             // Take a snapshot of current order to iterate deterministically
@@ -408,7 +408,9 @@ export const useCommands = (showToast, editorRef) => {
         }
         // Electron: close via main so the session-flush handshake runs (a page-side
         // window.close() skips the BrowserWindow 'close' event).
-        if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
+        // quit (File > Exit): main then closes every other window through its own guard.
+        if (quit && window.electronAPI?.quitApp) window.electronAPI.quitApp();
+        else if (window.electronAPI?.closeWindow) window.electronAPI.closeWindow();
         else window.close();
     }, [isPrimaryWindow, persistTab, closeTab, showToast, editorRef]);
 

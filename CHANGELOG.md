@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop:** Fix the preload bridge, which failed to load in every packaged build — file open/save now go through the validated IPC path and the encryption key uses the OS keychain (`safeStorage`).
 - **Desktop:** Files you opened, saved or dropped stay accessible after a relaunch, so restored tabs and recent files can be saved and opened without picking them again. The main process keeps this list, and the page can no longer grant itself access to a path.
 - **Desktop:** Closing the window waits (up to 3 s) until the session is saved, so edits typed just before closing are not lost.
+- **Desktop:** Closing the first window no longer quits the app and throws away the other windows' unsaved text. The app stays open until the last window closes; a remaining window takes over the saved session and keeps both its own tabs and every saved tab. File > Exit still closes all windows.
 - **Editor:** Dragging selected text inside the editor, or dropping text from another app, works again (only file drops open tabs).
 - **Save As:** Keeps the file's line ending (CRLF) and BOM, the same as Save.
 - **Recent files:** A binary or permission failure now shows its reason and keeps the recent entry. Only a missing file offers "Locate…".

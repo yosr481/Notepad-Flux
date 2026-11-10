@@ -15,6 +15,8 @@ Notepad Flux ships as a cross-platform desktop app packaged with Electron. This 
 
 - Main Process: electron/main.js (ESM)
   - Creates the splash and main BrowserWindow
+  - Window lifetime: File > New Window opens an equal app window (`outlivesOpener`), wired with the same close guard, window.open and navigation rules as the first one (so is any window opened from it). Closing any window, the first included, closes only that window; the app quits when the last window closes (macOS keeps its usual dock behaviour). File > Exit sends `quit-app`, which closes every window through its own close guard; a window whose user picks Keep editing stays open
+  - Session ownership: one window at a time holds the Web Lock and persists the session. When it closes it flushes first (close handshake), then releases the lock; the next queued window is promoted, reloads the persisted session and appends its own non-pristine tabs. On an id clash the persisted tab gets a new id, so the promoted window's tabs (and its editor) keep theirs. The persisted session never shrinks on a hand-over
   - Applies Windows-integrated visuals (titleBarOverlay, mica background)
   - Disables default application menu
   - Sets process environment paths for dist and dist-electron
@@ -45,6 +47,7 @@ All file system operations go through the main process via IPC. Channels:
 - save-file({ filePath?, content }): Saves content; opens Save As if filePath is missing
 - open-dropped-file(path): Reads a file dropped on the window. Only the preload calls it, with a path from webUtils.getPathForFile on a real dropped File
 - file-exists(path): true/false for granted paths, null for anything else (restored-tab "moved/deleted" check)
+- quit-app: File > Exit. Main closes every app window, each through its own close handshake
 - close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot (max 3 s)
 - main-process-message: One-way message used for simple status pings
 
