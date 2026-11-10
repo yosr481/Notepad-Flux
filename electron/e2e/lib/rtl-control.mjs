@@ -4,7 +4,7 @@ import { build } from 'esbuild'
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, dirname } from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { sleep, waitFor } from './harness.mjs'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -13,7 +13,7 @@ export async function stockCaretSequence(app, mode, presses = 22) {
     await build({ entryPoints: [join(here, 'rtl-control.src.js')], bundle: true, outfile: join(dir, 'b.js'), format: 'iife', nodePaths: [join(here, '../../../node_modules')], logLevel: 'silent' })
     writeFileSync(join(dir, 'i.html'), '<!doctype html><meta charset="utf-8"><body><script src="b.js"></script></body>')
     const wp = app.waitForEvent('window', { timeout: 20000 })
-    await app.evaluate(({ BrowserWindow }, url) => { const w = new BrowserWindow({ width: 700, height: 300, webPreferences: { sandbox: true } }); w.loadURL(url) }, `file://${join(dir, 'i.html')}?mode=${mode}`)
+    await app.evaluate(({ BrowserWindow }, url) => { const w = new BrowserWindow({ width: 700, height: 300, webPreferences: { sandbox: true } }); w.loadURL(url) }, `${pathToFileURL(join(dir, 'i.html')).href}?mode=${mode}`)
     const page = await wp
     await page.waitForLoadState('domcontentloaded')
     await waitFor(() => page.evaluate(() => !!window.__view), { what: 'control view' })

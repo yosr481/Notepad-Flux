@@ -14,7 +14,7 @@ export async function launch({ binary, userData, extraArgs = [], env = {}, prefi
         // XDG_CONFIG_HOME: main.js takes Electron's single-instance lock BEFORE it applies NOTEPAD_FLUX_USER_DATA,
         // so the lock lives under the default ~/.config/notepad-flux. A private XDG_CONFIG_HOME keeps test
         // launches off the user's real config dir (and lets them coexist with a running real app).
-        env: { ...process.env, DISPLAY: process.env.DISPLAY, XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), 'nf-xdg-')), NOTEPAD_FLUX_USER_DATA: userData, ...env },
+        env: { ...(userData ? process.env : Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NOTEPAD_FLUX_USER_DATA'))), DISPLAY: process.env.DISPLAY, XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), 'nf-xdg-')), ...(userData ? { NOTEPAD_FLUX_USER_DATA: userData } : {}), ...env },
         timeout: 60000, chromiumSandbox: !extraArgs.includes("--no-sandbox"),
     })
     let win

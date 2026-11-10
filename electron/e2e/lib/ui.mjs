@@ -13,10 +13,18 @@ export const activeTitle = async (win) => (await tabsInfo(win)).find(t => t.acti
 export const status = (win) => win.evaluate(() => [...document.querySelector('[class*=statusBar]').children].map(c => c.innerText.trim()))
 export const editorText = (win) => win.evaluate(() => document.querySelector('.cm-content')?.innerText ?? '')
 export const toastText = (win) => win.evaluate(() => [...document.querySelectorAll('[class*=toast]')].map(t => t.innerText).join(' | '))
-export const waitToast = (win, re, timeout = 6000) =>
-    waitFor(async () => { const t = await toastText(win); return re.test(t) ? t : false }, { timeout, what: `toast ${re}` })
+export const waitToast = async (win, re, timeout = 6000) => {
+    let last = ''
+    try { return await waitFor(async () => { const t = await toastText(win); if (t.trim()) last = t; return re.test(t) ? t : false }, { timeout, what: `toast ${re}` }) }
+    catch (e) { throw new Error(`${e.message} (toast text seen: ${JSON.stringify(last)})`) }
+}
 
-export const focusEditor = async (win) => { await win.locator(".cm-content").click({ timeout: 5000 }); await win.keyboard.press("Control+End") }
+export const dialogText = (win) => win.evaluate(() => document.querySelector('[role=dialog]')?.innerText ?? null).catch(() => null)
+export const focusEditor = async (win) => {
+    try { await win.locator(".cm-content").click({ timeout: 5000 }) }
+    catch (e) { throw new Error(`${String(e.message).split('\n')[0]} (open dialog: ${JSON.stringify(await dialogText(win))})`) }
+    await win.keyboard.press("Control+End")
+}
 export const typeAtEnd = async (win, text) => { await focusEditor(win); await win.keyboard.type(text) }
 
 // Open through the real Ctrl+O -> IPC read-file path with the native dialog stubbed.
