@@ -6,6 +6,9 @@ import { detectEol, detectCharset } from '../utils/eol';
 const SettingsContext = createContext();
 const TabStateContext = createContext();
 const ActionsContext = createContext();
+// Own context (not a key of useTabState) so the pinned hook shapes stay as they are.
+const TabIdRenameContext = createContext(null);
+export const useTabIdRename = () => useContext(TabIdRenameContext);
 
 const SessionContext = createContext();
 
@@ -61,6 +64,12 @@ export const SessionProvider = ({ children }) => {
     const [restoreWarning, setRestoreWarning] = useState(null);
 
     const nextTabId = useRef(2);
+    // Set when the session load renumbers the active tab: { from, to }. Lets the editor tell a rename from a switch.
+    const [tabIdRename, setTabIdRename] = useState(null);
+    // Only valid for the render that follows the rename (the editor's effect runs before this one).
+    useEffect(() => {
+        if (tabIdRename && tabIdRename.to !== activeTabId) setTabIdRename(null);
+    }, [tabIdRename, activeTabId]);
     const saveTimers = useRef(new Map());
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
@@ -195,6 +204,9 @@ export const SessionProvider = ({ children }) => {
                     const activeEarly = keptEarly.find(t => (idMap.get(currentActiveTabIdRef.current) ?? currentActiveTabIdRef.current) === t.id);
                     const active = activeEarly ?? keptEarly[keptEarly.length - 1];
                     setActiveTabId(active.id);
+                    // Same tab, new id: tell the editor so it keeps its live state instead of rebuilding it.
+                    const from = [...idMap].find(([, to]) => to === active.id)?.[0];
+                    setTabIdRename(from ? { from, to: active.id } : null);
                     // Not on disk yet: persist them so a quit right after launch doesn't lose them.
                     storage.saveSnapshot({
                         tabs: keptEarly,
@@ -659,7 +671,9 @@ export const SessionProvider = ({ children }) => {
         <SettingsContext.Provider value={settingsValue}>
             <TabStateContext.Provider value={tabStateValue}>
                 <ActionsContext.Provider value={actionsValue}>
+                    <TabIdRenameContext.Provider value={tabIdRename}>
                     {children}
+                    </TabIdRenameContext.Provider>
                 </ActionsContext.Provider>
             </TabStateContext.Provider>
         </SettingsContext.Provider>

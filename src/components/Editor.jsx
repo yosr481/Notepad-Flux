@@ -18,7 +18,7 @@ import { fluxHighlightStyle } from '../theme';
 import { syntaxHighlighting } from '@codemirror/language';
 import styles from './Editor.module.css';
 
-const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
+const Editor = forwardRef(({ activeTabId, renamedFrom = null, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const stateCache = useRef(new Map());
@@ -27,6 +27,14 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
   const stateUpdateTimer = useRef(null);
   const savedContentRef = useRef(initialContent);
+  // The view's listener lives as long as its state, so it must call the latest callbacks: they carry the
+  // current tab id (a stale one would write the typed text into whichever tab owns the old id).
+  const onContentChangeRef = useRef(onContentChange);
+  const onStateChangeRef = useRef(onStateChange);
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+    onStateChangeRef.current = onStateChange;
+  });
 
   useImperativeHandle(ref, () => ({
     undo: () => {
@@ -325,16 +333,16 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
           }
           if (update.docChanged) {
             updateStats(update.view);
-            if (onContentChange) {
+            if (onContentChangeRef.current) {
               const text = update.state.doc.toString();
-              onContentChange(text, text !== savedContentRef.current);
+              onContentChangeRef.current(text, text !== savedContentRef.current);
             }
           }
 
-          if (onStateChange && (update.selectionSet || update.docChanged || update.viewportChanged)) {
+          if (onStateChangeRef.current && (update.selectionSet || update.docChanged || update.viewportChanged)) {
             if (stateUpdateTimer.current) clearTimeout(stateUpdateTimer.current);
             stateUpdateTimer.current = setTimeout(() => {
-              onStateChange({
+              onStateChangeRef.current({
                 cursor: update.view.state.selection.main.head,
                 scroll: update.view.scrollDOM.scrollTop
               });
@@ -439,6 +447,12 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
 
     // 1. Handle Tab Switch
     if (activeTabId !== currentTabIdRef.current) {
+      // The session load renumbered the tab being edited: same tab, new id. Keep the live view
+      // (caret, selection, undo, scroll, keystrokes not yet in props) and just follow the id.
+      if (renamedFrom !== null && renamedFrom === currentTabIdRef.current) {
+        currentTabIdRef.current = activeTabId;
+        return;
+      }
       // Save previous state
       const prevId = currentTabIdRef.current;
       const prevState = view.state;
@@ -508,7 +522,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
       });
     }
 
-  }, [activeTabId, initialContent, initialCursor, initialScroll]);
+  }, [activeTabId, renamedFrom, initialContent, initialCursor, initialScroll]);
 
   return <div ref={editorRef} className={styles.editorContainer} style={{ height: '100%' }} />;
 });

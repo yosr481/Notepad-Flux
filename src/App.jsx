@@ -10,7 +10,7 @@ import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 import { useFileDrop } from './hooks/useFileDrop';
-import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
+import { useSettings, useTabState, useTabIdRename, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
 import Settings from './components/Settings/Settings';
@@ -40,6 +40,7 @@ function App() {
 
     const { settings, updateSettings } = useSettings();
     const { restoreWarning } = useTabState();
+    const tabIdRename = useTabIdRename();
     const { clearRestoreWarning, createTab, addRecentFile } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
@@ -276,6 +277,7 @@ function App() {
                 <Editor
                     ref={editorRef}
                     activeTabId={activeTabId}
+                    renamedFrom={tabIdRename?.to === activeTabId ? tabIdRename.from : null}
                     tabIds={tabs.map(t => t.id)}
                     initialContent={activeTab.content}
                     initialCursor={activeTab.cursor || 0}
