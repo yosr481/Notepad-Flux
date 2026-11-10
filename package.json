@@ -124,7 +124,21 @@
       "syncDesktopName": true
     },
     "deb": {
-      "maintainer": "yosr481@gmail.com"
+      "maintainer": "yosr481@gmail.com",
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1",
+        "libsecret-1-0",
+        "libgbm1",
+        "libasound2",
+        "libdrm2"
+      ]
     },
     "appImage": {
       "category": "Utility",
