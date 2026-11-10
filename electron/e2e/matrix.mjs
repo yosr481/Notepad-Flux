@@ -97,7 +97,7 @@ const rows = [
     ['EXTRA', 'X-5', 'Race with a non-empty saved session (file opened before the load finishes)', ['RACE-2']],
     ['EXTRA', 'X-6', 'App-page rule (fea9464): New Window, reload and own-page navigation still work', ['WIN-3', 'WIN-6', 'SEC-6c']],
     ['EXTRA', 'X-7', 'Grants bound to the real path; legacy grants migrated; symlinked-dir grants; ".." in file names (a8060fe, 5edfcb1)', ['MIG-1', 'SEC-5b', 'SYM-2', 'DOTDOT-1', 'DOTDOT-2']],
-    ['EXTRA', 'X-8', 'Early tabs vs session load: typing and restored-tab content (176c7c0)', ['RACE-2', 'RACE-3']],
+    ['EXTRA', 'X-8', 'Early tabs vs session load: typing and restored-tab content (176c7c0)', ['RACE-2', 'RACE-3', 'RACE-3s']],
     ['EXTRA', 'X-9', 'Large-document typing latency (fastLinkEnd, c4afbda)', ['PERF-1', 'PERF-2a', 'PERF-2']],
     ['EXTRA', 'X-10', 'Several windows: app lives until the last closes; hand-over keeps every tab; three windows; File > Exit with a dirty secondary (3dfc5e8, afd0354)', ['WIN-8', 'WIN-9', 'FAILOVER-1', 'HANDOVER-1', 'HANDOVER-2', 'EXIT-1', 'EXIT-2'], 'secondary-window prompts are native message boxes (dialog.showMessageBoxSync, stubbed)'],
     ['EXTRA', 'X-11', 'userData override applied before the single-instance lock; update check without app-update.yml error (166b8cd, INST-9)', ['LOCK-1', 'PROFILE-1', 'DEFPROFILE-1', 'UPD-1']],

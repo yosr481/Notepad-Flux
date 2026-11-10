@@ -937,19 +937,35 @@ if (want('race2')) {
         assert(bad.length === 0, `${bad.length}/3 attempts wrong. ` + summary)
         return summary
     })
-    { // typing straight through the moment the load completes, with an early tab whose id collides with a saved one
+    // Typing straight through the moment the session load completes, with an early tab whose id collides with a saved one.
+    // 'slow' = deterministic: from the test side, the main-process safe-storage decrypt handler is wrapped to take 0.6 s per call and the page is reloaded,
+    // so the session load (which must decrypt the stored key first) finishes in the middle of the typing on every platform.
+    // No application hook is used: only ipcMain.removeHandler/handle through Playwright's app.evaluate.
+    const reps = Number((argv.find(a => a.startsWith('--race3=')) || '--race3=1').slice(8)) || 1
+    for (const slow of [false, true]) for (let rep = 1; rep <= reps; rep++) {
         const Ua = tmp('nf-r3-a-'); cleanup.push(Ua); cpSync(Ub, Ua, { recursive: true })
         const { app, win } = await L(Ua, { settle: 0 })
+        if (slow) {
+            await app.evaluate(({ ipcMain, safeStorage }) => {
+                ipcMain.removeHandler('safe-storage-decrypt')
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return safeStorage.decryptString(Buffer.from(b64, 'base64')) })
+            })
+            await win.reload({ waitUntil: 'domcontentloaded' })
+        }
+        const tRef = Date.now(); let loadDoneMs = null
+        const watcher = (async () => { while (loadDoneMs === null && Date.now() - tRef < 20000) { try { if ((await ui.tabsInfo(win)).length >= 4) loadDoneMs = Date.now() - tRef } catch { /* page busy */ } await sleep(50) } })()
         await ui.openViaDialog(app, win, F)
         const typed = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ'
         let typeErr = null
-        try { await win.locator('.cm-content').click({ timeout: 8000 }); await win.keyboard.press('Control+End'); await win.keyboard.type(typed, { delay: 60 }) } catch (e) { typeErr = String(e.message).split('\n')[0] }
-        await sleep(3000)
+        const typeStart = Date.now() - tRef; let typeEnd = null
+        try { await win.locator('.cm-content').click({ timeout: 8000 }); await win.keyboard.press('Control+End'); await win.keyboard.type(typed, { delay: 60 }); typeEnd = Date.now() - tRef } catch (e) { typeErr = String(e.message).split('\n')[0] }
+        await sleep(3000); await watcher
         const tabs = await ui.tabsInfo(win); const seen = {}
         for (let i = 0; i < tabs.length; i++) { await win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen[tabs[i].title] = (await ui.editorText(win)).replace(/\n+$/, '') }
-        const rec = { titles: tabs.map(t => t.title), seen, typeErr }
-        await check('RACE-3', 'session', 'typing into an early tab straight through the end of the session load: every key lands in that tab, in order; no restored tab gets stray characters', async () => {
+        const rec = { titles: tabs.map(t => t.title), seen, typeErr, timing: { typeStartMs: typeStart, typeEndMs: typeEnd, loadDoneMs } }
+        await check((slow ? 'RACE-3s' : 'RACE-3') + (reps > 1 ? '.' + rep : ''), 'session', (slow ? '[load slowed from the test side] ' : '') + 'typing into an early tab straight through the end of the session load: every key lands in that tab, in order; no restored tab gets stray characters', async () => {
             assert(!typeErr, 'could not type: ' + typeErr)
+            if (slow) assert(loadDoneMs !== null && loadDoneMs > typeStart && loadDoneMs < typeEnd, 'precondition not met: the session load did not finish in the middle of the typing ' + JSON.stringify(rec.timing))
             const early = Object.entries(seen).find(([t]) => t === 'early.md')?.[1]
             assert(early !== undefined, 'early tab missing: ' + JSON.stringify(rec))
             assert(early.includes(typed), `early tab text ${JSON.stringify(early)} lacks the typed run ${typed}`)
