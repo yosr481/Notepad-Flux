@@ -76,23 +76,6 @@ const isSafeExternalUrl = (url) => {
     }
 }
 
-// Single-instance lock: a second launch focuses the existing window instead of
-// starting a second process that fights over the same userData dir + autoUpdater.
-const gotTheLock = app.requestSingleInstanceLock()
-if (!gotTheLock) {
-    app.quit()
-} else {
-    app.on('second-instance', () => {
-        // Any live app window: the first one may be closed while a New Window lives on.
-        const w = appWindows()[0]
-        if (w) {
-            if (w.isMinimized()) w.restore()
-            w.show()
-            w.focus()
-        }
-    })
-}
-
 const getPersistentDataPath = () => {
     // E2E override: point userData (session DB, safeStorage keychain scope) at a
     // throwaway dir so a test run never touches the user's real session.
@@ -109,6 +92,23 @@ const getPersistentDataPath = () => {
 
 const userDataPath = getPersistentDataPath()
 app.setPath('userData', userDataPath)
+
+// Single-instance lock: a second launch focuses the existing window instead of
+// starting a second process that fights over the same userData dir + autoUpdater.
+const gotTheLock = app.requestSingleInstanceLock()
+if (!gotTheLock) {
+    app.quit()
+} else {
+    app.on('second-instance', () => {
+        // Any live app window: the first one may be closed while a New Window lives on.
+        const w = appWindows()[0]
+        if (w) {
+            if (w.isMinimized()) w.restore()
+            w.show()
+            w.focus()
+        }
+    })
+}
 
 // One rotating log file for retracing a session: <userData>/logs/main.log (1MB, then
 // main.old.log). Main-process console.* and uncaught errors land here, and every
