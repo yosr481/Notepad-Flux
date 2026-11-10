@@ -17,7 +17,7 @@ const rows = [
     ['CHANGELOG', 'CL-5', 'Image / table-cell link "title" stripped', ['LP-4', 'LP-5']],
     ['CHANGELOG', 'CL-6', 'Tables: alignment, in blockquote, \\| literal pipe', ['LP-5']],
     ['CHANGELOG', 'CL-7', 'Closed ATX / setext markers hidden; ordered list renumber; nested > indent', ['LP-1', 'LP-6']],
-    ['CHANGELOG', 'CL-8', 'Reference-style links/images, linked image [![a](i)](u)', ['LP-8', 'LP-4', 'LP-4b']],
+    ['CHANGELOG', 'CL-8', 'Reference-style links/images, linked image [![a](i)](u)', ['LP-8', 'LP-4', 'LP-4b', 'LP-4c']],
     ['CHANGELOG', 'CL-9', 'Ref image before inline image no longer crashes image rendering', ['LP-4']],
     ['CHANGELOG', 'CL-10', 'One bar per blockquote nesting level', ['LP-6']],
     ['CHANGELOG', 'CL-11', 'Explicit window backgroundColor (dark/light), no white flash', ['WIN-1', 'WIN-3'], 'the visual white flash at first paint is not measurable here; only the configured backgroundColor is asserted'],
@@ -33,7 +33,7 @@ const rows = [
     ['CHANGELOG', 'CL-21', 'Open/Save dialogs: Text + All Files filters, last folder, parented', ['OPEN-3'], 'the native dialog is stubbed: its call arguments (parent, filters, defaultPath) are asserted, its rendering is not'],
     ['CHANGELOG', 'CL-22', 'Window closes with dirty tab; secondary window asks before discarding', ['CLOSE-1', 'CLOSE-x', 'WIN-4'], 'the secondary-window prompt is a native message box (dialog.showMessageBoxSync, stubbed)'],
     ['CHANGELOG', 'CL-23', 'Dock/taskbar icon on Linux', ['WIN-5'], 'a real dock/taskbar is not available under Xephyr; _NET_WM_ICON and WM_CLASS are asserted'],
-    ['CHANGELOG', 'CL-24', 'Correct caret movement across mixed RTL/LTR', ['RTL-1']],
+    ['CHANGELOG', 'CL-24', 'Correct caret movement across mixed RTL/LTR', ['RTL-1'], 'caret x discontinuities at bidi run boundaries also occur in stock CodeMirror in the same Chromium (upstream limitation); RTL-1 compares the app with that baseline'],
     ['CHANGELOG', 'CL-25', 'Restored tab whose file moved/deleted is marked; next save = Save As', ['SES-3', 'SES-4']],
     ['CHANGELOG', 'CL-26', 'Recent: confirm before re-locating; alerts non-blocking', ['RECENT-2', 'RECENT-4']],
     ['CHANGELOG', 'CL-27', 'Long toasts stay inside the window', ['ERR-4']],
@@ -96,6 +96,10 @@ const rows = [
     ['EXTRA', 'X-3', 'Tab-id race: files opened right after launch', ['RACE-1']],
     ['EXTRA', 'X-5', 'Race with a non-empty saved session (file opened before the load finishes)', ['RACE-2']],
     ['EXTRA', 'X-6', 'App-page rule (fea9464): New Window, reload and own-page navigation still work', ['WIN-3', 'WIN-6', 'SEC-6c']],
+    ['EXTRA', 'X-7', 'Grants bound to the real path; legacy grants migrated; symlinked-dir grants; ".." in file names (a8060fe, 5edfcb1)', ['MIG-1', 'SEC-5b', 'SYM-2', 'DOTDOT-1', 'DOTDOT-2']],
+    ['EXTRA', 'X-8', 'Early tabs vs session load: typing and restored-tab content (176c7c0)', ['RACE-2', 'RACE-3']],
+    ['EXTRA', 'X-9', 'Large-document typing latency (fastLinkEnd, c4afbda)', ['PERF-1', 'PERF-2a', 'PERF-2']],
+    ['EXTRA', 'X-10', 'Closing the first window while a New Window is open; promotion of a secondary', ['WIN-8', 'FAILOVER-1'], 'promotion is unreachable in the packaged app because closing the first window quits everything; merge logic covered by the (red) unit test'],
     ['EXTRA', 'X-4', 'Installer metadata (deb/AppImage/asar)', ['PKG-DEB-1', 'PKG-DEB-2', 'PKG-DEB-3', 'PKG-DEB-4', 'PKG-DEB-5', 'PKG-ASAR-1', 'PKG-APPIMG-1', 'PKG-APPIMG-2'], 'dpkg -i install and AppImage runtime execution not possible here'],
 ]
 const pkg = Object.fromEntries((all.targets['installers-static']?.checks ?? []).map(c => [c.id, c]))

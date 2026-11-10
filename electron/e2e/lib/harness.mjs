@@ -15,6 +15,7 @@ export async function check(id, area, what, fn, { smoke = false } = {}) {
         results.push({ id, area, what, result: 'skipped', note: 'outside smoke subset' })
         return
     }
+    globalThis.__cur = id
     try {
         const out = await fn()
         const note = typeof out === 'string' ? out : ''
