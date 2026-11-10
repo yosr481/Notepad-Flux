@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
+import { multiWindow, overrideScenarios } from './lib/scenarios.mjs'
 import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 
@@ -37,7 +38,7 @@ const pageErrors = []
 process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method))) return; throw e })
 
 async function L(userData, extra = {}) {
-    try { const n = execFileSync('tasklist', ['/fi', 'imagename eq Notepad Flux.exe', '/fo', 'csv', '/nh']).toString().split('\n').filter(l => /Notepad Flux\.exe/.test(l)).length; if (n) { console.log(`NOTE ${n} leftover Notepad Flux.exe process(es) from an earlier step killed before this launch`); execFileSync('taskkill', ['/f', '/im', 'Notepad Flux.exe'], { stdio: 'ignore' }); await sleep(1500) } } catch { /* none */ }
+    // (since 166b8cd the single-instance lock follows NOTEPAD_FLUX_USER_DATA, so instances may coexist: no leftover-process kill here)
     const go = (ns) => launch({ binary, userData, extraArgs: ns ? ['--no-sandbox'] : [], env: { ...env, ...extra.env } })
     let r
     try { r = await go(noSandbox) } catch (e) {
@@ -554,6 +555,10 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
         assert(odd.length === 0, 'unexplained [error] lines: ' + odd.slice(0, 3).join(' || '))
         return errs.length + ' error lines, all explained'
     })
+    await check('UPD-1', 'log', 'the startup update check does not fail on a missing app-update.yml (INST-9); any remaining update lines are listed', async () => {
+        const t = logOf(U1); assert(!/app-update\.yml/.test(t), 'app-update.yml error in the log: ' + (t.match(/.*app-update\.yml.*/) || [''])[0].slice(0, 160))
+        const upd = t.split('\n').filter(l => /updat/i.test(l) && /error|warn/i.test(l)); return upd.length ? 'update lines: ' + upd.slice(0, 2).join(' || ').slice(0, 300) : 'no update warnings or errors'
+    })
     await check('LOG-4', 'log', 'authorized-paths.json lists only files opened/saved/dropped in the run (+ the seeded dir/file); no stray folders (E3)', async () => {
         const g = JSON.parse(readFileSync(join(U1, 'authorized-paths.json'), 'utf8')).map(e => e.path ?? e)
         assert(Array.isArray(g) && g.length > 5, 'grants: ' + JSON.stringify(g))
@@ -995,34 +1000,10 @@ if (want('race2')) {
     }
 }
 
-// ---------------------------------------------------------------- scenario: primary window closes, second window promoted (author-flagged id collision)
-if (want('failover')) {
-    const Uf = tmp('nf-f-u-'); cleanup.push(Uf)
-    const { app, win } = await L(Uf)
-    await ui.typeAtEnd(win, 'PRIMARY-ONE-TEXT')
-    await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'PRIMARY-TWO-TEXT'); await sleep(1500)
-    const wp = app.waitForEvent('window', { timeout: 15000 })
-    await win.getByText('File', { exact: true }).first().click(); await win.getByText('New Window', { exact: true }).click()
-    const w2 = await wp; await w2.waitForLoadState('domcontentloaded'); await sleep(2500)
-    await w2.locator('.cm-content').click(); await w2.keyboard.type('SECOND-ONE-TEXT'); await w2.keyboard.press('Control+n'); await sleep(300)
-    await w2.locator('.cm-content').click(); await w2.keyboard.type('SECOND-TWO-TEXT'); await sleep(800)
-    // close the primary window (the first one); the second is promoted
-    await app.evaluate(({ BrowserWindow }) => { const ws = BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).sort((a, b) => a.id - b.id); ws[0].close() })
-    await sleep(4000)
-    await check('WIN-8', 'window', 'closing the FIRST window while a New Window (with unsaved text) is open: the second window survives (or the user is asked); it is not silently destroyed', async () => {
-        assert(!w2.isClosed() && (await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).length)) === 1,
-            'the second window was closed together with the first (app quit, log: ' + (logOf(Uf).match(/.*\bquit\b.*/) || [''])[0].slice(0, 60) + '); its unsaved text "SECOND-ONE-TEXT / SECOND-TWO-TEXT" was never persisted (secondary windows do not save)')
-    })
-    if (w2.isClosed()) na('FAILOVER-1', 'session', 'promotion of the second window after the primary closes: both windows\' tabs survive (id collision, author-flagged)', 'unreachable in the packaged app: closing the first window quits the whole app (WIN-8), so no secondary is ever promoted. The merge logic is covered by the unit test SessionContextPromotion.test.jsx (red).')
-    else await check('FAILOVER-1', 'session', 'closing the primary window with unsaved tabs while a second window (also with unsaved tabs) stays open: after promotion the survivor holds BOTH windows\' tabs, all with their text', async () => {
-        const texts = []
-        const n = (await ui.tabsInfo(w2)).length
-        for (let i = 0; i < n; i++) { await w2.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); texts.push((await w2.evaluate(() => document.querySelector('.cm-content').innerText)).replace(/\n+$/, '')) }
-        const missing = ['PRIMARY-ONE-TEXT', 'PRIMARY-TWO-TEXT', 'SECOND-ONE-TEXT', 'SECOND-TWO-TEXT'].filter(t => !texts.some(x => x.includes(t)))
-        assert(missing.length === 0, `lost after promotion: ${missing.join(', ')}; surviving tab texts: ${JSON.stringify(texts)}`)
-    })
-    await app.close().catch(() => {})
-}
+// ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
+const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: true })
+if (want('failover') || want('multiwin')) await multiWindow(scenarioCtx())
+if (want('override')) await overrideScenarios(scenarioCtx())
 
 // ---------------------------------------------------------------- scenario: second window
 if (want('newwin')) {

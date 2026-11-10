@@ -39,8 +39,16 @@ describe('toUserMessage — code-based branches', () => {
         expect(toUserMessage({ message: 'boom', code: 'EISDIR' })).toBe('That is a folder, not a file.');
     });
 
+    it('Windows access denied (EPERM: deny ACL, read-only file) → Permission denied.', () => {
+        expect(toUserMessage({ message: "EPERM: operation not permitted, open 'C:\\x.md'", code: 'EPERM' })).toBe('Permission denied.');
+    });
+
+    it('EACCES and EPERM give the same message', () => {
+        expect(toUserMessage({ message: 'x', code: 'EPERM' })).toBe(toUserMessage({ message: 'x', code: 'EACCES' }));
+    });
+
     it('unrecognized code → generic fallback', () => {
-        expect(toUserMessage({ message: 'boom', code: 'EPERM' })).toBe(GENERIC);
+        for (const code of ['EBUSY', 'EMFILE', 'ENOSPC', 'EXDEV']) expect(toUserMessage({ message: 'boom', code }), code).toBe(GENERIC);
     });
 
     it('error with a message but no code and nothing recognized → generic fallback', () => {

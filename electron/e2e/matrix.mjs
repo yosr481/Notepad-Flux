@@ -99,7 +99,8 @@ const rows = [
     ['EXTRA', 'X-7', 'Grants bound to the real path; legacy grants migrated; symlinked-dir grants; ".." in file names (a8060fe, 5edfcb1)', ['MIG-1', 'SEC-5b', 'SYM-2', 'DOTDOT-1', 'DOTDOT-2']],
     ['EXTRA', 'X-8', 'Early tabs vs session load: typing and restored-tab content (176c7c0)', ['RACE-2', 'RACE-3']],
     ['EXTRA', 'X-9', 'Large-document typing latency (fastLinkEnd, c4afbda)', ['PERF-1', 'PERF-2a', 'PERF-2']],
-    ['EXTRA', 'X-10', 'Closing the first window while a New Window is open; promotion of a secondary', ['WIN-8', 'FAILOVER-1'], 'promotion is unreachable in the packaged app because closing the first window quits everything; merge logic covered by the (red) unit test'],
+    ['EXTRA', 'X-10', 'Several windows: app lives until the last closes; hand-over keeps every tab; three windows; File > Exit with a dirty secondary (3dfc5e8, afd0354)', ['WIN-8', 'WIN-9', 'FAILOVER-1', 'HANDOVER-1', 'HANDOVER-2', 'EXIT-1', 'EXIT-2'], 'secondary-window prompts are native message boxes (dialog.showMessageBoxSync, stubbed)'],
+    ['EXTRA', 'X-11', 'userData override applied before the single-instance lock; update check without app-update.yml error (166b8cd, INST-9)', ['LOCK-1', 'PROFILE-1', 'DEFPROFILE-1', 'UPD-1']],
     ['EXTRA', 'X-4', 'Installer metadata (deb/AppImage/asar)', ['PKG-DEB-1', 'PKG-DEB-2', 'PKG-DEB-3', 'PKG-DEB-4', 'PKG-DEB-5', 'PKG-ASAR-1', 'PKG-APPIMG-1', 'PKG-APPIMG-2'], 'dpkg -i install and AppImage runtime execution not possible here'],
 ]
 const pkg = Object.fromEntries((all.targets['installers-static']?.checks ?? []).map(c => [c.id, c]))

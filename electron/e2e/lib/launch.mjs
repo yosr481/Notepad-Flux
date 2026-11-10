@@ -8,13 +8,13 @@ export const mkTmp = (p) => mkdtempSync(join(tmpdir(), p))
 
 // extraArgs: e.g. ['--no-sandbox']. Returns { app, win }.
 export async function launch({ binary, userData, extraArgs = [], env = {}, prefix = [] }) {
+    const xdg = env.XDG_CONFIG_HOME ?? mkdtempSync(join(tmpdir(), 'nf-xdg-'))
     const app = await electron.launch({
         executablePath: binary,
         args: [...prefix, ...extraArgs],
-        // XDG_CONFIG_HOME: main.js takes Electron's single-instance lock BEFORE it applies NOTEPAD_FLUX_USER_DATA,
-        // so the lock lives under the default ~/.config/notepad-flux. A private XDG_CONFIG_HOME keeps test
-        // launches off the user's real config dir (and lets them coexist with a running real app).
-        env: { ...(userData ? process.env : Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NOTEPAD_FLUX_USER_DATA'))), DISPLAY: process.env.DISPLAY, XDG_CONFIG_HOME: mkdtempSync(join(tmpdir(), 'nf-xdg-')), ...(userData ? { NOTEPAD_FLUX_USER_DATA: userData } : {}), ...env },
+        // XDG_CONFIG_HOME: private per launch. Since 166b8cd the single-instance lock follows NOTEPAD_FLUX_USER_DATA,
+        // so this only keeps the *default* profile location (used when no override is set) off the user's real config.
+        env: { ...(userData ? process.env : Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NOTEPAD_FLUX_USER_DATA'))), DISPLAY: process.env.DISPLAY, XDG_CONFIG_HOME: xdg, ...(userData ? { NOTEPAD_FLUX_USER_DATA: userData } : {}), ...env },
         timeout: 60000, chromiumSandbox: !extraArgs.includes("--no-sandbox"),
     })
     let win
@@ -33,7 +33,7 @@ export async function launch({ binary, userData, extraArgs = [], env = {}, prefi
         await app.close().catch(() => {})
         throw new Error('no window exposed window.electronAPI; windows=' + JSON.stringify(urls))
     }
-    return { app, win }
+    return { app, win, xdg }
 }
 
 export const stubOpen = (app, paths) => app.evaluate(({ dialog }, ps) => {
