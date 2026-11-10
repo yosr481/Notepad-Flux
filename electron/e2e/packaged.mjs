@@ -824,14 +824,45 @@ if (want('race')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: race with a NON-EMPTY saved session
+if (want('race2')) {
+    const { cpSync } = await import('node:fs')
+    const Ub = tmp('nf-r2-base-'), Wr = tmp('nf-r2-w-'); cleanup.push(Ub, Wr)
+    const F = join(Wr, 'early.md'); writeFileSync(F, 'EARLY-FILE-BODY\n')
+    { // build a profile that already has saved tabs
+        const { app, win } = await L(Ub)
+        await ui.typeAtEnd(win, 'SAVED-ONE')
+        for (const n of ['TWO', 'THREE']) { await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'SAVED-' + n) }
+        await sleep(1500); await ui.closeViaX(app); await app.close().catch(() => {})
+    }
+    const outcomes = []
+    for (let i = 0; i < 3; i++) {
+        const Ua = tmp('nf-r2-a-'); cleanup.push(Ua); cpSync(Ub, Ua, { recursive: true })
+        const { app, win } = await L(Ua, { settle: 0 })
+        await ui.openViaDialog(app, win, F)
+        await sleep(5000)
+        const tabs = await ui.tabsInfo(win); const text = await ui.editorText(win)
+        outcomes.push({ titles: tabs.map(t => t.title), active: tabs.filter(t => t.active).map(t => t.title), early: tabs.some(t => t.title === 'early.md'), editorHasEarly: text.includes('EARLY-FILE-BODY'), restored: tabs.length })
+        if (i === 0) await win.screenshot({ path: join(shots, `${target}-race-nonempty-profile.png`) }).catch(() => {})
+        await app.close().catch(() => {})
+    }
+    await check('RACE-2', 'session', 'profile with saved tabs: a file opened right after launch (before the session load finishes) survives, tabs are restored, exactly one tab is active and the editor shows the file', async () => {
+        const bad = outcomes.filter(o => !(o.early && o.restored >= 4 && o.active.length === 1 && o.editorHasEarly))
+        const summary = outcomes.map((o, i) => `#${i + 1}: tabs=[${o.titles.join(' | ')}] active=[${o.active.join(',')}] earlyTabKept=${o.early} editorShowsEarlyFile=${o.editorHasEarly}`).join(' ;; ')
+        assert(bad.length === 0, `${bad.length}/3 attempts wrong. ` + summary)
+        return summary
+    })
+}
+
 // ---------------------------------------------------------------- scenario: second window
 if (want('newwin')) {
     const Un = tmp('nf-n-u-'); cleanup.push(Un)
     const { app, win } = await L(Un)
-    await check('TAB-2', 'tabs', 'CHANGELOG claim: tabs stretch to fill the full tab-bar width (3 tabs, 1200px window)', async () => {
+    await check('TAB-2', 'tabs', 'CHANGELOG (corrected): tabs keep a fixed width (3 tabs ~160px each), "+" is pinned at the far right of the tab bar', async () => {
         await win.keyboard.press('Control+n'); await win.keyboard.press('Control+n'); await sleep(400)
-        const r = await win.evaluate(() => { const l = document.querySelector('[class*=tabsList]'); const ts = [...l.children]; return { sum: ts.reduce((a, t) => a + t.getBoundingClientRect().width, 0), list: l.clientWidth, n: ts.length } })
-        assert(r.sum >= r.list * 0.9, `tabs do not fill the bar: ${r.n} tabs total ${Math.round(r.sum)}px of ${r.list}px (CSS: flex 0 1 160px, max-width 200px - "do not grow")`)
+        const r = await win.evaluate(() => { const l = document.querySelector('[class*=tabsList]'); const ts = [...l.children].map(t => Math.round(t.getBoundingClientRect().width)); const b = document.querySelector('[title^="New Tab"]').getBoundingClientRect(); const c = document.querySelector('[class*=tabsContainer]').getBoundingClientRect(); return { ts, bRight: b.right, cRight: c.right, lastRight: l.lastElementChild.getBoundingClientRect().right, bLeft: b.left } })
+        assert(r.ts.length === 3 && r.ts.every(w => w >= 150 && w <= 170), 'tab widths ' + r.ts)
+        assert(r.cRight - r.bRight < 20, `"+" not at the far right: right edge ${r.bRight} vs bar ${r.cRight}`); assert(r.bLeft > r.lastRight, '"+" overlaps the last tab')
     })
     await ui.typeAtEnd(win, 'FIRST-WINDOW-TEXT')
     await app.evaluate(({ nativeTheme }) => { nativeTheme.themeSource = 'dark' })
@@ -840,6 +871,7 @@ if (want('newwin')) {
         await win.getByText('File', { exact: true }).first().click(); await win.getByText('New Window', { exact: true }).click()
         const w2 = await wp; await w2.waitForLoadState('domcontentloaded')
         assert(await w2.evaluate(() => !!window.electronAPI), 'second window has no bridge')
+        const own = (await ui.mainWindows(app)).filter(w => /app\.asar\/dist\/index\.html/.test(w.url)); assert(own.length === 2, 'New Window did not open a second app window: ' + JSON.stringify(own.map(w => w.url)))
         const bgs = await ui.mainWindows(app); assert(bgs.filter(w => /index\.html/.test(w.url)).some(w => w.bg.toUpperCase() === '#1E1E1E'), 'bg: ' + JSON.stringify(bgs.map(w => w.bg)))
         await w2.screenshot({ path: join(shots, `${target}-dark-second-window.png`) }).catch(() => {})
     })
@@ -854,6 +886,13 @@ if (want('newwin')) {
         eq((await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)).length, 1, 'Discard did not close the window')
         assert((await ui.editorText(win)).includes('FIRST-WINDOW-TEXT'), 'first window text changed')
         return 'prompt (dialog.showMessageBoxSync) stubbed: the real dialog is native and was not clicked'
+    })
+    await check('WIN-6', 'window', 'legitimate paths through the app-page rule: reload (page.reload(); F5 is Insert-date-time in this app) and navigation to the own page with a query are not blocked; bridge survives', async () => {
+        await win.evaluate(() => { window.__marker = 1 }); await win.reload({ waitUntil: 'domcontentloaded' })
+        assert(await win.evaluate(() => window.__marker === undefined && !!window.electronAPI), 'reload() did not reload / lost bridge')
+        win.evaluate(() => { location.href = location.href.split('#')[0].split('?')[0] + '?q=1' }).catch(() => {})
+        await waitFor(async () => { try { return /\?q=1/.test(win.url()) && (await win.evaluate(() => !!window.electronAPI)) } catch { return false } }, { what: 'own-page navigation with query' })
+        assert(!/Blocked (window\.open|open-external|unsafe)/.test(logOf(Un)), 'a block was logged: ' + (logOf(Un).match(/.*Blocked (window\.open|open-external|unsafe).*/) || [])[0])
     })
     await app.close().catch(() => {})
 }

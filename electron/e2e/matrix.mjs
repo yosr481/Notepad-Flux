@@ -40,7 +40,7 @@ const rows = [
     ['CHANGELOG', 'CL-28', 'Drag files onto the window to open tabs', ['DND-1', 'DND-2'], 'a real file-manager drag cannot be performed; CDP Input.dispatchDragEvent with native paths is the closest simulation'],
     ['CHANGELOG', 'CL-29', 'Status bar: real EOL + charset; fake zoom removed', ['EOL-1', 'EOL-2', 'EOL-4', 'EOL-3']],
     ['CHANGELOG', 'CL-30', 'Session log at <userData>/logs/main.log, never file content', ['LOG-1', 'LOG-2', 'LOG-3']],
-    ['CHANGELOG', 'CL-31', 'Tabs stretch full width; + pinned just right of last tab, never scrolls away', ['TAB-1', 'TAB-2']],
+    ['CHANGELOG', 'CL-31', 'Tabs fixed width, shrink then scroll; + pinned at far right, never scrolls away (CHANGELOG corrected in fea9464)', ['TAB-1', 'TAB-2']],
     ['QA', 'QA-1', 'Open failure was silent -> toast with reason', ['ERR-2']],
     ['QA', 'QA-2', 'Binary file opened as garbled text', ['ERR-1']],
     ['QA', 'QA-3', 'read-file does not isPathSafe a picked symlink (accepted policy)', ['ERR-2', 'SEC-5a', 'SEC-5b']],
@@ -94,6 +94,8 @@ const rows = [
     ['EXTRA', 'X-1', 'Encryption at rest', ['ENC-1', 'ENC-2']],
     ['EXTRA', 'X-2', 'Security posture (isolation, sandbox, window.open, navigation, grants, symlinks)', ['SEC-1', 'SEC-3', 'SEC-4', 'SEC-5a', 'SEC-5b', 'SEC-5c', 'SEC-6', 'SEC-6b', 'SEC-6c', 'SEC-7', 'SEC-8']],
     ['EXTRA', 'X-3', 'Tab-id race: files opened right after launch', ['RACE-1']],
+    ['EXTRA', 'X-5', 'Race with a non-empty saved session (file opened before the load finishes)', ['RACE-2']],
+    ['EXTRA', 'X-6', 'App-page rule (fea9464): New Window, reload and own-page navigation still work', ['WIN-3', 'WIN-6', 'SEC-6c']],
     ['EXTRA', 'X-4', 'Installer metadata (deb/AppImage/asar)', ['PKG-DEB-1', 'PKG-DEB-2', 'PKG-DEB-3', 'PKG-DEB-4', 'PKG-DEB-5', 'PKG-ASAR-1', 'PKG-APPIMG-1', 'PKG-APPIMG-2'], 'dpkg -i install and AppImage runtime execution not possible here'],
 ]
 const pkg = Object.fromEntries((all.targets['installers-static']?.checks ?? []).map(c => [c.id, c]))
