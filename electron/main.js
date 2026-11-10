@@ -1,13 +1,13 @@
 import { app, BrowserWindow, ipcMain, dialog, Menu, safeStorage, shell, nativeTheme } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
-import { join, resolve, dirname } from 'node:path'
+import { join, resolve, dirname, basename, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { open, readFile, writeFile } from 'node:fs/promises'
 import { realpathSync, existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
-import { createIsPathSafe } from './pathSafety.js'
+import { createIsPathSafe, hasDotDotSegment } from './pathSafety.js'
 import { filtersForName, OPEN_FILTERS } from './dialogFilters.js'
 import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
@@ -24,16 +24,32 @@ const __dirname = dirname(__filename)
 // without the renderer being able to grant itself paths. isPathSafe still
 // realpath-checks every read/write against this set.
 const allowedPaths = new Set()
+// Real location each grant had when it was granted (path -> realpath). isPathSafe
+// matches against this, so swapping a granted file for a symlink cannot move the grant.
+const grantedReal = new Map()
+// Real path now; for a file that doesn't exist yet (Save As) the real parent + name.
+const realAtGrant = (abs) => {
+    try { return realpathSync(abs) } catch { /* fall through */ }
+    try { return join(realpathSync(dirname(abs)), basename(abs)) } catch { return abs }
+}
 // ponytail: last 500 grants kept; older ones need a re-pick. Raise if anyone hits it.
 const MAX_GRANTS = 500
 const grantPath = (p) => {
     const abs = resolve(p)
     allowedPaths.delete(abs) // re-insert = most recent last
     allowedPaths.add(abs)
-    while (allowedPaths.size > MAX_GRANTS) allowedPaths.delete(allowedPaths.values().next().value)
+    grantedReal.set(abs, realAtGrant(abs))
+    persistGrants()
+}
+const persistGrants = () => {
+    while (allowedPaths.size > MAX_GRANTS) {
+        const old = allowedPaths.values().next().value
+        allowedPaths.delete(old)
+        grantedReal.delete(old)
+    }
     try {
         // tmp + rename: a crash mid-write can't leave a torn file that loses every grant
-        writeFileSync(`${grantsFile}.tmp`, JSON.stringify([...allowedPaths]))
+        writeFileSync(`${grantsFile}.tmp`, JSON.stringify([...allowedPaths].map((path) => ({ path, real: grantedReal.get(path) }))))
         renameSync(`${grantsFile}.tmp`, grantsFile)
     } catch (e) {
         log.warn('could not persist authorized paths', e)
@@ -95,12 +111,25 @@ log.errorHandler.startCatching({ showDialog: false })
 
 const grantsFile = join(userDataPath, 'authorized-paths.json')
 try {
-    for (const p of filterAuthorizablePaths(JSON.parse(readFileSync(grantsFile, 'utf-8')))) allowedPaths.add(p)
+    const raw = JSON.parse(readFileSync(grantsFile, 'utf-8'))
+    const list = Array.isArray(raw) ? raw : []
+    // Current format: [{path, real}]. Older versions wrote bare path strings: those get
+    // their real path captured now (once) and are rewritten below in the new format.
+    let legacy = false
+    for (const e of list) {
+        const [p] = filterAuthorizablePaths([typeof e === 'string' ? e : e?.path])
+        if (!p) continue
+        const real = typeof e === 'object' && typeof e.real === 'string' && isAbsolute(e.real) && !hasDotDotSegment(e.real) ? e.real : null
+        if (!real) legacy = true
+        allowedPaths.add(p)
+        grantedReal.set(p, real ?? realAtGrant(p))
+    }
+    if (legacy) persistGrants()
 } catch (e) {
     if (e.code !== 'ENOENT') log.warn('authorized-paths.json unreadable; starting with no grants', e)
 }
 
-const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
+const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync, grantedReal })
 
 // The app's own page: the dev server, or the packaged index.html. Nothing else gets a bridged window.
 const isOwnPage = (url) => isAppPage(url, {

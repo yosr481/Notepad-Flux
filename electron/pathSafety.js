@@ -3,7 +3,11 @@ import { resolve, dirname, isAbsolute, sep } from 'node:path'
 // True when any path SEGMENT is exactly '..' (either separator). 'notes..md' is fine.
 export const hasDotDotSegment = (p) => p.split(/[\\/]/).includes('..')
 
-export function createIsPathSafe({ allowedPaths, realpath }) {
+// grantedReal (optional Map: allowed entry -> real path captured when it was granted).
+// An entry found there is matched against that frozen real path, so replacing a
+// granted file with a symlink later does not move the grant. Entries without one
+// (legacy / tests) are realpath()ed at check time as before.
+export function createIsPathSafe({ allowedPaths, realpath, grantedReal }) {
     return (filePath) => {
         // Check 1: Not a string or falsy (before any fs call)
         if (!filePath || typeof filePath !== 'string') return false
@@ -28,12 +32,14 @@ export function createIsPathSafe({ allowedPaths, realpath }) {
 
         // Check 4: Match loop — for each allowed entry
         for (const allowed of allowedPaths) {
-            let allowedReal
-            try {
-                allowedReal = realpath(allowed)
-            } catch {
-                // Stale entry (deleted since being added) — skip, no crash
-                continue
+            let allowedReal = grantedReal?.get(allowed)
+            if (!allowedReal) {
+                try {
+                    allowedReal = realpath(allowed)
+                } catch {
+                    // Stale entry (deleted since being added) — skip, no crash
+                    continue
+                }
             }
 
             // Match if exact or within the allowed tree (with sep boundary)
