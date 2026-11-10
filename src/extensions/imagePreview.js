@@ -128,10 +128,11 @@ class ImageWidget extends WidgetType {
 // `![a][ref] and ![b](x.png)` can't match as one inline image.
 // URL is `<angle form>` (may hold spaces) or bare. A bare URL keeps going across
 // spaces until a word that opens a title (" ' or paren), so `![a](my pic.png)` still loads.
-const imageMatcher = /!\[((?:[^[\]]|\[[^[\]]*\])*)\]\((<[^>\n]*>|[^"\s)]+(?:[ \t]+(?!["'(])[^"\s)]+)*)(?:\s+[^)]*)?\)/g;
+// Nothing here may match a newline: a replace decoration across a line break throws.
+const imageMatcher = /!\[((?:[^[\]\n]|\[[^[\]\n]*\])*)\]\((<[^>\n]*>|[^"\s)]+(?:[ \t]+(?!["'(])[^"\s)]+)*)(?:[ \t]+[^)\n]*)?\)/g;
 const imageUrl = (raw) => (raw.startsWith('<') && raw.endsWith('>') ? raw.slice(1, -1) : raw);
-const imageRefFullMatcher = /!\[([^\]]*)\]\[([^\]]*)\]/g;
-const imageRefShortcutMatcher = /!\[([^\]]+)\](?!\[|\()/g;
+const imageRefFullMatcher = /!\[([^\]\n]*)\]\[([^\]\n]*)\]/g;
+const imageRefShortcutMatcher = /!\[([^\]\n]+)\](?!\[|\()/g;
 
 function computeImageDecorations(view) {
     // Three regex passes below (inline, ref-full, shortcut) each scan the whole
