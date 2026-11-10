@@ -243,9 +243,6 @@ export const SessionProvider = ({ children }) => {
         };
 
         const onPromoted = async (_lock) => {
-            // Capture pre-promotion activeTabId to restore if the tab still exists after merge
-            const localActiveId = currentActiveTabIdRef.current;
-
             // Called when this secondary window is promoted to primary
             // Gate the promotion window with isSessionLoaded = false to prevent saveTabDebounced
             // from writing pristine state while we're merging
@@ -266,66 +263,54 @@ export const SessionProvider = ({ children }) => {
                     eol: t.eol ?? detectEol(t.content),
                     charset: t.charset ?? detectCharset(t.content)
                 }));
-                const diskTabMap = new Map(diskTabs.map(t => [t.id, t]));
-
-                // Identify meaningful local tabs (use ref to avoid effect dependency)
-                // A tab is NOT meaningful if: content === '' && isDirty !== true && filePath == null &&
-                // fileHandle == null && id not in disk
-                const meaningfulLocalTabs = currentTabsRef.current.filter(localTab => {
-                    const isInDisk = diskTabMap.has(localTab.id);
-                    const isPristine =
-                        localTab.content === '' &&
-                        localTab.isDirty !== true &&
-                        localTab.filePath == null &&
-                        localTab.fileHandle == null;
-
-                    // A tab is meaningful if it's in disk OR it's not pristine
-                    return isInDisk || !isPristine;
-                });
-
-                // Build merged tabs: disk tabs + meaningful local tabs
-                const mergedTabs = [...diskTabs];
-                for (const localTab of meaningfulLocalTabs) {
-                    const idx = mergedTabs.findIndex(t => t.id === localTab.id);
-                    if (idx !== -1) {
-                        // Replace: local edit wins
-                        mergedTabs[idx] = localTab;
-                    } else {
-                        // Append: new local tab
-                        mergedTabs.push(localTab);
-                    }
-                }
-
-                // Sort merged tabs by diskSession.tabOrder, same as loadAndSetupSession
+                // Sort by the persisted order before any id changes below.
                 if (diskSession.tabOrder && diskSession.tabOrder.length > 0) {
                     const orderMap = new Map(diskSession.tabOrder.map((id, index) => [id, index]));
-                    mergedTabs.sort((a, b) => {
-                        const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
-                        const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
-                        return indexA - indexB;
+                    diskTabs.sort((a, b) => (orderMap.get(a.id) ?? 9999) - (orderMap.get(b.id) ?? 9999));
+                }
+
+                // This window's own tabs were never persisted (a secondary does not save), so a
+                // local tab sharing an id with a disk tab is a different tab, never the same one.
+                // Keep every non-pristine local tab; the untouched default tab is dropped.
+                const localTabs = currentTabsRef.current.filter(t =>
+                    !(t.content === '' && t.isDirty !== true && t.filePath == null && t.fileHandle == null));
+
+                adoptSessionMeta(diskSession); // bumps nextTabId past every disk id (local ids are already below it)
+
+                // On a collision the DISK tab takes a fresh id, not the local one: this window's
+                // editor, its cached views and any keystroke already in flight all refer to the local
+                // ids, so those must not change hands. The disk tab's old row is overwritten by the
+                // local tab of the same id in the snapshot below, so nothing stale is left behind.
+                // Checked against ALL local ids, the dropped pristine tab too: a key typed into it
+                // before this render commits then hits no tab instead of a persisted one.
+                const localIds = new Set(currentTabsRef.current.map(t => t.id));
+                const diskIdMap = new Map();
+                const keptDisk = diskTabs.map(t => {
+                    if (!localIds.has(t.id)) return t;
+                    const id = `tab-${nextTabId.current++}`;
+                    diskIdMap.set(t.id, id);
+                    return { ...t, id };
+                });
+                const mergedTabs = [...keptDisk, ...localTabs];
+
+                if (mergedTabs.length > 0) {
+                    setTabs(mergedTabs);
+                    // Stay on the tab the user was in; else the persisted active tab.
+                    const diskActive = diskIdMap.get(diskSession.activeTabId) ?? diskSession.activeTabId;
+                    const activeId = [currentActiveTabIdRef.current, diskActive].find(id => mergedTabs.some(t => t.id === id)) ?? mergedTabs[0].id;
+                    setActiveTabId(activeId);
+
+                    // Persist merged session atomically via saveSnapshot
+                    await storage.saveSnapshot({
+                        tabs: mergedTabs,
+                        metadata: {
+                            activeTabId: activeId,
+                            recentFiles: diskSession.recentFiles || [],
+                            settings: diskSession.settings || {},
+                            tabOrder: mergedTabs.map(t => t.id)
+                        }
                     });
                 }
-
-                setTabs(mergedTabs);
-
-                // Adopt metadata from disk
-                adoptSessionMeta(diskSession);
-
-                // Restore pre-promotion activeTabId if the tab still exists in merged state
-                if (mergedTabs.some(t => t.id === localActiveId)) {
-                    setActiveTabId(localActiveId);
-                }
-
-                // Persist merged session atomically via saveSnapshot
-                await storage.saveSnapshot({
-                    tabs: mergedTabs,
-                    metadata: {
-                        activeTabId: diskSession.activeTabId || mergedTabs[0]?.id,
-                        recentFiles: diskSession.recentFiles || [],
-                        settings: diskSession.settings || {},
-                        tabOrder: mergedTabs.map(t => t.id)
-                    }
-                });
             } catch (err) {
                 console.error('Failed to promote to primary window:', err);
             } finally {
