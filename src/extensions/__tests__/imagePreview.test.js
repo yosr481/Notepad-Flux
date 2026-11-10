@@ -307,6 +307,76 @@ describe('imagePreview — image title attribute (TASK 3)', () => {
     });
 });
 
+// Regression (adversarial review of 3432664): the `[^"\s)]+` URL group cut
+// `![a](my pic.png)` to `my` and `![a](<my pic.png>)` to `<my`. Spaces inside
+// the URL must survive; `<...>` is the CommonMark destination form. This
+// supersedes the TASK 3 comment: the URL no longer stops at the first space,
+// only at a word that opens a title (" ' or paren), and `<url>` is supported.
+describe('imagePreview — URLs containing spaces (regression)', () => {
+    const urlOf = (md) => imageWidgets(withCursorOff(md)).map((w) => w.url);
+
+    it('bare URL with a space keeps the whole path', () => {
+        expect(urlOf('![a](my pic.png)')).toEqual(['my pic.png']);
+    });
+
+    it('bare URL with several spaces and a tab keeps all of it', () => {
+        expect(urlOf('![a](my big\tpic.png)')).toEqual(['my big\tpic.png']);
+    });
+
+    it('bare URL with a space plus a "title" -> URL without the title', () => {
+        expect(urlOf('![a](my pic.png "t")')).toEqual(['my pic.png']);
+    });
+
+    it("bare URL with a space plus a 'title' -> URL without the title", () => {
+        expect(urlOf("![a](my pic.png 't')")).toEqual(['my pic.png']);
+    });
+
+    it('bare URL with a space plus a (title) -> URL without the title', () => {
+        expect(urlOf('![a](my pic.png (t))')).toEqual(['my pic.png']);
+    });
+
+    it('trailing space before the paren is not part of the URL', () => {
+        expect(urlOf('![a](my pic.png )')).toEqual(['my pic.png']);
+    });
+
+    it('apostrophe inside a word is not a title opener', () => {
+        expect(urlOf("![a](my pic's.png)")).toEqual(["my pic's.png"]);
+    });
+
+    it('<angle> destination: brackets stripped, spaces kept', () => {
+        expect(urlOf('![a](<my pic.png>)')).toEqual(['my pic.png']);
+    });
+
+    it('<angle> destination with a "title"', () => {
+        expect(urlOf('![a](<my pic.png> "t")')).toEqual(['my pic.png']);
+    });
+
+    it('<angle> destination may contain a quote and parens without ending early', () => {
+        expect(urlOf('![a](<my "pic" (1).png>)')).toEqual(['my "pic" (1).png']);
+    });
+
+    it('two images on one line: the spaced URL does not swallow the first', () => {
+        expect(urlOf('![x](a.png) and ![y](b c.png)')).toEqual(['a.png', 'b c.png']);
+    });
+
+    it('ADVERSARIAL: URL never continues across a newline', () => {
+        // `my` then a line break: the second line must not be glued onto the URL.
+        const urls = urlOf('![a](my\npic.png)');
+        expect(urls).not.toContain('my\npic.png');
+        expect(urls.every((u) => !u.includes('\n'))).toBe(true);
+    });
+
+    it('ADVERSARIAL: unclosed <angle> never matches across a newline into the next image', () => {
+        const urls = urlOf('![a](<my pic.png\n![b](c.png)');
+        expect(urls.every((u) => !u.includes('\n') && !u.includes('!['))).toBe(true);
+    });
+
+    it('ADVERSARIAL: title words are not leaked into the URL', () => {
+        expect(urlOf('![a](x.png "two words" )')).toEqual(['x.png']);
+        expect(urlOf('![a](a b.png "c d")')).toEqual(['a b.png']);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // TASK 8 — reference-style images (audit #8): ![alt][id] / ![id][] / ![id]
 //
