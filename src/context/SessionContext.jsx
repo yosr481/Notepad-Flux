@@ -6,9 +6,6 @@ import { detectEol, detectCharset } from '../utils/eol';
 const SettingsContext = createContext();
 const TabStateContext = createContext();
 const ActionsContext = createContext();
-// Own context (not a key of useTabState) so the pinned hook shapes stay as they are.
-const TabIdRenameContext = createContext(null);
-export const useTabIdRename = () => useContext(TabIdRenameContext);
 
 const SessionContext = createContext();
 
@@ -64,12 +61,6 @@ export const SessionProvider = ({ children }) => {
     const [restoreWarning, setRestoreWarning] = useState(null);
 
     const nextTabId = useRef(2);
-    // Set when the session load renumbers the active tab: { from, to }. Lets the editor tell a rename from a switch.
-    const [tabIdRename, setTabIdRename] = useState(null);
-    // Only valid for the render that follows the rename (the editor's effect runs before this one).
-    useEffect(() => {
-        if (tabIdRename && tabIdRename.to !== activeTabId) setTabIdRename(null);
-    }, [tabIdRename, activeTabId]);
     const saveTimers = useRef(new Map());
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
@@ -188,30 +179,36 @@ export const SessionProvider = ({ children }) => {
                 // The untouched default (pristine) tab is dropped: the disk session replaces it.
                 const early = currentTabsRef.current.filter(t =>
                     !(t.content === '' && t.isDirty !== true && t.filePath == null && t.fileHandle == null));
-                const idMap = new Map();
-                const diskIds = new Set(loadedTabs.map(t => t.id));
-                const keptEarly = early.map(t => {
-                    // Early tabs were numbered before the disk tabs were known: re-number any that collide.
-                    if (!diskIds.has(t.id)) return t;
-                    const id = `tab-${nextTabId.current++}`;
-                    idMap.set(t.id, id);
-                    return { ...t, id };
-                });
+                // Same policy as onPromoted: tabs already live in this window keep their ids (their editor,
+                // cached views and any keystroke already in flight point at them); a restored tab whose id
+                // clashes gets a fresh one. Checked against ALL current ids, the dropped pristine tab too,
+                // so a late update aimed at it finds no tab instead of a restored one.
+                const liveIds = new Set(currentTabsRef.current.map(t => t.id));
+                const renamed = new Map();
+                if (early.length > 0) {
+                    loadedTabs = loadedTabs.map(t => {
+                        if (!liveIds.has(t.id)) return t;
+                        const id = `tab-${nextTabId.current++}`;
+                        renamed.set(t.id, id);
+                        return { ...t, id };
+                    });
+                }
 
-                setTabs([...loadedTabs, ...keptEarly]);
+                setTabs([...loadedTabs, ...early]);
 
-                if (keptEarly.length > 0) {
-                    const activeEarly = keptEarly.find(t => (idMap.get(currentActiveTabIdRef.current) ?? currentActiveTabIdRef.current) === t.id);
-                    const active = activeEarly ?? keptEarly[keptEarly.length - 1];
+                if (early.length > 0) {
+                    const active = early.find(t => t.id === currentActiveTabIdRef.current) ?? early[early.length - 1];
                     setActiveTabId(active.id);
-                    // Same tab, new id: tell the editor so it keeps its live state instead of rebuilding it.
-                    const from = [...idMap].find(([, to]) => to === active.id)?.[0];
-                    setTabIdRename(from ? { from, to: active.id } : null);
-                    // Not on disk yet: persist them so a quit right after launch doesn't lose them.
+                    // Not on disk yet: persist them (and the restored tabs that got a new id) so a quit right
+                    // after launch doesn't lose them. The early tab's row overwrites the restored row of the same
+                    // id; restored rows left without an owner are deleted after the snapshot lands.
+                    const earlyIds = new Set(early.map(t => t.id));
+                    const newIds = new Set(renamed.values());
                     storage.saveSnapshot({
-                        tabs: keptEarly,
-                        metadata: { activeTabId: active.id, tabOrder: [...loadedTabs, ...keptEarly].map(t => t.id) }
-                    }).catch(e => console.error('Failed to persist tabs opened during load:', e));
+                        tabs: [...loadedTabs.filter(t => newIds.has(t.id)), ...early],
+                        metadata: { activeTabId: active.id, tabOrder: [...loadedTabs, ...early].map(t => t.id) }
+                    }).then(() => Promise.all([...renamed.keys()].filter(id => !earlyIds.has(id)).map(id => storage.deleteTab(id))))
+                        .catch(e => console.error('Failed to persist tabs opened during load:', e));
                 }
                 return;
             }
@@ -671,9 +668,7 @@ export const SessionProvider = ({ children }) => {
         <SettingsContext.Provider value={settingsValue}>
             <TabStateContext.Provider value={tabStateValue}>
                 <ActionsContext.Provider value={actionsValue}>
-                    <TabIdRenameContext.Provider value={tabIdRename}>
                     {children}
-                    </TabIdRenameContext.Provider>
                 </ActionsContext.Provider>
             </TabStateContext.Provider>
         </SettingsContext.Provider>

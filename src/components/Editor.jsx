@@ -18,7 +18,7 @@ import { fluxHighlightStyle } from '../theme';
 import { syntaxHighlighting } from '@codemirror/language';
 import styles from './Editor.module.css';
 
-const Editor = forwardRef(({ activeTabId, renamedFrom = null, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
+const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent = '', initialCursor = 0, initialScroll = 0, onContentChange, onStateChange }, ref) => {
   const editorRef = useRef(null);
   const viewRef = useRef(null);
   const stateCache = useRef(new Map());
@@ -447,12 +447,6 @@ const Editor = forwardRef(({ activeTabId, renamedFrom = null, tabIds, onStatsUpd
 
     // 1. Handle Tab Switch
     if (activeTabId !== currentTabIdRef.current) {
-      // The session load renumbered the tab being edited: same tab, new id. Keep the live view
-      // (caret, selection, undo, scroll, keystrokes not yet in props) and just follow the id.
-      if (renamedFrom !== null && renamedFrom === currentTabIdRef.current) {
-        currentTabIdRef.current = activeTabId;
-        return;
-      }
       // Save previous state
       const prevId = currentTabIdRef.current;
       const prevState = view.state;
@@ -522,7 +516,7 @@ const Editor = forwardRef(({ activeTabId, renamedFrom = null, tabIds, onStatsUpd
       });
     }
 
-  }, [activeTabId, renamedFrom, initialContent, initialCursor, initialScroll]);
+  }, [activeTabId, initialContent, initialCursor, initialScroll]);
 
   return <div ref={editorRef} className={styles.editorContainer} style={{ height: '100%' }} />;
 });
