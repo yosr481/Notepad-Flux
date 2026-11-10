@@ -8,6 +8,19 @@ const STORE_METADATA = 'metadata';
 
 export const SCHEMA_VERSION = 1;
 
+// Tab fields besides content that can hold user text or a disk path (title is the first
+// line of an unsaved note; fileHandle is the absolute path in Electron). Encrypted too.
+// Nothing indexes or queries by them: the store's only key is id.
+const SENSITIVE_FIELDS = ['title', 'filePath', 'fileHandle'];
+
+const encryptTab = async (tab) => {
+    const out = { ...tab, content: await encrypt(tab.content) };
+    for (const f of SENSITIVE_FIELDS) {
+        if (typeof tab[f] === 'string') out[f] = await encrypt(tab[f]);
+    }
+    return out;
+};
+
 export const storage = {
     async initDB() {
         return openDB(DB_NAME, DB_VERSION, {
@@ -35,11 +48,7 @@ export const storage = {
         if (tab._decryptFailed && !tab.content) return;
 
         const db = await this.initDB();
-        const encryptedContent = await encrypt(tab.content);
-        const encryptedTab = {
-            ...tab,
-            content: encryptedContent
-        };
+        const encryptedTab = await encryptTab(tab);
         await db.put(STORE_TABS, encryptedTab);
     },
 
@@ -78,11 +87,7 @@ export const storage = {
                 // Skip this tab; its prior on-disk row survives
                 continue;
             }
-            const encryptedContent = await encrypt(tab.content);
-            encryptedTabs.push({
-                ...tab,
-                content: encryptedContent
-            });
+            encryptedTabs.push(await encryptTab(tab));
         }
 
         // Encrypt all metadata values first (before transaction)
@@ -120,14 +125,21 @@ export const storage = {
         const tabs = await Promise.all((encryptedTabs || []).map(async tab => {
             try {
                 const decryptedContent = await decrypt(tab.content);
-                return {
-                    ...tab,
-                    content: decryptedContent
-                };
+                const out = { ...tab, content: decryptedContent };
+                // Rows from older versions hold these in plaintext; decrypt passes those through
+                // and the next save rewrites them encrypted.
+                for (const f of SENSITIVE_FIELDS) {
+                    if (typeof tab[f] === 'string') out[f] = await decrypt(tab[f]);
+                }
+                return out;
             } catch (e) {
                 console.error(`Failed to decrypt tab ${tab.id}:`, e);
                 return {
                     ...tab,
+                    // title/filePath may be ciphertext we cannot read: show neutral values
+                    title: 'Untitled',
+                    filePath: null,
+                    fileHandle: null,
                     content: '',
                     _decryptFailed: true
                 };
