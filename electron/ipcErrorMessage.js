@@ -29,7 +29,8 @@ export function toUserMessage(error) {
     }
 
     // Code-based checks (only if message-based checks didn't match)
-    if (code === 'EACCES') {
+    // Windows reports access denied (deny ACL, read-only file) as EPERM, not EACCES
+    if (code === 'EACCES' || code === 'EPERM') {
         return 'Permission denied.'
     }
     if (code === 'ENOENT') {
