@@ -7,9 +7,10 @@ import { posix, win32 } from 'node:path'
 
 export function isAppPage(url, { devUrl, indexPath, platform }) {
     if (typeof url !== 'string') return false
-    if (devUrl && url.startsWith(devUrl)) return true
     try {
         const parsed = new URL(url)
+        // same origin, not a string prefix: http://localhost:5173.evil.example starts with the dev URL too
+        if (devUrl && parsed.origin === new URL(devUrl).origin) return true
         if (parsed.protocol !== 'file:') return false
         // fileURLToPath drops the hash and query, decodes %20, and gives a native path
         const windows = platform === 'win32'
