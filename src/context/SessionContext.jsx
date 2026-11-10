@@ -173,7 +173,35 @@ export const SessionProvider = ({ children }) => {
                     charset: t.charset ?? detectCharset(t.content)
                 }));
 
-                setTabs(loadedTabs);
+                adoptSessionMeta(diskSession); // also bumps nextTabId past every disk id
+
+                // Tabs the user opened or typed into before this load finished must survive it.
+                // The untouched default (pristine) tab is dropped: the disk session replaces it.
+                const early = currentTabsRef.current.filter(t =>
+                    !(t.content === '' && t.isDirty !== true && t.filePath == null && t.fileHandle == null));
+                const idMap = new Map();
+                const diskIds = new Set(loadedTabs.map(t => t.id));
+                const keptEarly = early.map(t => {
+                    // Early tabs were numbered before the disk tabs were known: re-number any that collide.
+                    if (!diskIds.has(t.id)) return t;
+                    const id = `tab-${nextTabId.current++}`;
+                    idMap.set(t.id, id);
+                    return { ...t, id };
+                });
+
+                setTabs([...loadedTabs, ...keptEarly]);
+
+                if (keptEarly.length > 0) {
+                    const activeEarly = keptEarly.find(t => (idMap.get(currentActiveTabIdRef.current) ?? currentActiveTabIdRef.current) === t.id);
+                    const active = activeEarly ?? keptEarly[keptEarly.length - 1];
+                    setActiveTabId(active.id);
+                    // Not on disk yet: persist them so a quit right after launch doesn't lose them.
+                    storage.saveSnapshot({
+                        tabs: keptEarly,
+                        metadata: { activeTabId: active.id, tabOrder: [...loadedTabs, ...keptEarly].map(t => t.id) }
+                    }).catch(e => console.error('Failed to persist tabs opened during load:', e));
+                }
+                return;
             }
 
             adoptSessionMeta(diskSession);
