@@ -446,6 +446,13 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
       scrollCache.current.set(prevId, view.scrollDOM.scrollTop);
 
       // Restore or Create new state
+      // A cached state is only valid while it still belongs to this tab. The session load can hand an
+      // id to a different tab (restored tab-1 vs the pre-load tab-1), leaving a stale state under it;
+      // the tab's own content is the truth, so a state whose doc differs from it is dropped.
+      if (stateCache.current.get(activeTabId)?.doc.toString() !== initialContent) {
+        stateCache.current.delete(activeTabId);
+        scrollCache.current.delete(activeTabId);
+      }
       if (stateCache.current.has(activeTabId)) {
         view.setState(stateCache.current.get(activeTabId));
         // Restore scroll from cache
