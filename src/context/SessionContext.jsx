@@ -136,7 +136,9 @@ export const SessionProvider = ({ children }) => {
                 const num = parseInt(t.id.replace('tab-', ''));
                 return !isNaN(num) && num > max ? num : max;
             }, 1);
-            nextTabId.current = maxId + 1;
+            // Never move backwards: a tab opened before this load finished already took an id,
+            // and handing that id out again puts two tabs under one id (typing lands in the wrong file).
+            nextTabId.current = Math.max(nextTabId.current, maxId + 1);
 
             // Adopt metadata from disk
             if (diskSession.activeTabId) {

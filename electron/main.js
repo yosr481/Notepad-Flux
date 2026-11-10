@@ -13,6 +13,7 @@ import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
 import { isProbablyText } from './isProbablyText.js'
 import { toUserMessage } from './ipcErrorMessage.js'
+import { isAppPage } from './appPage.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -100,6 +101,13 @@ try {
 }
 
 const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync })
+
+// The app's own page: the dev server, or the packaged index.html. Nothing else gets a bridged window.
+const isOwnPage = (url) => isAppPage(url, {
+    devUrl: process.env.VITE_DEV_SERVER_URL,
+    indexPath: join(process.env.DIST, 'index.html'),
+    platform: process.platform,
+})
 
 const safeHandle = (channel, handler) => {
     ipcMain.handle(channel, async (event, ...args) => {
@@ -370,8 +378,7 @@ function createWindow() {
     win.webContents.on('did-create-window', guardClose)
 
     win.webContents.setWindowOpenHandler(({ url }) => {
-        const devUrl = process.env.VITE_DEV_SERVER_URL
-        const isOwnOrigin = (devUrl && url.startsWith(devUrl)) || url.startsWith('file:')
+        const isOwnOrigin = isOwnPage(url)
 
         if (!isOwnOrigin) {
             if (url.startsWith('http:') || url.startsWith('https:')) {
@@ -398,16 +405,16 @@ function createWindow() {
     })
 
     win.webContents.on('will-navigate', (event, navigationUrl) => {
-        const parsedUrl = new URL(navigationUrl)
-        const isDev = !!process.env.VITE_DEV_SERVER_URL
-        if (isDev && navigationUrl.startsWith(process.env.VITE_DEV_SERVER_URL)) {
-            return
-        }
-        if (parsedUrl.protocol === 'file:') {
+        if (isOwnPage(navigationUrl)) {
             return
         }
         event.preventDefault()
-        shell.openExternal(navigationUrl)
+        // A local file is never handed to the OS to open; only web links leave the app.
+        if (/^(https?|mailto):/i.test(navigationUrl)) {
+            shell.openExternal(navigationUrl)
+        } else {
+            log.warn(`Blocked navigation to disallowed URL: ${navigationUrl}`)
+        }
     })
 
     win.once('ready-to-show', () => {

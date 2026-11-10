@@ -41,7 +41,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Desktop:** Drag files onto the window to open them as tabs.
 - **Status bar:** Show the real line ending (LF/CRLF) and charset (UTF-8 / UTF-8 BOM) of each tab and keep them on save; the fake zoom indicator is removed.
 - **Desktop:** Session log at `<userData>/logs/main.log` (`~/.config/notepad-flux/logs/` on Linux, `%USERPROFILE%\AppData\LocalLow\Notepad Flux\logs\` on Windows) records startup, file open/save/deny events and renderer errors — never file content.
-- **Tabs:** Tabs stretch to fill the full width of the tab bar; the new-tab (`+`) button stays pinned just right of the last tab and never scrolls out of view when many tabs are open.
+- **Tabs:** Tabs keep a fixed width, shrink as more are opened, and then scroll; the new-tab (`+`) button stays pinned at the far right of the tab bar and never scrolls out of view.
 
 ## [1.3.2] — 2026-04-14
 
