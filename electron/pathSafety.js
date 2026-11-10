@@ -1,4 +1,10 @@
-import { resolve, dirname, isAbsolute, sep } from 'node:path'
+import { posix, win32 } from 'node:path'
+
+// The one place that decides when two paths are "the same": Windows paths are case- and
+// separator-insensitive (C:\Dir\a.md == c:/dir/A.MD), every other platform is exact.
+// Platform is a parameter so the win32 rule is testable on Linux.
+export const pathKey = (p, platform = process.platform) =>
+    platform === 'win32' ? p.replace(/\//g, '\\').toLowerCase() : p
 
 // True when any path SEGMENT is exactly '..' (either separator). 'notes..md' is fine.
 export const hasDotDotSegment = (p) => p.split(/[\\/]/).includes('..')
@@ -7,7 +13,9 @@ export const hasDotDotSegment = (p) => p.split(/[\\/]/).includes('..')
 // An entry found there is matched against that frozen real path, so replacing a
 // granted file with a symlink later does not move the grant. Entries without one
 // (legacy / tests) are realpath()ed at check time as before.
-export function createIsPathSafe({ allowedPaths, realpath, grantedReal }) {
+export function createIsPathSafe({ allowedPaths, realpath, grantedReal, platform = process.platform }) {
+    const { resolve, dirname, isAbsolute, sep } = platform === 'win32' ? win32 : posix
+    const key = (p) => pathKey(p, platform)
     return (filePath) => {
         // Check 1: Not a string or falsy (before any fs call)
         if (!filePath || typeof filePath !== 'string') return false
@@ -43,7 +51,9 @@ export function createIsPathSafe({ allowedPaths, realpath, grantedReal }) {
             }
 
             // Match if exact or within the allowed tree (with sep boundary)
-            if (real === allowedReal || real.startsWith(allowedReal + sep)) {
+            const r = key(real)
+            const a = key(allowedReal)
+            if (r === a || r.startsWith(a + sep)) {
                 return true
             }
         }

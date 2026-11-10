@@ -7,7 +7,7 @@ import { open, readFile, writeFile } from 'node:fs/promises'
 import { realpathSync, existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
-import { createIsPathSafe, hasDotDotSegment } from './pathSafety.js'
+import { createIsPathSafe, hasDotDotSegment, pathKey } from './pathSafety.js'
 import { filtersForName, OPEN_FILTERS } from './dialogFilters.js'
 import { filterAuthorizablePaths } from './authorizePaths.js'
 import { buildWindowOptions } from './windowOptions.js'
@@ -54,6 +54,13 @@ const persistGrants = () => {
     } catch (e) {
         log.warn('could not persist authorized paths', e)
     }
+}
+
+// Is this path (any case/separator spelling on Windows) a granted entry?
+const isGranted = (p) => {
+    const k = pathKey(resolve(p), platform)
+    for (const a of allowedPaths) if (pathKey(a, platform) === k) return true
+    return false
 }
 
 // Track the last directory used in file dialogs; starts at documents folder.
@@ -131,7 +138,7 @@ try {
     if (e.code !== 'ENOENT') log.warn('authorized-paths.json unreadable; starting with no grants', e)
 }
 
-const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync, grantedReal })
+const isPathSafe = createIsPathSafe({ allowedPaths, realpath: realpathSync, grantedReal, platform })
 
 // The app's own page: the dev server, or the packaged index.html. Nothing else gets a bridged window.
 const isOwnPage = (url) => isAppPage(url, {
@@ -199,7 +206,7 @@ safeHandle('read-file-content', async (event, filePath) => {
     // raw path - a symlink swapped in between the two is a TOCTOU race. Local
     // attacker only; fully closing it means readFile'ing the realpath'd result,
     // which the new-file save path has no value for. Left as a known corner.
-    if (typeof filePath === 'string' && allowedPaths.has(resolve(filePath)) && !existsSync(filePath)) {
+    if (typeof filePath === 'string' && isGranted(filePath) && !existsSync(filePath)) {
         // Granted earlier, gone now: say so (isPathSafe would call it unauthorized).
         log.info('read: missing', filePath)
         throw Object.assign(new Error('File not found.'), { code: 'ENOENT' })
@@ -269,7 +276,7 @@ safeHandle('open-dropped-file', async (event, filePath) => {
 // Existence probe for restored tabs (QA finding 12). Only answers for granted
 // paths; anything else is null ("unknown"), so the page can't probe the disk.
 safeHandle('file-exists', async (event, p) => {
-    if (typeof p !== 'string' || !allowedPaths.has(resolve(p))) return null
+    if (typeof p !== 'string' || !isGranted(p)) return null
     let exists = false
     try { exists = existsSync(p) } catch { /* treat as missing */ }
     if (!exists) log.info('file-exists: missing', p)
