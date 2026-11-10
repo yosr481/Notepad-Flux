@@ -289,7 +289,8 @@ export const SessionProvider = ({ children }) => {
                 // On a collision the DISK tab takes a fresh id, not the local one: this window's
                 // editor, its cached views and any keystroke already in flight all refer to the local
                 // ids, so those must not change hands. The disk tab's old row is overwritten by the
-                // local tab of the same id in the snapshot below, so nothing stale is left behind.
+                // local tab of the same id in the snapshot below, or deleted after it when only the
+                // dropped pristine tab had that id.
                 // Checked against ALL local ids, the dropped pristine tab too: a key typed into it
                 // before this render commits then hits no tab instead of a persisted one.
                 const localIds = new Set(currentTabsRef.current.map(t => t.id));
@@ -319,6 +320,11 @@ export const SessionProvider = ({ children }) => {
                             tabOrder: mergedTabs.map(t => t.id)
                         }
                     });
+                    // A disk id that only the dropped pristine tab collided with is used by no tab
+                    // now. Its old row must go, or that tab comes back twice on the next launch.
+                    // After the snapshot, so a crash in between leaves an extra row, never a lost tab.
+                    const liveIds = new Set(mergedTabs.map(t => t.id));
+                    await Promise.all([...diskIdMap.keys()].filter(id => !liveIds.has(id)).map(id => storage.deleteTab(id)));
                 }
             } catch (err) {
                 console.error('Failed to promote to primary window:', err);
