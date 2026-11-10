@@ -377,6 +377,46 @@ describe('imagePreview — URLs containing spaces (regression)', () => {
     });
 });
 
+// A match must never span a line break: CodeMirror throws RangeError
+// "Decorations that replace line breaks may not be specified via plugins".
+describe('imagePreview — never matches across a line break (regression)', () => {
+    const DEF = '\n\n[id]: https://e/x.png';
+    const noBreakInRanges = (doc) => {
+        const view = mkView(doc, 0); // must not throw
+        const cur = view.plugin(imagePreview).decorations.iter();
+        while (cur.value) {
+            expect(doc.slice(cur.from, cur.to)).not.toContain('\n');
+            cur.next();
+        }
+        return view;
+    };
+
+    it('inline: alt across a newline -> no throw, no widget', () => {
+        const view = noBreakInRanges('intro\n![al\nt](x.png)');
+        expect(imageWidgets(view)).toEqual([]);
+    });
+
+    it('full reference: alt across a newline -> no throw, no widget', () => {
+        const view = noBreakInRanges('intro\n![al\nt][id]' + DEF);
+        expect(imageWidgets(view)).toEqual([]);
+    });
+
+    it('full reference: label across a newline -> no throw, no widget', () => {
+        const view = noBreakInRanges('intro\n![alt][i\nd]\n\n[i d]: https://e/x.png');
+        expect(imageWidgets(view)).toEqual([]);
+    });
+
+    it('shortcut reference across a newline -> no throw, no widget', () => {
+        const view = noBreakInRanges('intro\n![fo\no]\n\n[fo o]: https://e/x.png');
+        expect(imageWidgets(view)).toEqual([]);
+    });
+
+    it('control: the same full reference on one line still renders', () => {
+        const view = noBreakInRanges('intro\n![alt][id]' + DEF);
+        expect(imageWidgets(view).map((w) => w.url)).toEqual(['https://e/x.png']);
+    });
+});
+
 // ---------------------------------------------------------------------------
 // TASK 8 — reference-style images (audit #8): ![alt][id] / ![id][] / ![id]
 //
