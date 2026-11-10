@@ -37,6 +37,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Session:** A restored tab whose file was moved or deleted is marked, and its next save opens Save As.
 - **Recent files:** Confirm before re-locating a recent file that no longer exists; alerts no longer block the app.
 - **Toasts:** Long messages stay inside the window.
+- **Session:** A file opened in the first moments after launch is no longer lost or mixed up with the restored tabs.
+- **Privacy:** Tab titles and file paths are now encrypted at rest, along with tab content.
+- **Desktop:** Files whose names contain `..` (for example `notes..md`) can be opened, dropped and saved.
+- **Desktop:** A file you opened that is later replaced by a link to another file is no longer followed.
+- **Desktop:** Only the app's own page can get an app window; a page link or script can no longer open a local file in one.
+- **Live Preview:** Ctrl+click on an image inside a link opens the link.
+- **Editor:** Typing in very large documents with many links is several times faster.
+- **Windows:** A file you may not read or write now says "Permission denied." instead of an internal error, and a file reached through a different drive-letter case or slash style is recognised as the same file.
+- **Windows:** Uninstalling removes the downloaded-update cache.
+- **Linux:** The .deb package declares all the libraries the app needs.
 
 ### Features
 - **Desktop:** Drag files onto the window to open them as tabs.
