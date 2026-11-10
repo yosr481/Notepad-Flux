@@ -111,7 +111,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Notepad Flux",
-      "deleteAppDataOnUninstall": false
+      "deleteAppDataOnUninstall": false,
+      "include": "installer/installer.nsh"
     },
     "linux": {
       "target": [
