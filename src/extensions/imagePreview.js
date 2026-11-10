@@ -126,7 +126,10 @@ class ImageWidget extends WidgetType {
 
 // Alt allows balanced [..] (`![Figure [1]](f.png)`) but no bare "]", so
 // `![a][ref] and ![b](x.png)` can't match as one inline image.
-const imageMatcher = /!\[((?:[^[\]]|\[[^[\]]*\])*)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g;
+// URL is `<angle form>` (may hold spaces) or bare. A bare URL keeps going across
+// spaces until a word that opens a title (" ' or paren), so `![a](my pic.png)` still loads.
+const imageMatcher = /!\[((?:[^[\]]|\[[^[\]]*\])*)\]\((<[^>\n]*>|[^"\s)]+(?:[ \t]+(?!["'(])[^"\s)]+)*)(?:\s+[^)]*)?\)/g;
+const imageUrl = (raw) => (raw.startsWith('<') && raw.endsWith('>') ? raw.slice(1, -1) : raw);
 const imageRefFullMatcher = /!\[([^\]]*)\]\[([^\]]*)\]/g;
 const imageRefShortcutMatcher = /!\[([^\]]+)\](?!\[|\()/g;
 
@@ -153,12 +156,12 @@ function computeImageDecorations(view) {
 
             if (!isCursorInside) {
                 ranges.push(Decoration.replace({
-                    widget: new ImageWidget(match[2], match[1], false),
+                    widget: new ImageWidget(imageUrl(match[2]), match[1], false),
                     inclusive: false
                 }).range(start, end));
             } else {
                 ranges.push(Decoration.widget({
-                    widget: new ImageWidget(match[2], match[1], true),
+                    widget: new ImageWidget(imageUrl(match[2]), match[1], true),
                     side: 1
                 }).range(end, end));
             }
