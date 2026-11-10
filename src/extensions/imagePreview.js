@@ -122,6 +122,13 @@ class ImageWidget extends WidgetType {
     eq(other) {
         return other.url === this.url && other.alt === this.alt && other.active === this.active;
     }
+
+    // Let Ctrl/Cmd+click reach linkClickHandler, so `[![alt](img)](url)` opens
+    // like a text link (it walks up to the enclosing Link; a bare image has none).
+    // Everything else, mousedown included, stays ignored as before.
+    ignoreEvent(event) {
+        return !(event.type === "click" && (event.ctrlKey || event.metaKey));
+    }
 }
 
 // Alt allows balanced [..] (`![Figure [1]](f.png)`) but no bare "]", so
