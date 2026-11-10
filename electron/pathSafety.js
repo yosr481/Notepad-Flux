@@ -1,12 +1,15 @@
 import { resolve, dirname, isAbsolute, sep } from 'node:path'
 
+// True when any path SEGMENT is exactly '..' (either separator). 'notes..md' is fine.
+export const hasDotDotSegment = (p) => p.split(/[\\/]/).includes('..')
+
 export function createIsPathSafe({ allowedPaths, realpath }) {
     return (filePath) => {
         // Check 1: Not a string or falsy (before any fs call)
         if (!filePath || typeof filePath !== 'string') return false
 
         // Check 2: Lexical guard on the ORIGINAL filePath (before any fs call)
-        if (!isAbsolute(filePath) || filePath.includes('..')) return false
+        if (!isAbsolute(filePath) || hasDotDotSegment(filePath)) return false
 
         // Check 3: Canonicalise the request
         let real
