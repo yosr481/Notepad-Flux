@@ -68,4 +68,44 @@ describe('SessionContext: secondary window promoted to primary (failover) with c
         await waitFor(() => expect(apiB.tabs).toHaveLength(3));
         expect(apiB.tabs.map(t => t.content)).toEqual(expect.arrayContaining(['primary window text one', 'second window typed']));
     });
+
+    // 957c1bb: a saved tab renumbered only because of the promoted window's untouched default tab (dropped) leaves its old row behind
+    const promote = async (diskIds, localSetup) => {
+        storage.loadSession.mockResolvedValue({ tabs: diskIds.map(id => ({ id, title: `D-${id}`, content: `body ${id}`, isDirty: true, filePath: null, fileHandle: null })), activeTabId: diskIds[0], recentFiles: [], settings: {} });
+        const apiA = {}, apiB = {};
+        const PA = () => { Object.assign(apiA, useSession()); return null; };
+        const PB = () => { Object.assign(apiB, useSession()); return null; };
+        render(<><SessionProvider><PA /></SessionProvider><SessionProvider><PB /></SessionProvider></>);
+        await waitFor(() => expect(navigator.locks.__queueLength(LOCK)).toBe(1));
+        localSetup?.(apiB);
+        await act(async () => { navigator.locks.__release(LOCK); });
+        await waitFor(() => expect(apiB.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(storage.saveSnapshot).toHaveBeenCalled());
+        return apiB;
+    };
+
+    it('PROMOTION PATH orphan rows: an untouched default tab (dropped) clashes with saved tab-1: that tab is renumbered and its old row is deleted after the snapshot', async () => {
+        const apiB = await promote(['tab-1', 'p-x']);          // window B stays pristine: nothing local to keep
+        await waitFor(() => expect(storage.deleteTab).toHaveBeenCalledWith('tab-1'));
+        expect(apiB.tabs.filter(t => t.title === 'D-tab-1')).toHaveLength(1);       // once, under a fresh id
+        expect(apiB.tabs.find(t => t.title === 'D-tab-1').id).not.toBe('tab-1');
+        expect(apiB.tabs.map(t => t.title).sort()).toEqual(['D-p-x', 'D-tab-1']);
+        expect(storage.deleteTab.mock.invocationCallOrder[0]).toBeGreaterThan(storage.saveSnapshot.mock.invocationCallOrder.at(-1));
+        const written = storage.saveSnapshot.mock.calls.at(-1)[0].tabs.map(t => t.id);
+        expect(written).not.toContain('tab-1');                                      // nothing writes the stale id back
+    });
+
+    it('PROMOTION PATH: a saved row that a local early tab overwrites (same id) is NOT deleted, only ids nobody holds anymore', async () => {
+        const apiB = await promote(['tab-1', 'tab-2'], (b) => { act(() => { b.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); }); });
+        const deleted = storage.deleteTab.mock.calls.map(c => c[0]);
+        expect(deleted).toContain('tab-1');                                          // only the dropped pristine tab clashed with it
+        expect(deleted).not.toContain('tab-2');                                      // the early tab-2 overwrote that row
+        expect(apiB.tabs.find(t => t.title === 'early.md').id).toBe('tab-2');
+        expect(apiB.tabs.filter(t => t.title.startsWith('D-'))).toHaveLength(2);
+    });
+
+    it('PROMOTION PATH: without any clash no row is deleted', async () => {
+        await promote(['p-a', 'p-b']);
+        expect(storage.deleteTab).not.toHaveBeenCalled();
+    });
 });

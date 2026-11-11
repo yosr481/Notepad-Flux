@@ -142,3 +142,29 @@ export async function overrideScenarios(ctx) {
         await r.app.close().catch(() => {})
     }
 }
+
+// ---- 957c1bb: promotion of a window whose default tab was left untouched must not leave an orphan row (tab would come back twice)
+export async function orphanRows(ctx) {
+    const { L, check, ui, sleep, waitFor, assert, eq, tmp, cleanup } = ctx
+    const U = tmp('nf-orph-u-'); cleanup.push(U)
+    const { app, win: w1 } = await L(U)
+    const type = async (p, text) => { await p.locator('.cm-content').click(); await p.keyboard.press('Control+End'); await p.keyboard.type(text) }
+    await type(w1, 'ORPH-ONE'); await w1.keyboard.press('Control+n'); await sleep(300); await type(w1, 'ORPH-TWO'); await sleep(1800)
+    const wp = app.waitForEvent('window', { timeout: 20000 })
+    await w1.getByText('File', { exact: true }).first().click(); await w1.getByText('New Window', { exact: true }).click()
+    const w2 = await wp; await w2.waitForLoadState('domcontentloaded'); await sleep(2500)        // the new window is left untouched
+    let exited = false; app.process().once('exit', () => { exited = true })
+    const closeFirst = () => app.evaluate(({ BrowserWindow }) => { const ws = BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).sort((a, b) => a.id - b.id); ws[0].close() })
+    await closeFirst(); await sleep(4000)                                                         // w2 is promoted: its pristine tab-1 clashes with saved tab-1
+    await closeFirst(); await waitFor(() => exited, { timeout: 12000, what: 'app exit' }).catch(() => {})
+    await check('ORPHAN-1', 'session', 'saved tabs, an untouched New Window, close the first window, quit, relaunch: every saved tab comes back exactly once (no orphan row from the promotion)', async () => {
+        assert(exited, 'app did not exit after the last window closed')
+        const r = await L(U)
+        const texts = []; const n = (await ui.tabsInfo(r.win)).length
+        for (let i = 0; i < n; i++) { await r.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); texts.push((await r.win.evaluate(() => document.querySelector('.cm-content').innerText)).replace(/\n+$/, '')) }
+        await r.app.close().catch(() => {})
+        eq(texts.filter(t => t === 'ORPH-ONE').length, 1, 'ORPH-ONE copies: ' + JSON.stringify(texts)); eq(texts.filter(t => t === 'ORPH-TWO').length, 1, 'ORPH-TWO copies: ' + JSON.stringify(texts))
+        eq(texts.length, 2, 'tab count: ' + JSON.stringify(texts))
+    }, { smoke: true })
+    await app.close().catch(() => {})
+}

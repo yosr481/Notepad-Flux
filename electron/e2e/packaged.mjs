@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url'
 import { execFileSync } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
-import { multiWindow, overrideScenarios } from './lib/scenarios.mjs'
+import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
 import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 
@@ -963,6 +963,12 @@ if (want('race2')) {
         const tabs = await ui.tabsInfo(win); const seen = {}
         for (let i = 0; i < tabs.length; i++) { await win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen[tabs[i].title] = (await ui.editorText(win)).replace(/\n+$/, '') }
         const rec = { titles: tabs.map(t => t.title), seen, typeErr, timing: { typeStartMs: typeStart, typeEndMs: typeEnd, loadDoneMs } }
+        // relaunch the same profile: every tab exactly once, restored tabs intact, early tab intact (no orphan rows, no stray text)
+        await ui.closeViaX(app); await app.close().catch(() => {})
+        const rl = await L(Ua); const after = {}; const nAfter = (await ui.tabsInfo(rl.win)).length
+        for (let i = 0; i < nAfter; i++) { await rl.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); const t = (await ui.tabsInfo(rl.win))[i].title; after[t] = [...(after[t] || []), (await ui.editorText(rl.win)).replace(/\n+$/, '')] }
+        await rl.app.close().catch(() => {})
+        rec.relaunch = after
         await check((slow ? 'RACE-3s' : 'RACE-3') + (reps > 1 ? '.' + rep : ''), 'session', (slow ? '[load slowed from the test side] ' : '') + 'typing into an early tab straight through the end of the session load: every key lands in that tab, in order; no restored tab gets stray characters', async () => {
             assert(!typeErr, 'could not type: ' + typeErr)
             if (slow) assert(loadDoneMs !== null && loadDoneMs > typeStart && loadDoneMs < typeEnd, 'precondition not met: the session load did not finish in the middle of the typing ' + JSON.stringify(rec.timing))
@@ -970,6 +976,11 @@ if (want('race2')) {
             assert(early !== undefined, 'early tab missing: ' + JSON.stringify(rec))
             assert(early.includes(typed), `early tab text ${JSON.stringify(early)} lacks the typed run ${typed}`)
             for (const n of ['SAVED-ONE', 'SAVED-TWO', 'SAVED-THREE']) assert(seen[n] === n, `restored tab ${n} changed: ${JSON.stringify(seen[n])}; all tabs: ${JSON.stringify(rec)}`)
+            const dup = Object.entries(rec.relaunch).filter(([, v]) => v.length !== 1).map(([k]) => k)
+            assert(dup.length === 0, 'after relaunch these tabs are missing or duplicated: ' + dup.join(', ') + ' ' + JSON.stringify(rec.relaunch))
+            for (const n of ['SAVED-ONE', 'SAVED-TWO', 'SAVED-THREE']) assert(rec.relaunch[n]?.[0] === n, `restored tab ${n} after relaunch: ${JSON.stringify(rec.relaunch[n])}`)
+            assert(rec.relaunch['early.md']?.[0]?.startsWith('EARLY-FILE-BODY') && rec.relaunch['early.md'][0].includes(typed), 'early tab after relaunch: ' + JSON.stringify(rec.relaunch['early.md']))
+            eq(Object.keys(rec.relaunch).length, 4, 'tab count after relaunch: ' + Object.keys(rec.relaunch).join(','))
             return JSON.stringify(rec)
         })
         await app.close().catch(() => {})
@@ -979,6 +990,7 @@ if (want('race2')) {
 // ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
 const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: false })
 if (want('failover') || want('multiwin')) await multiWindow(scenarioCtx())
+if (want('failover') || want('orphan')) await orphanRows(scenarioCtx())
 if (want('override')) await overrideScenarios(scenarioCtx())
 
 // ---------------------------------------------------------------- scenario: second window

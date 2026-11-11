@@ -47,35 +47,82 @@ describe('SessionContext: tabs opened before the session load finishes', () => {
         expect(new Set(api.tabs.map(t => t.id)).size).toBe(3);
     });
 
-    it('renumbers an early tab whose id collides with a disk tab id, keeps it active, and never reuses ids afterwards', async () => {
+    it('early tabs KEEP their ids; restored tabs whose id clashes (the dropped pristine tab included) get fresh ones; order restored-then-early; early stays active; no id reused afterwards', async () => {
         const { api, finish } = mountWithPendingLoad();
         await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
         act(() => { api.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); });
-        const earlyId = api.tabs.find(t => t.title === 'early.md').id;
-        expect(earlyId).toBe('tab-2');                       // numbered before the disk ids were known
+        expect(api.tabs.find(t => t.title === 'early.md').id).toBe('tab-2');
         await finish(disk(['tab-1', 'tab-2', 'tab-3']));
         await waitFor(() => expect(api.tabs).toHaveLength(4));
-        const ids = api.tabs.map(t => t.id);
-        expect(new Set(ids).size).toBe(4);
-        const early = api.tabs.find(t => t.title === 'early.md');
-        expect(early.id).not.toBe('tab-2'); expect(early.content).toBe('E');
-        expect(api.tabs.find(t => t.id === 'tab-2').title).toBe('D-tab-2');   // disk tab keeps its id
-        expect(api.activeTabId).toBe(early.id);
+        expect(api.tabs.map(t => t.title)).toEqual(['D-tab-1', 'D-tab-2', 'D-tab-3', 'early.md']);
+        const early = api.tabs[3];
+        expect(early.id).toBe('tab-2'); expect(early.content).toBe('E');          // kept
+        expect(api.tabs[2].id).toBe('tab-3');                                     // no clash: untouched
+        expect(api.tabs[0].id).not.toBe('tab-1');                                 // clashed with the dropped pristine tab
+        expect(api.tabs[1].id).not.toBe('tab-2');                                 // clashed with the early tab
+        expect(api.tabs[0].content).toBe('body tab-1'); expect(api.tabs[1].content).toBe('body tab-2')   // restored content intact
+        expect(new Set(api.tabs.map(t => t.id)).size).toBe(4);
+        expect(api.activeTabId).toBe('tab-2');
         act(() => { api.createTab({ title: 'later' }); });
         expect(new Set(api.tabs.map(t => t.id)).size).toBe(5);
     });
 
-    it('persists the early tabs at once through saveSnapshot with the new active id and full tab order', async () => {
+    it('one saveSnapshot writes the renumbered restored tabs AND the early tabs, with the full order and the active early tab', async () => {
         const { api, finish } = mountWithPendingLoad();
         await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
         act(() => { api.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); });
         await finish(disk(['tab-1', 'tab-2']));
         await waitFor(() => expect(storage.saveSnapshot).toHaveBeenCalled());
-        const snap = storage.saveSnapshot.mock.calls.at(-1)[0];
-        const early = api.tabs.find(t => t.title === 'early.md');
-        expect(snap.tabs.map(t => t.id)).toEqual([early.id]);
-        expect(snap.metadata.activeTabId).toBe(early.id);
+        expect(storage.saveSnapshot).toHaveBeenCalledTimes(1);
+        const snap = storage.saveSnapshot.mock.calls[0][0];
+        const restored = api.tabs.filter(t => t.title.startsWith('D-'));
+        expect(snap.tabs.map(t => t.id).sort()).toEqual([...restored.map(t => t.id), 'tab-2'].sort());
+        expect(snap.tabs.find(t => t.id === 'tab-2').title).toBe('early.md');
+        expect(snap.metadata.activeTabId).toBe('tab-2');
         expect(snap.metadata.tabOrder).toEqual(api.tabs.map(t => t.id));
+    });
+
+    it('LOAD PATH orphan rows: a restored row whose id no early tab took over is deleted AFTER the snapshot; a row the early tab overwrote is not', async () => {
+        const { api, finish } = mountWithPendingLoad();
+        await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
+        act(() => { api.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); });
+        await finish(disk(['tab-1', 'tab-2', 'tab-3']));
+        await waitFor(() => expect(storage.deleteTab).toHaveBeenCalled());
+        const deleted = storage.deleteTab.mock.calls.map(c => c[0]);
+        expect(deleted).toEqual(['tab-1']);                                       // tab-2's row is overwritten by the early tab; tab-3 never moved
+        expect(storage.deleteTab.mock.invocationCallOrder[0]).toBeGreaterThan(storage.saveSnapshot.mock.invocationCallOrder[0]);
+    });
+
+    it('a late update aimed at the dropped pristine tab id hits NO tab (not the restored tab that was renumbered away from it)', async () => {
+        const { api, finish } = mountWithPendingLoad();
+        await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
+        act(() => { api.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); });
+        await finish(disk(['tab-1', 'tab-2']));
+        await waitFor(() => expect(api.tabs).toHaveLength(3));
+        act(() => { api.updateTab('tab-1', { content: 'LATE KEYSTROKE', title: 'LATE' }); });   // queued before the load, applied after
+        expect(api.tabs.some(t => t.content === 'LATE KEYSTROKE' || t.title === 'LATE')).toBe(false);
+        expect(api.tabs.find(t => t.title === 'D-tab-1').content).toBe('body tab-1');
+    });
+
+    it('and a late update under the EARLY tab id still reaches the early tab, not the restored tab that was renumbered away from that id', async () => {
+        const { api, finish } = mountWithPendingLoad();
+        await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
+        act(() => { api.createTab({ title: 'early.md', content: 'E', filePath: 'early.md', fileHandle: '/p/early.md' }); });
+        await finish(disk(['tab-1', 'tab-2']));
+        await waitFor(() => expect(api.tabs).toHaveLength(3));
+        act(() => { api.updateTab('tab-2', { content: 'E + typed' }); });
+        expect(api.tabs.find(t => t.title === 'early.md').content).toBe('E + typed');
+        expect(api.tabs.find(t => t.title === 'D-tab-2').content).toBe('body tab-2');
+    });
+
+    it('NO early tab: nothing is renumbered, no snapshot, no row deleted, and the next new tab gets the next free id', async () => {
+        const { api, finish } = mountWithPendingLoad();
+        await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
+        await finish(disk(['tab-1', 'tab-2']));
+        await waitFor(() => expect(api.tabs.map(t => t.id)).toEqual(['tab-1', 'tab-2']));
+        expect(storage.saveSnapshot).not.toHaveBeenCalled(); expect(storage.deleteTab).not.toHaveBeenCalled();
+        act(() => { api.createTab({ title: 'new' }); });
+        expect(api.tabs.at(-1).id).toBe('tab-3');
     });
 
     it('an untouched default tab only: the restored session replaces it exactly (no early tabs, no snapshot write)', async () => {
@@ -87,15 +134,16 @@ describe('SessionContext: tabs opened before the session load finishes', () => {
         expect(storage.saveSnapshot).not.toHaveBeenCalled();
     });
 
-    it('a default tab the user already typed into (content set, dirty) counts as an early tab and is kept', async () => {
+    it('a default tab the user already typed into counts as an early tab: it keeps tab-1, the restored tab-1 is renumbered, and that row is not deleted', async () => {
         const { api, finish } = mountWithPendingLoad();
         await waitFor(() => expect(storage.loadSession).toHaveBeenCalled());
         act(() => { api.updateTab('tab-1', { content: 'typed early', isDirty: true }); });
         await finish(disk(['tab-1', 'tab-2']));
         await waitFor(() => expect(api.tabs).toHaveLength(3));
-        expect(api.tabs.some(t => t.content === 'typed early')).toBe(true);
-        expect(api.tabs.find(t => t.content === 'typed early').id).not.toBe('tab-1');
-        expect(api.tabs.find(t => t.id === 'tab-1').title).toBe('D-tab-1');
+        expect(api.tabs.at(-1)).toMatchObject({ id: 'tab-1', content: 'typed early' });
+        const restored = api.tabs.find(t => t.title === 'D-tab-1');
+        expect(restored.id).not.toBe('tab-1'); expect(restored.content).toBe('body tab-1');
+        expect(storage.deleteTab).not.toHaveBeenCalledWith('tab-1');               // the early tab overwrites that row
     });
 
     it('an empty saved session (nothing on disk) keeps the early tab and the default tab as they are', async () => {
