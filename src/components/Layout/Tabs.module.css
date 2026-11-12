@@ -168,7 +168,8 @@
 
 .tabIndicator {
     position: relative;
-    width: 16px;
+    /* Grows when the missing-file mark sits next to the close button. */
+    min-width: 16px;
     height: 16px;
     flex-shrink: 0;
     display: flex;
@@ -208,6 +209,7 @@
     font-size: 14px;
     width: 16px;
     height: 16px;
+    flex-shrink: 0;
     transition: all var(--transition-fast);
 }
 
