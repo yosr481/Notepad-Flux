@@ -9,6 +9,15 @@ const ActionsContext = createContext();
 
 const SessionContext = createContext();
 
+// Same-file key for a tab's path handle. Windows paths are case-insensitive and take
+// either slash; elsewhere the path must match exactly. null for no handle / web handles.
+const fileKey = (h) => {
+    if (typeof h !== 'string' || !h) return null;
+    return typeof window !== 'undefined' && window.electronAPI?.platform === 'win32'
+        ? h.replace(/\//g, '\\').toLowerCase()
+        : h;
+};
+
 export const useSettings = () => {
     const context = useContext(SettingsContext);
     if (!context) {
@@ -387,6 +396,15 @@ export const SessionProvider = ({ children }) => {
     }, [isSessionLoaded, isPrimaryWindow]);
 
     const createTab = useCallback((initialData = {}) => {
+        // A file that is already open: focus its tab, don't open a second copy (a dirty
+        // tab keeps its unsaved text). Only path handles compare; web handles are objects.
+        const key = fileKey(initialData.fileHandle);
+        const open = key && currentTabsRef.current.find(t => fileKey(t.fileHandle) === key);
+        if (open) {
+            setActiveTabId(open.id);
+            return;
+        }
+
         const newId = `tab-${nextTabId.current}`;
         nextTabId.current += 1;
         const newTab = {
@@ -411,13 +429,15 @@ export const SessionProvider = ({ children }) => {
         Object.assign(newTab, initialData);
 
         setTabs(curr => [...curr, newTab]);
+        // Visible to a second open in the same batch, before the next render syncs the ref.
+        currentTabsRef.current = [...currentTabsRef.current, newTab];
         setActiveTabId(newId);
 
         if (isPrimaryWindow && isSessionLoaded) {
             storage.saveTab(newTab);
             storage.saveMetadata({
                 activeTabId: newId,
-                tabOrder: [...currentTabsRef.current.map(t => t.id), newId]
+                tabOrder: currentTabsRef.current.map(t => t.id)
             });
         }
     }, [isPrimaryWindow, isSessionLoaded]);
