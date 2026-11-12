@@ -375,6 +375,19 @@ export const fileSystem = {
         return { handle: result.filePath, content: result.content, name: getFilenameFromPath(result.filePath) };
     },
 
+    // Electron-only: files passed on the command line, drained from main's queue.
+    // [] on the web build or an older preload.
+    takeLaunchFiles: async () => {
+        if (!window.electronAPI?.takeLaunchFiles) return [];
+        let result;
+        try { result = await window.electronAPI.takeLaunchFiles(); } catch (e) { throw unwrapIpcError(e); }
+        if (!Array.isArray(result)) return [];
+        return result.map((r) => {
+            const name = getFilenameFromPath(r.filePath);
+            return r.error ? { name, error: r.error } : { handle: r.filePath, content: r.content, name };
+        });
+    },
+
     // Electron-only: does this absolute path currently exist on disk?
     // boolean in Electron for granted paths; null when unknown (web build, or a
     // path main never granted).

@@ -13,7 +13,9 @@ const BY_EXT = {
     txt: { name: 'Text', extensions: ['txt'] },
 }
 
+// The first filter is the one the OS dialog pre-selects, so it covers both kinds.
 export const OPEN_FILTERS = [
+    { name: 'Markdown and Text', extensions: ['md', 'markdown', 'txt', 'text'] },
     { name: 'Markdown', extensions: ['md', 'markdown'] },
     { name: 'Text', extensions: ['txt', 'text'] },
     ALL_FILES,

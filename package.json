@@ -1,7 +1,7 @@
 {
   "name": "notepad-flux",
   "private": true,
-  "version": "1.4.0",
+  "version": "1.4.1",
   "desktopName": "notepad-flux.desktop",
   "type": "module",
   "main": "dist-electron/main.js",
@@ -101,7 +101,28 @@
         }
       ],
       "legalTrademarks": "Yosef I. Rienitz",
-      "artifactName": "${productName}-${version}-win-${arch}.${ext}"
+      "artifactName": "${productName}-${version}-win-${arch}.${ext}",
+      "fileAssociations": [
+        {
+          "ext": [
+            "md",
+            "markdown"
+          ],
+          "name": "Markdown",
+          "description": "Markdown document",
+          "mimeType": "text/markdown",
+          "role": "Editor"
+        },
+        {
+          "ext": [
+            "txt"
+          ],
+          "name": "Text",
+          "description": "Text document",
+          "mimeType": "text/plain",
+          "role": "Editor"
+        }
+      ]
     },
     "nsis": {
       "oneClick": false,
@@ -122,7 +143,12 @@
       "category": "Utility",
       "synopsis": "Advanced Markdown editor",
       "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
-      "syncDesktopName": true
+      "syncDesktopName": true,
+      "mimeTypes": [
+        "text/markdown",
+        "text/x-markdown",
+        "text/plain"
+      ]
     },
     "deb": {
       "maintainer": "yosr481@gmail.com",

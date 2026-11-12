@@ -32,6 +32,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // Only Windows draws overlay caption buttons over the page (titleBarOverlay);
     // the renderer reserves top-right space for them on that platform only.
     platform: process.platform,
+    // Files passed on the command line: pull the queue, and get told when more arrive.
+    takeLaunchFiles: () => ipcRenderer.invoke('take-launch-files'),
+    onLaunchFiles: (callback) => {
+        const subscription = () => callback();
+        ipcRenderer.on('launch-files', subscription);
+        return () => ipcRenderer.removeListener('launch-files', subscription);
+    },
     // Resolve the native path HERE (isolated world) so the page can only open files
     // the user actually dropped. No native path (virtual file from a browser or
     // archive, or a File built in script) -> null: the page reads it, no disk grant.

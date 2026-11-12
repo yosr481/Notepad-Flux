@@ -46,6 +46,7 @@ All file system operations go through the main process via IPC. Channels:
 - read-file-content(filePath): Reads text from disk; returns content
 - save-file({ filePath?, content }): Saves content; opens Save As if filePath is missing
 - open-dropped-file(path): Reads a file dropped on the window. Only the preload calls it, with a path from webUtils.getPathForFile on a real dropped File
+- take-launch-files: Drains the queue of files passed on the command line (first launch, or a later launch handed over by `second-instance`), reading and granting each. App page in its top frame only. Returns `[{ filePath, content } | { filePath, error }]`; main sends `launch-files` when new files are queued
 - file-exists(path): true/false for granted paths, null for anything else (restored-tab "moved/deleted" check)
 - quit-app: File > Exit. Main closes every app window, each through its own close handshake
 - close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot (max 3 s)
@@ -53,7 +54,7 @@ All file system operations go through the main process via IPC. Channels:
 
 Renderer should call these via preload-provided wrappers. Never enable nodeIntegration in the renderer.
 
-**Path grants.** A path becomes readable/writable only when the user picks it in a native dialog, saves to it via Save As, or drops it on the window. Main records each grant in `<userData>/authorized-paths.json` (last 500) and reloads it on launch, so restored tabs and recent files keep working. The page has no way to grant itself a path. `isPathSafe` realpath-checks every read/write against the grants.
+**Path grants.** A path becomes readable/writable only when the user picks it in a native dialog, saves to it via Save As, drops it on the window, or opens it with the app from the OS (a command-line argument: whoever can launch the binary as the user already has the user's access). Main records each grant in `<userData>/authorized-paths.json` (last 500) and reloads it on launch, so restored tabs and recent files keep working. The page has no way to grant itself a path. `isPathSafe` realpath-checks every read/write against the grants.
 
 ---
 

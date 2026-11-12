@@ -43,18 +43,29 @@ describe('filtersForName (P2-pdf save dialog)', () => {
 });
 
 describe('OPEN_FILTERS (read-file open dialog)', () => {
-    it('is a non-empty array of exactly 3 entries', () => {
+    it('is a non-empty array of exactly 4 entries', () => {
         expect(Array.isArray(OPEN_FILTERS)).toBe(true);
-        expect(OPEN_FILTERS).toHaveLength(3);
+        expect(OPEN_FILTERS).toHaveLength(4);
     });
-    it('entry 0 is Markdown covering md + markdown', () => {
+    it('entry 0 is the default Markdown and Text selection (md, markdown, txt, text)', () => {
+        // GTK/Windows pre-select the first filter; it must show both kinds
         expect(OPEN_FILTERS[0]).toEqual({
+            name: 'Markdown and Text', extensions: ['md', 'markdown', 'txt', 'text'],
+        });
+    });
+    it('first entry covers both md and txt (regression: open dialog showed only Markdown)', () => {
+        expect(OPEN_FILTERS[0].extensions).toContain('md');
+        expect(OPEN_FILTERS[0].extensions).toContain('txt');
+    });
+    it('entry 1 is Markdown covering md + markdown', () => {
+        expect(OPEN_FILTERS[1]).toEqual({
             name: 'Markdown', extensions: ['md', 'markdown'],
         });
     });
-    it('entry 1 is Text covering txt', () => {
-        expect(OPEN_FILTERS[1].name).toBe('Text');
-        expect(OPEN_FILTERS[1].extensions).toContain('txt');
+    it('entry 2 is Text covering txt + text', () => {
+        expect(OPEN_FILTERS[2]).toEqual({
+            name: 'Text', extensions: ['txt', 'text'],
+        });
     });
     it('some entry covers txt', () => {
         expect(OPEN_FILTERS.some((f) => f.extensions.includes('txt'))).toBe(true);
