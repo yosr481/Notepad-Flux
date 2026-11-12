@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.2] — 2026-11-12
+
+### Bug Fixes
+- **Tabs:** The close button is shown in full next to the "file moved or deleted" mark (it was cut in half on hover).
+
 ## [1.4.1] — 2026-11-12
 
 ### Features
