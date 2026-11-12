@@ -185,3 +185,51 @@ describe('ElectronDriver normalises binary content before IPC (P2-pdf)', () => {
         expect(Array.from(saveFileMock.mock.calls[0][0].content)).toEqual([7]);
     });
 });
+
+// ---------------------------------------------------------------------------
+// TASK 9 — fileSystem.fileExists (moved/deleted file detection, QA finding 12)
+// ---------------------------------------------------------------------------
+//
+// Pinned contract:
+//   fileExists: (p) => window.electronAPI?.fileExists
+//       ? window.electronAPI.fileExists(p)   // Electron -> boolean
+//       : Promise.resolve(null)              // web build -> null ("can't tell")
+//
+//  * ALWAYS returns a Promise.
+//  * With no electronAPI (or no fileExists on it) -> resolves EXACTLY null,
+//    never false — null and false are semantically different downstream
+//    (null = unknown, don't touch the tab; false = gone, mark it).
+//  * With electronAPI.fileExists present -> delegates verbatim, forwarding the
+//    path arg unchanged, and resolves whatever the bridge resolves.
+describe('fileSystem.fileExists (TASK 9 / QA finding 12)', () => {
+    afterEach(() => {
+        delete window.electronAPI;
+        vi.clearAllMocks();
+    });
+
+    it('returns a Promise that resolves null when window.electronAPI is absent', async () => {
+        delete window.electronAPI;
+        const p = fileSystem.fileExists('/abs/x.md');
+        expect(p).toBeInstanceOf(Promise);
+        await expect(p).resolves.toBeNull();
+    });
+
+    it('resolves null (not false) when electronAPI exists but has no fileExists', async () => {
+        window.electronAPI = {};
+        await expect(fileSystem.fileExists('/abs/x.md')).resolves.toBeNull();
+    });
+
+    it('delegates to window.electronAPI.fileExists(p) and resolves true for a present file', async () => {
+        const fileExists = vi.fn(async () => true);
+        window.electronAPI = { fileExists };
+        await expect(fileSystem.fileExists('/abs/here.md')).resolves.toBe(true);
+        expect(fileExists).toHaveBeenCalledWith('/abs/here.md');
+    });
+
+    it('delegates and resolves false for a missing file', async () => {
+        const fileExists = vi.fn(async () => false);
+        window.electronAPI = { fileExists };
+        await expect(fileSystem.fileExists('/abs/gone.md')).resolves.toBe(false);
+        expect(fileExists).toHaveBeenCalledWith('/abs/gone.md');
+    });
+});

@@ -18,6 +18,23 @@ export default defineConfig({
         onstart(options) {
           options.reload()
         },
+        vite: {
+          build: {
+            // Sandboxed preload must be CommonJS. The package is
+            // "type": "module", so vite-plugin-electron's default lib mode emits
+            // ESM and the preload fails to load ("Cannot use import statement
+            // outside a module"). Bypass lib mode and force a CJS .cjs bundle.
+            lib: false,
+            rollupOptions: {
+              input: 'electron/preload.js',
+              output: {
+                format: 'cjs',
+                entryFileNames: 'preload.cjs',
+                inlineDynamicImports: true,
+              },
+            },
+          },
+        },
       },
     ]),
     renderer(),

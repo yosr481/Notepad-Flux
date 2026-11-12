@@ -64,6 +64,7 @@ const ACTION_KEYS = [
     'setTabs',
     'reorderTabs',
     'addRecentFile',
+    'removeRecentFile',
     'saveSession',
     'clearSessionData',
     'clearRestoreWarning',

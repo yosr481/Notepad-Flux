@@ -9,6 +9,7 @@ import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
+import { useFileDrop } from './hooks/useFileDrop';
 import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
@@ -39,7 +40,7 @@ function App() {
 
     const { settings, updateSettings } = useSettings();
     const { restoreWarning } = useTabState();
-    const { clearRestoreWarning } = useSessionActions();
+    const { clearRestoreWarning, createTab, addRecentFile } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
         window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
@@ -60,6 +61,8 @@ function App() {
     const hideToast = useCallback(() => {
         setToast({ message: '', show: false });
     }, []);
+
+    useFileDrop({ createTab, addRecentFile, showToast });
 
     useEffect(() => {
         if (restoreWarning) {
@@ -100,12 +103,13 @@ function App() {
         recentFiles,
         closeWindow,
         tabs,
-        activeTabId
+        activeTabId,
+        isPrimaryWindow
     } = useCommands(showToast, editorRef);
 
     useEffect(() => {
         const handleBeforeUnload = (e) => {
-            if (tabs.some(t => t.isDirty)) {
+            if (!isPrimaryWindow && tabs.some(t => t.isDirty)) {
                 e.preventDefault();
                 e.returnValue = '';
             }
@@ -113,7 +117,7 @@ function App() {
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [tabs]);
+    }, [tabs, isPrimaryWindow]);
 
     const [contextMenu, setContextMenu] = useState(null);
     const [showFindReplace, setShowFindReplace] = useState(false);
@@ -262,7 +266,7 @@ function App() {
                     onPrint={print}
                     onCloseTab={() => closeTab(activeTabId)}
                     onCloseWindow={() => closeWindow()}
-                    onExit={() => closeWindow()}
+                    onExit={() => closeWindow({ quit: true })}
                     onOpenSettings={() => setShowSettings(true)}
                     recentFiles={recentFiles}
                 />
@@ -282,7 +286,7 @@ function App() {
                 />
             </div>
 
-            <StatusBar stats={stats} appVersion={appVersion} />
+            <StatusBar stats={stats} appVersion={appVersion} eol={activeTab.eol} charset={activeTab.charset} />
 
             {contextMenu && (
                 <ContextMenu

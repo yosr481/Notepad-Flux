@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
-import { sanitizeFilename } from '../utils/fileSystem';
+import { sanitizeFilename, fileSystem } from '../utils/fileSystem';
+import { detectEol, detectCharset } from '../utils/eol';
 
 const SettingsContext = createContext();
 const TabStateContext = createContext();
@@ -135,7 +136,9 @@ export const SessionProvider = ({ children }) => {
                 const num = parseInt(t.id.replace('tab-', ''));
                 return !isNaN(num) && num > max ? num : max;
             }, 1);
-            nextTabId.current = maxId + 1;
+            // Never move backwards: a tab opened before this load finished already took an id,
+            // and handing that id out again puts two tabs under one id (typing lands in the wrong file).
+            nextTabId.current = Math.max(nextTabId.current, maxId + 1);
 
             // Adopt metadata from disk
             if (diskSession.activeTabId) {
@@ -147,6 +150,7 @@ export const SessionProvider = ({ children }) => {
             if (diskSession.settings) {
                 setSettings(prev => ({ ...prev, ...diskSession.settings }));
             }
+
         };
 
         const loadAndSetupSession = async (diskSession) => {
@@ -162,7 +166,51 @@ export const SessionProvider = ({ children }) => {
                     });
                 }
 
-                setTabs(loadedTabs);
+                // Migrate missing eol/charset fields
+                loadedTabs = loadedTabs.map(t => ({
+                    ...t,
+                    eol: t.eol ?? detectEol(t.content),
+                    charset: t.charset ?? detectCharset(t.content)
+                }));
+
+                adoptSessionMeta(diskSession); // also bumps nextTabId past every disk id
+
+                // Tabs the user opened or typed into before this load finished must survive it.
+                // The untouched default (pristine) tab is dropped: the disk session replaces it.
+                const early = currentTabsRef.current.filter(t =>
+                    !(t.content === '' && t.isDirty !== true && t.filePath == null && t.fileHandle == null));
+                // Same policy as onPromoted: tabs already live in this window keep their ids (their editor,
+                // cached views and any keystroke already in flight point at them); a restored tab whose id
+                // clashes gets a fresh one. Checked against ALL current ids, the dropped pristine tab too,
+                // so a late update aimed at it finds no tab instead of a restored one.
+                const liveIds = new Set(currentTabsRef.current.map(t => t.id));
+                const renamed = new Map();
+                if (early.length > 0) {
+                    loadedTabs = loadedTabs.map(t => {
+                        if (!liveIds.has(t.id)) return t;
+                        const id = `tab-${nextTabId.current++}`;
+                        renamed.set(t.id, id);
+                        return { ...t, id };
+                    });
+                }
+
+                setTabs([...loadedTabs, ...early]);
+
+                if (early.length > 0) {
+                    const active = early.find(t => t.id === currentActiveTabIdRef.current) ?? early[early.length - 1];
+                    setActiveTabId(active.id);
+                    // Not on disk yet: persist them (and the restored tabs that got a new id) so a quit right
+                    // after launch doesn't lose them. The early tab's row overwrites the restored row of the same
+                    // id; restored rows left without an owner are deleted after the snapshot lands.
+                    const earlyIds = new Set(early.map(t => t.id));
+                    const newIds = new Set(renamed.values());
+                    storage.saveSnapshot({
+                        tabs: [...loadedTabs.filter(t => newIds.has(t.id)), ...early],
+                        metadata: { activeTabId: active.id, tabOrder: [...loadedTabs, ...early].map(t => t.id) }
+                    }).then(() => Promise.all([...renamed.keys()].filter(id => !earlyIds.has(id)).map(id => storage.deleteTab(id))))
+                        .catch(e => console.error('Failed to persist tabs opened during load:', e));
+                }
+                return;
             }
 
             adoptSessionMeta(diskSession);
@@ -204,9 +252,6 @@ export const SessionProvider = ({ children }) => {
         };
 
         const onPromoted = async (_lock) => {
-            // Capture pre-promotion activeTabId to restore if the tab still exists after merge
-            const localActiveId = currentActiveTabIdRef.current;
-
             // Called when this secondary window is promoted to primary
             // Gate the promotion window with isSessionLoaded = false to prevent saveTabDebounced
             // from writing pristine state while we're merging
@@ -218,68 +263,69 @@ export const SessionProvider = ({ children }) => {
 
             setIsPrimaryWindow(true);
             try {
-                // Reload the on-disk session as the base
+                // Reload the on-disk session as the base. Migrate missing eol/charset
+                // fields, same as loadAndSetupSession, so a promoted window's disk
+                // tabs don't reach StatusBar/persistTab without them.
                 const diskSession = await storage.loadSession();
-                const diskTabMap = new Map((diskSession.tabs || []).map(t => [t.id, t]));
-
-                // Identify meaningful local tabs (use ref to avoid effect dependency)
-                // A tab is NOT meaningful if: content === '' && isDirty !== true && filePath == null &&
-                // fileHandle == null && id not in disk
-                const meaningfulLocalTabs = currentTabsRef.current.filter(localTab => {
-                    const isInDisk = diskTabMap.has(localTab.id);
-                    const isPristine =
-                        localTab.content === '' &&
-                        localTab.isDirty !== true &&
-                        localTab.filePath == null &&
-                        localTab.fileHandle == null;
-
-                    // A tab is meaningful if it's in disk OR it's not pristine
-                    return isInDisk || !isPristine;
-                });
-
-                // Build merged tabs: disk tabs + meaningful local tabs
-                const mergedTabs = [...(diskSession.tabs || [])];
-                for (const localTab of meaningfulLocalTabs) {
-                    const idx = mergedTabs.findIndex(t => t.id === localTab.id);
-                    if (idx !== -1) {
-                        // Replace: local edit wins
-                        mergedTabs[idx] = localTab;
-                    } else {
-                        // Append: new local tab
-                        mergedTabs.push(localTab);
-                    }
-                }
-
-                // Sort merged tabs by diskSession.tabOrder, same as loadAndSetupSession
+                const diskTabs = (diskSession.tabs || []).map(t => ({
+                    ...t,
+                    eol: t.eol ?? detectEol(t.content),
+                    charset: t.charset ?? detectCharset(t.content)
+                }));
+                // Sort by the persisted order before any id changes below.
                 if (diskSession.tabOrder && diskSession.tabOrder.length > 0) {
                     const orderMap = new Map(diskSession.tabOrder.map((id, index) => [id, index]));
-                    mergedTabs.sort((a, b) => {
-                        const indexA = orderMap.has(a.id) ? orderMap.get(a.id) : 9999;
-                        const indexB = orderMap.has(b.id) ? orderMap.get(b.id) : 9999;
-                        return indexA - indexB;
-                    });
+                    diskTabs.sort((a, b) => (orderMap.get(a.id) ?? 9999) - (orderMap.get(b.id) ?? 9999));
                 }
 
-                setTabs(mergedTabs);
+                // This window's own tabs were never persisted (a secondary does not save), so a
+                // local tab sharing an id with a disk tab is a different tab, never the same one.
+                // Keep every non-pristine local tab; the untouched default tab is dropped.
+                const localTabs = currentTabsRef.current.filter(t =>
+                    !(t.content === '' && t.isDirty !== true && t.filePath == null && t.fileHandle == null));
 
-                // Adopt metadata from disk
-                adoptSessionMeta(diskSession);
+                adoptSessionMeta(diskSession); // bumps nextTabId past every disk id (local ids are already below it)
 
-                // Restore pre-promotion activeTabId if the tab still exists in merged state
-                if (mergedTabs.some(t => t.id === localActiveId)) {
-                    setActiveTabId(localActiveId);
-                }
-
-                // Persist merged session atomically via saveSnapshot
-                await storage.saveSnapshot({
-                    tabs: mergedTabs,
-                    metadata: {
-                        activeTabId: diskSession.activeTabId || mergedTabs[0]?.id,
-                        recentFiles: diskSession.recentFiles || [],
-                        settings: diskSession.settings || {},
-                        tabOrder: mergedTabs.map(t => t.id)
-                    }
+                // On a collision the DISK tab takes a fresh id, not the local one: this window's
+                // editor, its cached views and any keystroke already in flight all refer to the local
+                // ids, so those must not change hands. The disk tab's old row is overwritten by the
+                // local tab of the same id in the snapshot below, or deleted after it when only the
+                // dropped pristine tab had that id.
+                // Checked against ALL local ids, the dropped pristine tab too: a key typed into it
+                // before this render commits then hits no tab instead of a persisted one.
+                const localIds = new Set(currentTabsRef.current.map(t => t.id));
+                const diskIdMap = new Map();
+                const keptDisk = diskTabs.map(t => {
+                    if (!localIds.has(t.id)) return t;
+                    const id = `tab-${nextTabId.current++}`;
+                    diskIdMap.set(t.id, id);
+                    return { ...t, id };
                 });
+                const mergedTabs = [...keptDisk, ...localTabs];
+
+                if (mergedTabs.length > 0) {
+                    setTabs(mergedTabs);
+                    // Stay on the tab the user was in; else the persisted active tab.
+                    const diskActive = diskIdMap.get(diskSession.activeTabId) ?? diskSession.activeTabId;
+                    const activeId = [currentActiveTabIdRef.current, diskActive].find(id => mergedTabs.some(t => t.id === id)) ?? mergedTabs[0].id;
+                    setActiveTabId(activeId);
+
+                    // Persist merged session atomically via saveSnapshot
+                    await storage.saveSnapshot({
+                        tabs: mergedTabs,
+                        metadata: {
+                            activeTabId: activeId,
+                            recentFiles: diskSession.recentFiles || [],
+                            settings: diskSession.settings || {},
+                            tabOrder: mergedTabs.map(t => t.id)
+                        }
+                    });
+                    // A disk id that only the dropped pristine tab collided with is used by no tab
+                    // now. Its old row must go, or that tab comes back twice on the next launch.
+                    // After the snapshot, so a crash in between leaves an extra row, never a lost tab.
+                    const liveIds = new Set(mergedTabs.map(t => t.id));
+                    await Promise.all([...diskIdMap.keys()].filter(id => !liveIds.has(id)).map(id => storage.deleteTab(id)));
+                }
             } catch (err) {
                 console.error('Failed to promote to primary window:', err);
             } finally {
@@ -309,6 +355,37 @@ export const SessionProvider = ({ children }) => {
         saveMetadataDebounced({ activeTabId, recentFiles, settings });
     }, [activeTabId, recentFiles, settings, saveMetadataDebounced]);
 
+    // Check for missing files after session load (TASK 9 / QA finding 12)
+    useEffect(() => {
+        if (!isSessionLoaded || !isPrimaryWindow) return;
+
+        const cancelled = { flag: false };
+
+        (async () => {
+            for (const tab of currentTabsRef.current) {
+                // Electron keeps the absolute path in fileHandle (filePath is the
+                // display name); a string filePath with a separator is the fallback.
+                const diskPath = typeof tab.fileHandle === 'string' ? tab.fileHandle : tab.filePath;
+                if (typeof diskPath === 'string' && (diskPath.includes('/') || diskPath.includes('\\'))) {
+                    const exists = await fileSystem.fileExists(diskPath);
+                    if (!cancelled.flag && exists !== null) {
+                        const targetFileMissing = exists === false;
+                        const currentFileMissing = !!tab.fileMissing;
+                        if (targetFileMissing !== currentFileMissing) {
+                            setTabs(prev => prev.map(x =>
+                                x.id === tab.id ? { ...x, fileMissing: targetFileMissing } : x
+                            ));
+                        }
+                    }
+                }
+            }
+        })();
+
+        return () => {
+            cancelled.flag = true;
+        };
+    }, [isSessionLoaded, isPrimaryWindow]);
+
     const createTab = useCallback((initialData = {}) => {
         const newId = `tab-${nextTabId.current}`;
         nextTabId.current += 1;
@@ -319,8 +396,19 @@ export const SessionProvider = ({ children }) => {
             content: '',
             filePath: null,
             fileHandle: null,
-            ...initialData
+            eol: 'LF',
+            charset: 'UTF-8',
+            fileMissing: false,
         };
+
+        // Detect eol/charset from content if provided and non-empty
+        if (typeof initialData.content === 'string' && initialData.content !== '') {
+            newTab.eol = detectEol(initialData.content);
+            newTab.charset = detectCharset(initialData.content);
+        }
+
+        // Spread initialData AFTER detection so explicit eol/charset wins
+        Object.assign(newTab, initialData);
 
         setTabs(curr => [...curr, newTab]);
         setActiveTabId(newId);
@@ -392,6 +480,10 @@ export const SessionProvider = ({ children }) => {
         });
     }, []);
 
+    const removeRecentFile = useCallback((filePath) => {
+        setRecentFiles(prev => prev.filter(f => f.filePath !== filePath));
+    }, []);
+
     const switchTab = useCallback((direction) => {
         setTabs(currentTabs => {
             const currentIndex = currentTabs.findIndex(t => t.id === currentActiveTabIdRef.current);
@@ -450,6 +542,8 @@ export const SessionProvider = ({ children }) => {
         setSettings(prev => ({ ...prev, ...newSettings }));
     }, []);
 
+    // Retained as public API (actionsValue) though the close path now uses
+    // flushPendingSaves; callers that want an awaitable persist still use this.
     const saveSession = useCallback(async () => {
         if (!isPrimaryWindow || !isSessionLoaded) return;
 
@@ -485,8 +579,8 @@ export const SessionProvider = ({ children }) => {
             metadataTimer.current = null;
         }
 
-        // Persist via snapshot
-        storage.saveSnapshot({
+        // Persist via snapshot (returned so the Electron close handshake can await it)
+        return storage.saveSnapshot({
             tabs: currentTabsRef.current,
             metadata: {
                 activeTabId: currentActiveTabIdRef.current,
@@ -496,6 +590,17 @@ export const SessionProvider = ({ children }) => {
             }
         });
     }, [isPrimaryWindow, isSessionLoaded]);
+
+    // Electron: main waits for this before letting the window close.
+    useEffect(() => {
+        return window.electronAPI?.onCloseRequested?.(async () => {
+            try {
+                await flushPendingSaves();
+            } catch (err) {
+                console.error('Failed to save session on close:', err);
+            }
+        });
+    }, [flushPendingSaves]);
 
     useEffect(() => {
         const onHide = () => {
@@ -509,22 +614,23 @@ export const SessionProvider = ({ children }) => {
         };
     }, [flushPendingSaves]);
 
-    // Save session before window closes (last-resort best-effort; beforeunload is
-    // synchronous so IndexedDB writes may not land — flushPendingSaves above is
-    // the reliable path).
+    // Flush pending saves before window closes: persist snapshot + clear debounced
+    // timers synchronously (last-resort best-effort; beforeunload is synchronous
+    // so IndexedDB writes may not land — flushPendingSaves above on blur is the
+    // reliable path).
     useEffect(() => {
         const handleBeforeUnload = () => {
             if (isPrimaryWindow && isSessionLoaded) {
                 // Since beforeunload is synchronous, we can't wait for the promise.
                 // However, storage operations might still complete if they start before the process dies.
                 // In Electron, we could use synchronous storage or IPC, but with IDB we do our best.
-                saveSession();
+                flushPendingSaves();
             }
         };
 
         window.addEventListener('beforeunload', handleBeforeUnload);
         return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-    }, [saveSession, isPrimaryWindow, isSessionLoaded]);
+    }, [flushPendingSaves, isPrimaryWindow, isSessionLoaded]);
 
     const clearRestoreWarning = useCallback(() => {
         setRestoreWarning(null);
@@ -558,10 +664,11 @@ export const SessionProvider = ({ children }) => {
         setTabs,
         reorderTabs,
         addRecentFile,
+        removeRecentFile,
         saveSession,
         clearSessionData,
         clearRestoreWarning
-    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
+    }), [setActiveTabId, createTab, closeTab, updateTab, switchTab, setTabs, reorderTabs, addRecentFile, removeRecentFile, saveSession, clearSessionData, clearRestoreWarning]);
 
     return (
         <SettingsContext.Provider value={settingsValue}>

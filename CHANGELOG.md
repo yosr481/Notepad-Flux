@@ -20,11 +20,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Live Preview — blockquotes:** Show one vertical bar per nesting level so `> >` / `> > >` quotes read as nested (previously a single bar with extra indent).
 - **Desktop:** Set an explicit window `backgroundColor` (dark/light aware) to remove the white flash on launch and the light window frame in dark mode; only apply the Windows-only `mica` / title-bar-overlay chrome on Windows.
 - **Desktop:** Keep the native window controls (minimise / maximise / close) on Linux and macOS — `titleBarStyle: 'hidden'` is now Windows-only, where the overlay draws replacements.
+
+- **Desktop:** Fix the preload bridge, which failed to load in every packaged build — file open/save now go through the validated IPC path and the encryption key uses the OS keychain (`safeStorage`).
+- **Desktop:** Files you opened, saved or dropped stay accessible after a relaunch, so restored tabs and recent files can be saved and opened without picking them again. The main process keeps this list, and the page can no longer grant itself access to a path.
+- **Desktop:** Closing the window waits (up to 3 s) until the session is saved, so edits typed just before closing are not lost.
+- **Desktop:** Closing the first window no longer quits the app and throws away the other windows' unsaved text. The app stays open until the last window closes; a remaining window takes over the saved session and keeps both its own tabs and every saved tab. File > Exit still closes all windows.
+- **Editor:** Dragging selected text inside the editor, or dropping text from another app, works again (only file drops open tabs).
+- **Save As:** Keeps the file's line ending (CRLF) and BOM, the same as Save.
+- **Recent files:** A binary or permission failure now shows its reason and keeps the recent entry. Only a missing file offers "Locate…".
 - **Live Preview:** A reference link with no matching definition (`[text][nope]`, `[word]`) now shows as literal text; an inline image after a reference image on the same line renders correctly.
+- **Desktop:** Refuse binary files with a clear message instead of opening them as garbled text; failed opens and saves now say why.
+- **Desktop:** Open/Save dialogs offer Text and All Files filters, remember the last folder, and are parented to the app window.
+- **Desktop:** The window closes when a tab has unsaved changes (the session keeps them); a secondary window asks before discarding.
+- **Desktop:** Show the dock/taskbar icon on Linux.
 - **Editor:** Correct caret movement and selection across mixed right-to-left / left-to-right lines.
+- **Session:** A restored tab whose file was moved or deleted is marked, and its next save opens Save As.
+- **Recent files:** Confirm before re-locating a recent file that no longer exists; alerts no longer block the app.
+- **Toasts:** Long messages stay inside the window.
+- **Session:** A file opened in the first moments after launch is no longer lost or mixed up with the restored tabs.
+- **Privacy:** Tab titles and file paths are now encrypted at rest, along with tab content.
+- **Desktop:** Files whose names contain `..` (for example `notes..md`) can be opened, dropped and saved.
+- **Desktop:** A file you opened that is later replaced by a link to another file is no longer followed.
+- **Desktop:** Only the app's own page can get an app window; a page link or script can no longer open a local file in one.
+- **Live Preview:** Ctrl+click on an image inside a link opens the link.
+- **Editor:** Typing in very large documents with many links is several times faster.
+- **Windows:** A file you may not read or write now says "Permission denied." instead of an internal error, and a file reached through a different drive-letter case or slash style is recognised as the same file.
+- **Windows:** Uninstalling removes the downloaded-update cache.
+- **Linux:** The .deb package declares all the libraries the app needs.
 
 ### Features
-- **Tabs:** Tabs stretch to fill the full width of the tab bar; the new-tab (`+`) button stays pinned just right of the last tab and never scrolls out of view when many tabs are open.
+- **Desktop:** Drag files onto the window to open them as tabs.
+- **Status bar:** Show the real line ending (LF/CRLF) and charset (UTF-8 / UTF-8 BOM) of each tab and keep them on save; the fake zoom indicator is removed.
+- **Desktop:** Session log at `<userData>/logs/main.log` (`~/.config/notepad-flux/logs/` on Linux, `%USERPROFILE%\AppData\LocalLow\Notepad Flux\logs\` on Windows) records startup, file open/save/deny events and renderer errors — never file content.
+- **Tabs:** Tabs keep a fixed width, shrink as more are opened, and then scroll; the new-tab (`+`) button stays pinned at the far right of the tab bar and never scrolls out of view.
 
 ## [1.3.2] — 2026-04-14
 
