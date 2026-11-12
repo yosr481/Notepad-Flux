@@ -3,9 +3,10 @@ import { EditorState } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, undo, redo, selectAll } from '@codemirror/commands';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { languages } from '@codemirror/language-data';
 import { SearchQuery, setSearchQuery, findNext, findPrevious, search } from '@codemirror/search';
+import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
+import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
 import { linkHandler } from '../extensions/linkHandler';
@@ -26,6 +27,14 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
   const statsCache = useRef({ charCount: 0, wordCount: 0, docVersion: 0 });
   const stateUpdateTimer = useRef(null);
   const savedContentRef = useRef(initialContent);
+  // The view's listener lives as long as its state, so it must call the latest callbacks: they carry the
+  // current tab id (a stale one would write the typed text into whichever tab owns the old id).
+  const onContentChangeRef = useRef(onContentChange);
+  const onStateChangeRef = useRef(onStateChange);
+  useEffect(() => {
+    onContentChangeRef.current = onContentChange;
+    onStateChangeRef.current = onStateChange;
+  });
 
   useImperativeHandle(ref, () => ({
     undo: () => {
@@ -252,7 +261,12 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         search(),
         searchMatchHighlight,
         EditorView.lineWrapping,
-        markdown({ base: markdownLanguage, codeLanguages: languages }),
+        // textDirection.js tags individual lines dir="rtl"; without this facet
+        // CodeMirror keeps doing cursor/selection geometry as if the whole
+        // editor were LTR, which garbles caret movement and highlighting on
+        // Hebrew/Arabic lines.
+        EditorView.perLineTextDirection.of(true),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd] }),
         livePreview,
         imagePreview,
         linkPreview,
@@ -319,16 +333,16 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
           }
           if (update.docChanged) {
             updateStats(update.view);
-            if (onContentChange) {
+            if (onContentChangeRef.current) {
               const text = update.state.doc.toString();
-              onContentChange(text, text !== savedContentRef.current);
+              onContentChangeRef.current(text, text !== savedContentRef.current);
             }
           }
 
-          if (onStateChange && (update.selectionSet || update.docChanged || update.viewportChanged)) {
+          if (onStateChangeRef.current && (update.selectionSet || update.docChanged || update.viewportChanged)) {
             if (stateUpdateTimer.current) clearTimeout(stateUpdateTimer.current);
             stateUpdateTimer.current = setTimeout(() => {
-              onStateChange({
+              onStateChangeRef.current({
                 cursor: update.view.state.selection.main.head,
                 scroll: update.view.scrollDOM.scrollTop
               });
@@ -440,6 +454,13 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
       scrollCache.current.set(prevId, view.scrollDOM.scrollTop);
 
       // Restore or Create new state
+      // A cached state is only valid while it still belongs to this tab. The session load can hand an
+      // id to a different tab (restored tab-1 vs the pre-load tab-1), leaving a stale state under it;
+      // the tab's own content is the truth, so a state whose doc differs from it is dropped.
+      if (stateCache.current.get(activeTabId)?.doc.toString() !== initialContent) {
+        stateCache.current.delete(activeTabId);
+        scrollCache.current.delete(activeTabId);
+      }
       if (stateCache.current.has(activeTabId)) {
         view.setState(stateCache.current.get(activeTabId));
         // Restore scroll from cache

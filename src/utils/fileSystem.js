@@ -326,8 +326,24 @@ const ElectronDriver = {
     }
 };
 
+// Electron prefixes main-process errors with "Error invoking remote method 'x': Error: ".
+// Keep only main's user-facing message (toUserMessage in electron/ipcErrorMessage.js).
+const IPC_WRAPPER = /^Error invoking remote method '[^']*': (?:\w*Error: )?/;
+export const unwrapIpcError = (err) => {
+    if (err && typeof err.message === 'string') err.message = err.message.replace(IPC_WRAPPER, '');
+    return err;
+};
+const unwrapDriver = (driver) => Object.fromEntries(Object.entries(driver).map(([k, fn]) => [
+    k,
+    typeof fn === 'function' && k !== 'isSupported'
+        ? async (...a) => { try { return await fn(...a); } catch (e) { throw unwrapIpcError(e); } }
+        : fn,
+]));
+// exportFile calls ElectronDriver.saveFileAs directly, so wrap after both exist.
+const ElectronDriverClean = unwrapDriver(ElectronDriver);
+
 const getDriver = () => {
-    if (window.electronAPI) return ElectronDriver;
+    if (window.electronAPI) return ElectronDriverClean;
 
     if (WebNativeDriver.isSupported()) {
         return WebNativeDriver;
@@ -349,5 +365,19 @@ export const fileSystem = {
     openFileFromHandle: (handle) => getDriver().openFileFromHandle(handle),
 
     openFileFromPath: (filePath) => getDriver().openFileFromPath(filePath),
+
+    // Electron-only: open a file dropped on the window -> { handle, content, name }.
+    // null on the web build (caller reads the File directly).
+    openDroppedFile: async (file) => {
+        let result;
+        try { result = await window.electronAPI?.openDroppedFile?.(file); } catch (e) { throw unwrapIpcError(e); }
+        if (!result) return null;
+        return { handle: result.filePath, content: result.content, name: getFilenameFromPath(result.filePath) };
+    },
+
+    // Electron-only: does this absolute path currently exist on disk?
+    // boolean in Electron for granted paths; null when unknown (web build, or a
+    // path main never granted).
+    fileExists: (p) => (window.electronAPI?.fileExists ? window.electronAPI.fileExists(p) : Promise.resolve(null)),
 
 };

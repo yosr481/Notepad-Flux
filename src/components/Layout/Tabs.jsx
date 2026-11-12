@@ -45,6 +45,7 @@ const SortableTab = ({ tab, isActive, onClick, onClose, onContextMenu }) => {
             title={tab.title}
             isActive={isActive}
             isDirty={tab.isDirty}
+            fileMissing={tab.fileMissing}
             onClick={onClick}
             onClose={onClose}
             onContextMenu={onContextMenu}
@@ -180,11 +181,15 @@ const Tabs = ({ tabs, activeTabId, onTabClick, onTabClose, onNewTab, onContextMe
                 </button>
             )}
 
+            <div className={styles.dragHandle} />
+
+            {/* Last child, so it lands at the bar's right padding edge — vertically
+                in line with the Settings button in the menu row below. The tab
+                list is a bounded flex sibling, so tabs scroll within their own
+                box and never reach this button or the scroll arrow. */}
             <button className={styles.newTabButton} onClick={onNewTab} title="New Tab (Ctrl+N)">
                 +
             </button>
-
-            <div className={styles.dragHandle} />
         </div>
     );
 };

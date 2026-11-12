@@ -1,5 +1,6 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
+import { resolveReference } from "./linkDefs";
 
 // Scheme allowlist for URLs pulled straight from document content.
 // Anything not http/https/mailto (file:, smb:, javascript:, custom protocols) is refused.
@@ -83,6 +84,15 @@ export const linkClickHandler = EditorView.domEventHandlers({
                 }
                 event.preventDefault();
             }
+        } else if (resolveReference(linkNode, state)) {
+            // Reference link, e.g. [![alt][img]][site] with [site]: url elsewhere
+            const url = resolveReference(linkNode, state).url;
+            if (isSafeExternalUrl(url)) {
+                window.open(url, '_blank');
+            } else {
+                console.warn('Blocked unsafe link scheme:', url);
+            }
+            event.preventDefault();
         } else if (linkNode.name === "Link") {
             // Maybe it's an autolink where the whole thing is a URL?
             // Or try to find text content if URL node is missing

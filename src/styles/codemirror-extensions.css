@@ -152,12 +152,50 @@
     color: var(--text-muted);
 }
 
-/* Border for blockquote lines */
+/* Blockquote lines: one full-height vertical bar per nesting level, painted as
+   stacked no-repeat linear-gradient stripes (a negative-spread box-shadow bar
+   collapses vertically on a short .cm-line, so gradients are used instead).
+   Each depth-N rule re-declares all N stripes; a line inside N nested quotes
+   carries classes depth-1..depth-N and the deepest rule (last in source order)
+   wins the cascade, so it shows N bars. */
 .cm-line.cm-blockquote-line {
-    border-left: 3px solid var(--text-accent);
-    padding-left: 1em;
+    padding-left: 1.2em;
     padding-right: 1em;
     background-color: var(--background-secondary);
+    background-image: linear-gradient(var(--text-accent), var(--text-accent));
+    background-size: 0.15em 100%;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+}
+
+.cm-line.cm-blockquote-depth-2 {
+    padding-left: 1.9em;
+    background-image:
+        linear-gradient(var(--text-accent), var(--text-accent)),
+        linear-gradient(var(--text-accent), var(--text-accent));
+    background-size: 0.15em 100%, 0.15em 100%;
+    background-position: 0 0, 0.7em 0;
+    background-repeat: no-repeat;
+}
+
+.cm-line.cm-blockquote-depth-3 {
+    padding-left: 2.6em;
+    background-image:
+        linear-gradient(var(--text-accent), var(--text-accent)),
+        linear-gradient(var(--text-accent), var(--text-accent)),
+        linear-gradient(var(--text-accent), var(--text-accent));
+    background-size: 0.15em 100%, 0.15em 100%, 0.15em 100%;
+    background-position: 0 0, 0.7em 0, 1.4em 0;
+    background-repeat: no-repeat;
+}
+
+/* ============================================
+   ORDERED MARKER WIDGET STYLES
+   ============================================ */
+
+.cm-ordered-marker {
+    color: var(--text-muted);
+    font-weight: inherit;
 }
 
 /* ============================================
@@ -219,4 +257,16 @@
 .cm-table-widget th {
     background-color: var(--background-secondary-alt);
     font-weight: 600;
+}
+
+.cm-table-widget .cm-align-left {
+    text-align: left;
+}
+
+.cm-table-widget .cm-align-center {
+    text-align: center;
+}
+
+.cm-table-widget .cm-align-right {
+    text-align: right;
 }

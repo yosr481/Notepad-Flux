@@ -4,6 +4,8 @@ import { syntaxTree } from "@codemirror/language";
 import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
+import { resolveReference, getVisibleTextBetweenMarks } from "./linkDefs";
+import { isSafeExternalUrl } from "./linkHandler";
 
 class LinkWidget extends WidgetType {
     constructor(text, url, style = {}) {
@@ -16,7 +18,7 @@ class LinkWidget extends WidgetType {
     toDOM(view) {
         const link = document.createElement("a");
         link.className = "cm-link";
-        link.href = this.url;
+        if (isSafeExternalUrl(this.url)) link.href = this.url;   // no href for javascript:/file:/etc; same allowlist as ctrl+click
         link.target = "_blank";
         link.rel = "noopener noreferrer";
 
@@ -124,7 +126,8 @@ function computeLinkDecorations(view) {
             }
 
             if (!shouldReveal) {
-                let urlNode = node.node.getChild("URL");
+                // #14: skip image-in-link
+                if (node.node.getChild("Image")) return;
 
                 // Fallback using regex if we can't easily isolate the URL node or just to be safe with text extraction
                 const textContentFull = doc.sliceString(from, to);
@@ -145,6 +148,16 @@ function computeLinkDecorations(view) {
                         widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
                         inclusive: false
                     }));
+                } else {
+                    // #8: reference-style link resolution (shared with livePreview)
+                    const visibleText = getVisibleTextBetweenMarks(node.node, doc);
+                    const def = resolveReference(node.node, state);
+                    if (def) {
+                        builder.add(from, to, Decoration.replace({
+                            widget: new LinkWidget(visibleText, def.url, { bold, italic }),
+                            inclusive: false
+                        }));
+                    }
                 }
             }
         }
