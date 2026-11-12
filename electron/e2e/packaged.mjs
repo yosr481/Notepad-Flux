@@ -5,7 +5,7 @@ import { realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, syml
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { execFileSync } from 'node:child_process'
+import { execFileSync, spawn } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
@@ -1051,6 +1051,30 @@ if (want('single')) {
         return 'second instance exit code ' + code
     })
     await app.close().catch(() => {})
+}
+
+// ---------------------------------------------------------------- scenario: command-line files
+if (want('argv')) {
+// open files passed on the command line (OS default-app / "Open with"); own profile so it can't share the main run's instance lock
+await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab (name + content); a second launch with another path while running opens in the SAME window, no 2nd window', async () => {
+    const UA = tmp('nf-ua-'), WA = tmp('nf-wa-'); cleanup.push(UA, WA)
+    const f1 = join(WA, 'argv one.md'); writeFileSync(f1, 'ARGV ONE BODY\n')
+    const f2 = join(WA, 'argv-two.txt'); writeFileSync(f2, 'ARGV TWO BODY\n')
+    const { app: a1, win: w1, xdg } = await launch({ binary, userData: UA, extraArgs: [...(noSandbox ? ['--no-sandbox'] : []), f1], env })
+    try {
+        await sleep(2500)
+        await waitFor(async () => (await ui.tabsInfo(w1)).some(t => t.title === 'argv one.md'), { what: 'tab for argv file' })
+        await waitFor(async () => (await ui.activeTitle(w1)) === 'argv one.md', { what: 'argv tab active' })
+        assert((await ui.editorText(w1)).includes('ARGV ONE BODY'), 'argv file content not shown')
+        // second instance: the single-instance lock forwards argv and the process exits
+        const child = spawn(binary, [...(noSandbox ? ['--no-sandbox'] : []), f2], { env: { ...process.env, ...env, XDG_CONFIG_HOME: xdg, NOTEPAD_FLUX_USER_DATA: UA, DISPLAY: process.env.DISPLAY }, stdio: 'ignore' })
+        await new Promise(r => { child.on('exit', r); setTimeout(r, 15000) }); child.kill()
+        await waitFor(async () => (await ui.tabsInfo(w1)).some(t => t.title === 'argv-two.txt'), { what: 'second-instance file opened in running window' })
+        eq((await ui.mainWindows(a1)).length, 1, 'main window count after second launch')
+        await waitFor(async () => (await ui.activeTitle(w1)) === 'argv-two.txt', { what: 'new tab focused' })
+        assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
+    } finally { await a1.close().catch(() => {}) }
+})
 }
 
 // ---------------------------------------------------------------- done

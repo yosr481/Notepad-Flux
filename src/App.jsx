@@ -10,6 +10,7 @@ import Toast from './components/Layout/Toast';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 import { useFileDrop } from './hooks/useFileDrop';
+import { useLaunchFiles } from './hooks/useLaunchFiles';
 import { useSettings, useTabState, useSessionActions } from './context/SessionContext';
 import { version } from '../package.json';
 
@@ -63,6 +64,7 @@ function App() {
     }, []);
 
     useFileDrop({ createTab, addRecentFile, showToast });
+    useLaunchFiles({ createTab, addRecentFile, showToast });
 
     useEffect(() => {
         if (restoreWarning) {

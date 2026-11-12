@@ -14,6 +14,7 @@ import { buildWindowOptions } from './windowOptions.js'
 import { isProbablyText } from './isProbablyText.js'
 import { toUserMessage } from './ipcErrorMessage.js'
 import { isAppPage } from './appPage.js'
+import { filesFromArgv } from './launchArgs.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -99,13 +100,16 @@ const gotTheLock = app.requestSingleInstanceLock()
 if (!gotTheLock) {
     app.quit()
 } else {
-    app.on('second-instance', () => {
+    app.on('second-instance', (event, argv, workingDirectory) => {
+        // A second launch may carry files to open (the OS default-app handler, a terminal).
+        queueLaunchFiles(argv, workingDirectory)
         // Any live app window: the first one may be closed while a New Window lives on.
         const w = appWindows()[0]
         if (w) {
             if (w.isMinimized()) w.restore()
             w.show()
             w.focus()
+            if (pendingLaunchFiles.length) w.webContents.send('launch-files')
         }
     })
 }
@@ -247,11 +251,9 @@ safeHandle('save-file', async (event, { filePath, content, suggestedName }) => {
     return { filePath, canceled: false }
 })
 
-// A file dropped on the window. Only the preload calls this, with a path it got from
-// webUtils.getPathForFile on a real dropped File - main-world page script can't
-// reach ipcRenderer, and can't forge a File that maps to a native path. The drop is
-// the user's consent, like a picker selection.
-safeHandle('open-dropped-file', async (event, filePath) => {
+// Read a file the user handed us directly (a drop, a command-line argument) and grant it.
+// The hand-over is the user's consent, like a picker selection.
+const readAndGrant = async (filePath, how) => {
     if (filterAuthorizablePaths([filePath]).length === 0) {
         throw new Error('Access denied: Unauthorized file path.')
     }
@@ -264,13 +266,51 @@ safeHandle('open-dropped-file', async (event, filePath) => {
     } finally {
         await fh.close()
     }
-    log.info('open: dropped', filePath)
+    log.info(`open: ${how}`, filePath)
     if (!isProbablyText(buf)) {
         throw new Error('Not a text file.')
     }
     grantPath(filePath)
     lastDir = dirname(filePath)
     return { filePath, content: buf.toString('utf-8') }
+}
+
+// A file dropped on the window. Only the preload calls this, with a path it got from
+// webUtils.getPathForFile on a real dropped File - main-world page script can't
+// reach ipcRenderer, and can't forge a File that maps to a native path.
+safeHandle('open-dropped-file', (event, filePath) => readAndGrant(filePath, 'dropped'))
+
+// Files passed on the command line (first launch, or a later launch handed over by
+// second-instance). Only something that can run this binary as the user can put
+// paths here; the page can only take what is queued, never add to it.
+const pendingLaunchFiles = []
+const queueLaunchFiles = (argv, cwd) => {
+    for (const p of filesFromArgv(argv, { cwd, defaultApp: !!process.defaultApp })) {
+        if (!pendingLaunchFiles.includes(p)) pendingLaunchFiles.push(p)
+    }
+}
+queueLaunchFiles(process.argv, process.cwd())
+
+// The page pulls the queue once on mount and again on each 'launch-files' notice, so
+// a file queued before the page was listening is not lost. Per-file errors come back
+// as data so one bad file doesn't hide the others.
+safeHandle('take-launch-files', async (event) => {
+    // Only the app's own page, in its top frame, may take (and so read) queued files.
+    if (event.senderFrame !== event.sender.mainFrame || !isOwnPage(event.senderFrame.url)) {
+        throw new Error('Access denied: Unauthorized file path.')
+    }
+    const out = []
+    for (const filePath of pendingLaunchFiles.splice(0)) {
+        try {
+            out.push(await readAndGrant(filePath, 'launch argument'))
+        } catch (error) {
+            log.warn('open: launch argument failed', filePath, error?.code || error?.message)
+            out.push({ filePath, error: toUserMessage(error) })
+        }
+    }
+    // The window that took the files shows them, whichever window main notified.
+    if (out.length) BrowserWindow.fromWebContents(event.sender)?.focus()
+    return out
 })
 
 // Existence probe for restored tabs (QA finding 12). Only answers for granted
