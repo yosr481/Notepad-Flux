@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.1] — 2026-11-12
+
 ### Features
 - **Desktop:** Open files with Notepad Flux from the file manager ("Open With", or as the default app for `.md` and `.txt`) or from a terminal (`notepad-flux notes.md`). If the app is already running, the file opens as a tab in the existing window. The installers register the app for Markdown and text files.
 
