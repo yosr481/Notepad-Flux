@@ -12,6 +12,7 @@
   },
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/extract-changelog.js",
     "build": "vite build && electron-builder",
     "build:vite": "vite build",
     "lint": "eslint .",
@@ -157,7 +158,9 @@
       ]
     },
     "appImage": {
-      "category": "Utility"
+      "category": "Utility",
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "compression": "gzip"
     },
     "publish": [
       {
