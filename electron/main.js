@@ -175,12 +175,16 @@ safeHandle('safe-storage-decrypt', async (event, encryptedBase64) => {
         throw new Error('Safe storage is not available.')
     }
     const buffer = Buffer.from(encryptedBase64, 'base64')
-    const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(buffer)
-    // ponytail: flag only logged. Sync-era blobs read back with it false (Linux
-    // gnome_libsecret, Electron 45). If it shows up in logs, have the page rewrite
-    // the secure key copy after a verified read-back.
-    if (shouldReEncrypt) log.warn('safeStorage asks to re-encrypt the secure key copy')
+    const { result } = await safeStorage.decryptStringAsync(buffer)
     return result
+})
+
+// True when the keyring rotated its key: the page then rewrites its secure key copy.
+safeHandle('safe-storage-needs-reencrypt', async (event, encryptedBase64) => {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) return false
+    const { shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(encryptedBase64, 'base64'))
+    if (shouldReEncrypt) log.info('safeStorage: re-encrypting the secure key copy')
+    return shouldReEncrypt
 })
 
 safeHandle('safe-storage-available', async () => {

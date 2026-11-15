@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         isAvailable: () => ipcRenderer.invoke('safe-storage-available'),
         encrypt: (text) => ipcRenderer.invoke('safe-storage-encrypt', text),
         decrypt: (encrypted) => ipcRenderer.invoke('safe-storage-decrypt', encrypted),
+        needsReEncrypt: (encrypted) => ipcRenderer.invoke('safe-storage-needs-reencrypt', encrypted),
         backend: () => ipcRenderer.invoke('safe-storage-backend'),
     },
     onMainMessage: (callback) => {
