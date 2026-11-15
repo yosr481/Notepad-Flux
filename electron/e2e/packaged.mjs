@@ -971,7 +971,14 @@ if (want('race2')) {
         }
         const tRef = Date.now(); let loadDoneMs = null
         const watcher = (async () => { while (loadDoneMs === null && Date.now() - tRef < 20000) { try { if ((await ui.tabsInfo(win)).length >= 4) loadDoneMs = Date.now() - tRef } catch { /* page busy */ } await sleep(50) } })()
+        if (slow) await app.evaluate(() => { delete globalThis.__openArgs })
         await ui.openViaDialog(app, win, F)
+        // After a reload, DOMContentLoaded precedes App's window keydown listener (a useEffect), so the first Ctrl+O can be dropped.
+        // Deterministic signal: main's dialog stub records __openArgs only when the shortcut was handled; re-press until it is (bounded).
+        if (slow) {
+            for (let n = 0; n < 40 && !(await app.evaluate(() => globalThis.__openArgs)); n++) { await win.keyboard.press('Control+o'); await sleep(150) }
+            assert(await app.evaluate(() => globalThis.__openArgs), 'Ctrl+O never reached the open dialog after reload (app never took shortcuts)')
+        }
         const typed = 'abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJ'
         let typeErr = null
         const typeStart = Date.now() - tRef; let typeEnd = null
