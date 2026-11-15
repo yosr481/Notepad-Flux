@@ -1,4 +1,3 @@
-import process from 'node:process';
 import { describe, it, expect } from 'vitest';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, copyFileSync, existsSync, readFileSync, rmSync } from 'node:fs';

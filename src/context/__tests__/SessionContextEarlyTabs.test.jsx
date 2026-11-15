@@ -60,7 +60,7 @@ describe('SessionContext: tabs opened before the session load finishes', () => {
         expect(api.tabs[2].id).toBe('tab-3');                                     // no clash: untouched
         expect(api.tabs[0].id).not.toBe('tab-1');                                 // clashed with the dropped pristine tab
         expect(api.tabs[1].id).not.toBe('tab-2');                                 // clashed with the early tab
-        expect(api.tabs[0].content).toBe('body tab-1'); expect(api.tabs[1].content).toBe('body tab-2')   // restored content intact
+        expect(api.tabs[0].content).toBe('body tab-1'); expect(api.tabs[1].content).toBe('body tab-2');   // restored content intact
         expect(new Set(api.tabs.map(t => t.id)).size).toBe(4);
         expect(api.activeTabId).toBe('tab-2');
         act(() => { api.createTab({ title: 'later' }); });

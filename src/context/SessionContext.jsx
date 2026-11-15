@@ -7,7 +7,6 @@ const SettingsContext = createContext();
 const TabStateContext = createContext();
 const ActionsContext = createContext();
 
-const SessionContext = createContext();
 
 const KEY_UNAVAILABLE_WARNING = "The system keyring is locked, so saved tabs can't be opened. They are safe on disk. Unlock the keyring and restart Notepad Flux; until then, changes are kept only if you save them as files.";
 

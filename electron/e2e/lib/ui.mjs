@@ -37,7 +37,6 @@ export async function openViaDialog(app, win, path) {
             return { canceled: false, filePaths: [p] }
         }
     }, path)
-    const before = (await tabsInfo(win)).length
     await win.keyboard.press('Control+o')
     await sleep(250)
 }

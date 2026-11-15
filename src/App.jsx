@@ -39,7 +39,7 @@ function App() {
         charCount: 0
     });
 
-    const { settings, updateSettings } = useSettings();
+    const { settings } = useSettings();
     const { restoreWarning } = useTabState();
     const { clearRestoreWarning, createTab, addRecentFile } = useSessionActions();
 

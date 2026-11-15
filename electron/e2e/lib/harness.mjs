@@ -1,5 +1,5 @@
 // Tiny check registry: PASS/FAIL lines, results JSON, helpers shared by packaged.mjs.
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export const results = []
@@ -49,7 +49,7 @@ export async function waitFor(fn, { timeout = 8000, every = 100, what = 'conditi
 // Merge this run into the shared results file: { targets: { <name>: {meta, checks} } }.
 export function writeResults(file, target, meta, { merge = false } = {}) {
     let all = { targets: {} }
-    if (existsSync(file)) { try { all = JSON.parse(readFileSync(file, 'utf8')) } catch { /* start over */ } }
+    try { all = JSON.parse(readFileSync(file, 'utf8')) } catch { /* missing or corrupt: start over */ }
     all.targets ||= {}
     const prev = merge ? (all.targets[target]?.checks ?? []).filter(c => !results.some(r => r.id === c.id)) : []
     all.targets[target] = { meta: merge ? { ...all.targets[target]?.meta, ...meta } : meta, checks: [...prev, ...results] }

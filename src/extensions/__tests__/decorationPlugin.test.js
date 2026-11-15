@@ -42,13 +42,6 @@ describe('makeDebouncedDecorationPlugin', () => {
 
     it('calls compute function on each update', () => {
         const compute = vi.fn(() => new RangeSetBuilder().finish());
-        const mockView = {
-            state: {
-                doc: { lines: 100 },
-                selection: { ranges: [] }
-            }
-        };
-
         const plugin = makeDebouncedDecorationPlugin({ compute });
         expect(plugin).toBeDefined();
     });
