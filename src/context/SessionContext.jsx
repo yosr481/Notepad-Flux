@@ -9,6 +9,8 @@ const ActionsContext = createContext();
 
 const SessionContext = createContext();
 
+const KEY_UNAVAILABLE_WARNING = "The system keyring is locked, so saved tabs can't be opened. They are safe on disk. Unlock the keyring and restart Notepad Flux; until then, changes are kept only if you save them as files.";
+
 // Same-file key for a tab's path handle. Windows paths are case-insensitive and take
 // either slash; elsewhere the path must match exactly. null for no handle / web handles.
 const fileKey = (h) => {
@@ -130,6 +132,11 @@ export const SessionProvider = ({ children }) => {
         // Extract adoptSessionMeta for use in both loadAndSetupSession and onPromoted
         const adoptSessionMeta = (diskSession) => {
             const diskTabs = diskSession.tabs || [];
+
+            if (diskSession.keyUnavailable) {
+                setRestoreWarning(KEY_UNAVAILABLE_WARNING);
+                return;
+            }
 
             // Calculate restoreWarning: count tabs with _decryptFailed
             const failedCount = diskTabs.filter(t => t._decryptFailed).length;
@@ -657,6 +664,11 @@ export const SessionProvider = ({ children }) => {
     }, []);
 
     const clearSessionData = useCallback(async () => {
+        // Locked: clearing would do nothing and the reload would bring the old session back.
+        if (storage.writesLocked) {
+            setRestoreWarning(KEY_UNAVAILABLE_WARNING);
+            return;
+        }
         await storage.clearSession();
         window.location.reload();
     }, []);

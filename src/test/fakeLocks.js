@@ -29,9 +29,12 @@ export function createFakeLockManager() {
 
         const lockObj = { name, mode: 'exclusive' };
         // Hold the lock until the callback's promise settles OR __release fires.
+        // Like the real API, request() settles with the callback's result (value or error).
+        let outcome = { ok: true, value: undefined };
         Promise.resolve()
             .then(() => cb(lockObj))
-            .then(() => releaseHolder(), () => releaseHolder());
+            .then((value) => { outcome = { ok: true, value }; releaseHolder(); },
+                (error) => { outcome = { ok: false, error }; releaseHolder(); });
 
         await holderDone;
         held.delete(name);
@@ -40,8 +43,10 @@ export function createFakeLockManager() {
         if (q.length > 0) {
             const next = q.shift();
             // Detached: let __release's caller return before the next waiter runs.
-            grant(name, next.cb).then(next.resolveOuter, next.resolveOuter);
+            grant(name, next.cb).then(next.resolveOuter, next.rejectOuter);
         }
+        if (!outcome.ok) throw outcome.error;
+        return outcome.value;
     }
 
     const locks = {
@@ -61,8 +66,8 @@ export function createFakeLockManager() {
             if (options.ifAvailable) {
                 return Promise.resolve().then(() => cb(null));
             }
-            return new Promise((resolveOuter) => {
-                queueFor(name).push({ cb, resolveOuter });
+            return new Promise((resolveOuter, rejectOuter) => {
+                queueFor(name).push({ cb, resolveOuter, rejectOuter });
             });
         },
 

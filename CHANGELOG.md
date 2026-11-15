@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.3] — 2026-11-15
+
+### Security
+- **Desktop:** The encryption key for saved tabs is no longer kept in plain text. Once it is stored in the system keyring and read back on a later launch, the plain-text copy is deleted. On Linux setups without a real keyring (`basic_text`) the plain-text copy is kept, since it is the only way to recover the tabs there.
+
+### Bug Fixes
+- **Session:** If the system keyring is locked, saved tabs are no longer overwritten or deleted, and no new key replaces the old one. The app opens with a warning, leaves the saved tabs untouched on disk, and loads them on the next launch after the keyring is unlocked.
+
 ## [1.4.2] — 2026-11-12
 
 ### Bug Fixes

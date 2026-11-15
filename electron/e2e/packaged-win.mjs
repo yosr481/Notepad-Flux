@@ -251,10 +251,14 @@ await check('SEC-8', 'security', 'a script-built File has no native path: openDr
 await check('SEC-9', 'security', 'safeStorage available (keyring) and encrypt/decrypt round-trips with ciphertext != plaintext', async () => {
     const r = await win.evaluate(async () => {
         const s = window.electronAPI.safeStorage; if (!(await s.isAvailable())) return { avail: false }
-        const c = await s.encrypt('secret-é'); return { avail: true, c: c !== 'secret-é', d: await s.decrypt(c) }
+        const c = await s.encrypt('secret-é')
+        return { avail: true, c: c !== 'secret-é', d: await s.decrypt(c), b: typeof s.backend === 'function' ? await s.backend() : '(no backend on bridge)' }
     })
     assert(r.avail, 'safeStorage unavailable (keyring missing in this environment)')
     assert(r.c && r.d === 'secret-é', JSON.stringify(r))
+    // Key cleanup (crypto.js) only drops the plaintext key on a real keyring: the bridge must report it.
+    assert(typeof r.b === 'string' && r.b !== '(no backend on bridge)', 'safeStorage.backend missing on bridge: ' + JSON.stringify(r))
+    return 'backend ' + r.b
 }, { smoke: true })
 
 await check('LOG-1', 'log', 'main.log has start block (version, packaged:true, safeStorage backend) and no file content', async () => {
