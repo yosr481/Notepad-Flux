@@ -70,4 +70,43 @@ describe('SessionContext: window close requested before the session load finishe
         expect(outcome).toBe('resolved');
         void api;
     });
+
+    // Promotion merge: B (secondary) is promoted when A dies; isSessionLoaded goes false while B merges
+    // disk + its own tabs. A close during that window must wait for the merge, then persist B's edits.
+    it('close requested during a promotion merge waits for it, then persists the promoted window\'s own typed tabs', async () => {
+        const apiA = {}, apiB = {};
+        const PA = () => { Object.assign(apiA, useSession()); return null; };
+        const PB = () => { Object.assign(apiB, useSession()); return null; };
+        let closeB = null, resolvePromotionLoad, calls = 0;
+        const track = (set) => ({ onCloseRequested: vi.fn((cb) => { set(cb); return () => {}; }) });
+        storage.loadSession.mockImplementation(() => (++calls <= 2
+            ? Promise.resolve({ tabs: [] })
+            : new Promise(r => { resolvePromotionLoad = r; }))); // 3rd call = B's promotion merge, held open
+        window.electronAPI = track(() => {});
+        const a = render(<SessionProvider><PA /></SessionProvider>);
+        await waitFor(() => expect(apiA.isPrimaryWindow).toBe(true));
+        await waitFor(() => expect(apiA.isSessionLoaded).toBe(true));
+        window.electronAPI = track((cb) => { closeB = cb; });
+        render(<SessionProvider><PB /></SessionProvider>);
+        await waitFor(() => expect(navigator.locks.__queueLength('notepad-flux-primary')).toBe(1));
+        await waitFor(() => expect(apiB.isSessionLoaded).toBe(true));
+        act(() => { apiB.updateTab(apiB.activeTabId, { content: 'SECONDARY-TYPED', isDirty: true }); });
+        expect(closeB).toBeTruthy();
+
+        a.unmount(); // A dies: B is promoted, merge hangs on loadSession
+        await waitFor(() => expect(calls).toBe(3));
+        await waitFor(() => expect(apiB.isSessionLoaded).toBe(false));
+
+        let resolvedLoaded = null, snapsAtResolve = null;
+        const closing = closeB().then(() => { resolvedLoaded = apiB.isSessionLoaded; snapsAtResolve = snapshotsWith('SECONDARY-TYPED').length; });
+        await act(async () => { await new Promise(r => setTimeout(r, 50)); });
+        expect(resolvedLoaded, 'close confirmed in the middle of the promotion merge').toBeNull();
+
+        await act(async () => { resolvePromotionLoad({ tabs: [] }); });
+        const outcome = await act(async () => Promise.race([closing.then(() => 'resolved'), new Promise(r => setTimeout(() => r('hung'), 2000))]));
+        expect(outcome, 'close hung after promotion finished').toBe('resolved');
+        expect(resolvedLoaded).toBe(true);
+        expect(snapsAtResolve, 'no persisted snapshot holds the secondary window\'s typed edit').toBeGreaterThan(0);
+        expect(apiB.isPrimaryWindow).toBe(true);
+    });
 });

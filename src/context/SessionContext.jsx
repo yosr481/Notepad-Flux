@@ -72,13 +72,15 @@ export const SessionProvider = ({ children }) => {
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
-    // Resolves once the first session load has finished and rendered, so a close
-    // requested mid-load can wait for it and then save (instead of saving nothing).
+    // Resolves once a session load (first load or a promotion merge) has finished and
+    // rendered, so a close requested mid-load can wait for it and then save.
     const loadGate = useRef(null);
-    if (!loadGate.current) {
-        let resolve;
-        loadGate.current = { promise: new Promise(r => { resolve = r; }), resolve };
-    }
+    const armLoadGate = () => {
+        const gate = { done: false };
+        gate.promise = new Promise(r => { gate.resolve = () => { gate.done = true; r(); }; });
+        loadGate.current = gate;
+    };
+    if (!loadGate.current) armLoadGate();
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
@@ -629,7 +631,10 @@ export const SessionProvider = ({ children }) => {
     flushRef.current = flushPendingSaves;
 
     useEffect(() => {
+        // Re-arm when a promotion merge renders isSessionLoaded=false. Re-arming in
+        // onPromoted instead would hang a close when React batches false->true.
         if (isSessionLoaded) loadGate.current.resolve();
+        else if (loadGate.current.done) armLoadGate();
     }, [isSessionLoaded]);
 
     // Electron: main waits for this before letting the window close (max 3s). A close
@@ -638,7 +643,12 @@ export const SessionProvider = ({ children }) => {
     useEffect(() => {
         return window.electronAPI?.onCloseRequested?.(async () => {
             try {
-                await loadGate.current.promise;
+                // Re-check: a promotion may re-arm the gate while we wait.
+                let gate;
+                do {
+                    gate = loadGate.current;
+                    await gate.promise;
+                } while (gate !== loadGate.current);
                 await flushRef.current();
             } catch (err) {
                 console.error('Failed to save session on close:', err);
