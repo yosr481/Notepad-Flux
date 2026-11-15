@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.4.4] — 2026-11-15
+
+### Security
+- **Dependencies:** Updated DOMPurify to 3.4.18, which fixes several published advisories. Notepad Flux's sanitizer doesn't use any of the affected options, so it was not exposed. Also updated `fflate` (used by PDF export), React, CodeMirror and the build plugin to their latest patch releases.
+
 ## [1.4.3] — 2026-11-15
 
 ### Security
