@@ -1,7 +1,7 @@
 // E2E against a PACKAGED Notepad Flux binary (linux-unpacked, .deb payload, AppImage).
 //   DISPLAY=:77 node electron/e2e/packaged.mjs <binary> [--target=<name>] [--smoke] [--no-sandbox]
 // Never touches real app data: every launch uses NOTEPAD_FLUX_USER_DATA=<temp dir>.
-import { realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
+import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -1101,6 +1101,49 @@ await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab
         assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
     } finally { await a1.close().catch(() => {}) }
 })
+}
+
+// ---------------------------------------------------------------- scenario: close while the session load is still running
+if (want('closeload')) {
+// Cold boot with a slow keyring: the session load (which decrypts the stored key first) is still running when the user types and closes.
+// The slow decrypt is the RACE-3s mechanism (ipcMain override from the test side, no app hook), 2s per call, below main's 3s flush-handshake limit.
+for (const via of ['x', 'menu-exit', 'menu-close-window']) {
+    const Ub = tmp('nf-cl-base-'), Uc = tmp('nf-cl-u-'); cleanup.push(Ub, Uc)
+    const MARK = 'EARLYCLOSE' + via.replace(/\W/g, '').toUpperCase() + Math.random().toString(36).slice(2, 7).toUpperCase()
+    { // profile with a stored key and one saved tab
+        const { app, win } = await L(Ub)
+        await ui.typeAtEnd(win, 'BASE-TAB-TEXT'); await sleep(1500); await ui.closeViaX(app); await app.close().catch(() => {})
+    }
+    cpSync(Ub, Uc, { recursive: true })
+    await check('CLOSE-LOAD-' + via, 'close', `typing then closing (${via}) while the session load is still running (slow keyring decrypt): the text survives relaunch`, async () => {
+        const { app, win } = await L(Uc, { settle: 0 })
+        let res
+        try {
+            await app.evaluate(({ ipcMain, safeStorage }) => {
+                ipcMain.removeHandler('safe-storage-decrypt')
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 2000)); return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result })
+            })
+            await win.reload({ waitUntil: 'domcontentloaded' })
+            await win.locator('.cm-content').waitFor({ timeout: 8000 })
+            await ui.typeAtEnd(win, MARK)
+            assert(!(await ui.tabsInfo(win)).some(t => /BASE-TAB/.test(t.title)), 'precondition: session load already finished, test would not exercise the race')
+            const proc = app.process(); const exited = new Promise(r => proc.once('exit', r)); const t0 = Date.now()
+            if (via === 'x') await ui.closeViaX(app)
+            else { await win.getByText('File', { exact: true }).first().click(); await win.getByText(via === 'menu-exit' ? 'Exit' : 'Close Window', { exact: true }).click() }
+            await Promise.race([exited, sleep(10000)]); res = { exited: proc.exitCode !== null || proc.signalCode !== null, ms: Date.now() - t0 }
+        } finally { await app.close().catch(() => {}) }
+        assert(res.exited, 'app did not exit within 10s')
+        assert(!logOf(Uc).includes('did not confirm session flush'), 'handshake timed out')
+        const r2 = await L(Uc); await sleep(1500)
+        try {
+            const tabs = await ui.tabsInfo(r2.win); const seen = []
+            for (let i = 0; i < tabs.length; i++) { await r2.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(r2.win)) }
+            assert(seen.some(t => t.includes(MARK)), `typed text lost after close-during-load (window closed in ${res.ms}ms); tabs after relaunch: ${JSON.stringify(seen.map(t => t.slice(0, 30)))}`)
+            assert(seen.some(t => t.includes('BASE-TAB-TEXT')), 'previously saved tab lost')
+        } finally { await r2.app.close().catch(() => {}) }
+        return res.ms + 'ms'
+    })
+}
 }
 
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build

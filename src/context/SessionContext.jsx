@@ -72,6 +72,13 @@ export const SessionProvider = ({ children }) => {
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
+    // Resolves once the first session load has finished and rendered, so a close
+    // requested mid-load can wait for it and then save (instead of saving nothing).
+    const loadGate = useRef(null);
+    if (!loadGate.current) {
+        let resolve;
+        loadGate.current = { promise: new Promise(r => { resolve = r; }), resolve };
+    }
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
@@ -617,16 +624,27 @@ export const SessionProvider = ({ children }) => {
         });
     }, [isPrimaryWindow, isSessionLoaded]);
 
-    // Electron: main waits for this before letting the window close.
+    // Latest flush, for a close that waited on the load and must see post-load state.
+    const flushRef = useRef(flushPendingSaves);
+    flushRef.current = flushPendingSaves;
+
+    useEffect(() => {
+        if (isSessionLoaded) loadGate.current.resolve();
+    }, [isSessionLoaded]);
+
+    // Electron: main waits for this before letting the window close (max 3s). A close
+    // during the session load waits for the load first; flushing before it would save
+    // nothing and still confirm, losing edits made meanwhile.
     useEffect(() => {
         return window.electronAPI?.onCloseRequested?.(async () => {
             try {
-                await flushPendingSaves();
+                await loadGate.current.promise;
+                await flushRef.current();
             } catch (err) {
                 console.error('Failed to save session on close:', err);
             }
         });
-    }, [flushPendingSaves]);
+    }, []);
 
     useEffect(() => {
         const onHide = () => {
