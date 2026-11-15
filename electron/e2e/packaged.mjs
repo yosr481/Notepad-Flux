@@ -227,8 +227,10 @@ await check('SEC-9', 'security', 'safeStorage available (keyring) and encrypt/de
 }, { smoke: true })
 
 await check('LOG-1', 'log', 'main.log has start block (version, packaged:true, safeStorage backend) and no file content', async () => {
+    // The keyring line is written from an async .then after startup: wait for it, and require it as its own line (not just any 'safeStorage: true').
+    await waitFor(() => /^.*\bkeyring \{[^}]*safeStorage: true/m.test(logOf(U1)), { what: 'keyring { safeStorage: true } log line' })
     const t = logOf(U1)
-    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorage: true/.test(t), 'start block incomplete')
+    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorageBackend: '/.test(t), 'start block incomplete')
     return (t.match(/version: '([^']+)'/) || [])[0] + ' ' + (t.match(/safeStorageBackend: '([^']+)'/) || [])[0]
 }, { smoke: true })
 
@@ -965,7 +967,7 @@ if (want('race2')) {
         if (slow) {
             await app.evaluate(({ ipcMain, safeStorage }) => {
                 ipcMain.removeHandler('safe-storage-decrypt')
-                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return safeStorage.decryptString(Buffer.from(b64, 'base64')) })
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result })
             })
             await win.reload({ waitUntil: 'domcontentloaded' })
         }
@@ -1098,6 +1100,42 @@ await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab
         await waitFor(async () => (await ui.activeTitle(w1)) === 'argv-two.txt', { what: 'new tab focused' })
         assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
     } finally { await a1.close().catch(() => {}) }
+})
+}
+
+// ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
+if (want('legacykey')) {
+// The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.
+// Needs an older packaged build: NF_LEGACY_BIN=<path> (default: the installed /opt/Notepad Flux/notepad-flux if it exists). Skipped loudly otherwise.
+const legacyBin = process.env.NF_LEGACY_BIN || (existsSync('/opt/Notepad Flux/notepad-flux') ? '/opt/Notepad Flux/notepad-flux' : '')
+if (!legacyBin || !existsSync(legacyBin)) na('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', 'SKIPPED: no older build found; set NF_LEGACY_BIN to a pre-async-safeStorage packaged binary (e.g. /opt/Notepad Flux/notepad-flux from 1.4.4)')
+else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', async () => {
+    const Uo = tmp('nf-legacy-'); cleanup.push(Uo)
+    const MARK = 'LEGACY-' + Date.now()
+    let oldKey
+    { // old build creates the profile
+        const { app, win } = await launch({ binary: legacyBin, userData: Uo, extraArgs: noSandbox ? ['--no-sandbox'] : [], env })
+        try {
+            await sleep(2500)
+            assert(await win.evaluate(async () => (await window.electronAPI.safeStorage.isAvailable())), 'legacy build: safeStorage unavailable (keyring)')
+            await ui.typeAtEnd(win, MARK + '-ONE')
+            await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, MARK + '-TWO')
+            await sleep(1500)
+            oldKey = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+            assert(oldKey, 'precondition: legacy build wrote no secure key copy, test would be vacuous')
+            await ui.closeViaX(app)
+        } finally { await app.close().catch(() => {}) }
+    }
+    const { app, win } = await L(Uo)
+    try {
+        await waitFor(async () => (await ui.tabsInfo(win)).length >= 2, { what: 'two restored tabs' })
+        const tabs = await ui.tabsInfo(win); const seen = []
+        for (let i = 0; i < tabs.length; i++) { await win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(win)) }
+        assert(seen.some(t => t.includes(MARK + '-ONE')) && seen.some(t => t.includes(MARK + '-TWO')), 'tabs not restored with their text: ' + JSON.stringify(seen))
+        const now = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+        assert(now, 'secure key copy vanished after loading with this build')
+        return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
+    } finally { await app.close().catch(() => {}) }
 })
 }
 

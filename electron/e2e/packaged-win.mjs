@@ -264,8 +264,10 @@ await check('SEC-9', 'security', 'safeStorage available (keyring) and encrypt/de
 }, { smoke: true })
 
 await check('LOG-1', 'log', 'main.log has start block (version, packaged:true, safeStorage backend) and no file content', async () => {
+    // The keyring line is written from an async .then after startup: wait for it, and require it as its own line (not just any 'safeStorage: true').
+    await waitFor(() => /^.*\bkeyring \{[^}]*safeStorage: true/m.test(logOf(U1)), { what: 'keyring { safeStorage: true } log line' })
     const t = logOf(U1)
-    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorage: true/.test(t), 'start block incomplete')
+    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorageBackend: '/.test(t), 'start block incomplete')
     return (t.match(/version: '([^']+)'/) || [])[0] + ' ' + (t.match(/safeStorageBackend: '([^']+)'/) || [])[0]
 }, { smoke: true })
 
@@ -993,7 +995,7 @@ if (want('race2')) {
         if (slow) {
             await app.evaluate(({ ipcMain, safeStorage }) => {
                 ipcMain.removeHandler('safe-storage-decrypt')
-                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return safeStorage.decryptString(Buffer.from(b64, 'base64')) })
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result })
             })
             await win.reload({ waitUntil: 'domcontentloaded' })
         }

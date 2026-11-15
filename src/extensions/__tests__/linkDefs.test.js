@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
+import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { resolveLinkDefs, normalizeLabel } from '../linkDefs';
 
@@ -35,11 +36,17 @@ import { resolveLinkDefs, normalizeLabel } from '../linkDefs';
 //    distinct Maps.
 // ===========================================================================
 
-const mk = (doc) =>
-    EditorState.create({
+// EditorState.create parses under a ~20ms budget, so a loaded CPU can leave a partial tree.
+// Force the full parse so these tests check the resolver, not the machine's speed.
+const mk = (doc) => {
+    const state = EditorState.create({
         doc,
         extensions: [markdown({ base: markdownLanguage })],
     });
+    ensureSyntaxTree(state, state.doc.length, 10000);
+    // ensureSyntaxTree does not always publish into the state: a no-op transaction picks up the finished work.
+    return syntaxTree(state).length < state.doc.length ? state.update({}).state : state;
+};
 
 describe('normalizeLabel', () => {
     it('strips the surrounding [ ] and lower-cases', () => {
