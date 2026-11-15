@@ -163,23 +163,28 @@ const safeHandle = (channel, handler) => {
 }
 
 safeHandle('safe-storage-encrypt', async (event, plainText) => {
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) {
         throw new Error('Safe storage is not available.')
     }
-    const buffer = safeStorage.encryptString(plainText)
+    const buffer = await safeStorage.encryptStringAsync(plainText)
     return buffer.toString('base64')
 })
 
 safeHandle('safe-storage-decrypt', async (event, encryptedBase64) => {
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) {
         throw new Error('Safe storage is not available.')
     }
     const buffer = Buffer.from(encryptedBase64, 'base64')
-    return safeStorage.decryptString(buffer)
+    const { result, shouldReEncrypt } = await safeStorage.decryptStringAsync(buffer)
+    // ponytail: flag only logged. Sync-era blobs read back with it false (Linux
+    // gnome_libsecret, Electron 45). If it shows up in logs, have the page rewrite
+    // the secure key copy after a verified read-back.
+    if (shouldReEncrypt) log.warn('safeStorage asks to re-encrypt the secure key copy')
+    return result
 })
 
 safeHandle('safe-storage-available', async () => {
-    return safeStorage.isEncryptionAvailable()
+    return safeStorage.isAsyncEncryptionAvailable()
 })
 
 // Which keyring backs safeStorage. On Linux 'basic_text' is a fixed-key obfuscation,
@@ -596,9 +601,12 @@ if (gotTheLock) app.whenReady().then(() => {
         platform: `${process.platform} ${process.arch}`,
         packaged: app.isPackaged,
         userData: userDataPath,
-        safeStorage: safeStorage.isEncryptionAvailable(),
         safeStorageBackend: process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : 'os',
     })
+    // Off the startup path: a slow or failing keyring must not hold up the window.
+    safeStorage.isAsyncEncryptionAvailable()
+        .then(ok => log.info('keyring', { safeStorage: ok }))
+        .catch(err => log.warn('safeStorage check failed', err?.message))
     splash = new BrowserWindow({
         width: 300,
         height: 300,
