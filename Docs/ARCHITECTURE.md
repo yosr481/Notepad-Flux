@@ -30,7 +30,7 @@ The application is a Single Page Application (SPA) built with **React** and **Vi
 - Renderer: dist/index.html (Vite build)
 - IPC Channels: read-file, read-file-content, save-file, main-process-message
 - Window Integration: custom title bar overlay, mica background (Windows), splash screen
-- Installers: Windows NSIS (x64, ia32), Linux deb and AppImage via electron-builder
+- Installers: Windows NSIS (x64), Linux deb and AppImage via electron-builder
 
 For full desktop packaging details, see Docs/DESKTOP_ELECTRON.md.
 

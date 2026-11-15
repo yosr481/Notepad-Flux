@@ -101,7 +101,7 @@ Electron Builder configuration (summarized from package.json build section):
 Windows (win target):
 
 - Target: nsis
-- Architectures: x64, ia32
+- Architectures: x64 (ia32 dropped in 1.5.0: Electron 44+ ships no 32-bit Windows build)
 - Artifact Name: Notepad Flux-<version>-win-<arch>.<ext>
 - NSIS options:
   - oneClick: false (assisted installer)

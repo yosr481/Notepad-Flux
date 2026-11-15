@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Security
+- **Desktop:** Updated Electron from 40 (no longer receiving security fixes) to 45.
+
+### Breaking Changes
+- **Windows:** 32-bit (ia32) Windows is no longer supported, because Electron no longer builds for it. A 32-bit install stays on 1.4.4: its automatic update to this version will fail and leave 1.4.4 in place.
+
 ## [1.4.4] — 2026-11-15
 
 ### Security
