@@ -26,6 +26,50 @@ function base64ToUint8(b64) {
     return new Uint8Array(atob(b64).split('').map(c => c.charCodeAt(0)));
 }
 
+const keyUnavailable = () => Object.assign(
+    new Error('The encryption key is unavailable (is the system keyring locked?). Saved tabs stay as they are on disk.'),
+    { code: 'KEY_UNAVAILABLE' }
+);
+
+const importRaw = (b64) => crypto.subtle.importKey('raw', base64ToUint8(b64), { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+
+// null for anything that isn't usable key material.
+async function tryImport(b64) {
+    if (typeof b64 !== 'string' || !b64) return null;
+    try { return await importRaw(b64); } catch { return null; }
+}
+
+// First launch with a plaintext key: write the secure copy, keep the plaintext one.
+// The plaintext copy goes only on a later launch that reads the secure copy back.
+// A secure copy that doesn't read back is removed, unless another window replaced it.
+async function migrateToSecure(ss, plain) {
+    if (!ss) return;
+    try {
+        if (!(await ss.isAvailable())) return;
+        const blob = await ss.encrypt(plain);
+        localStorage.setItem(SECURE_KEY_NAME, blob);
+        let ok = false;
+        try { ok = (await ss.decrypt(blob)) === plain; } catch { /* treated as a failed check */ }
+        if (!ok && localStorage.getItem(SECURE_KEY_NAME) === blob) localStorage.removeItem(SECURE_KEY_NAME);
+    } catch (e) {
+        console.warn('Migration to secure storage failed:', e);
+    }
+}
+
+// Drop the plaintext key once a later launch read the same key from the secure copy,
+// and only on a real keyring: on Linux 'basic_text' is a fixed-key obfuscation, so the
+// plaintext copy is the only real recovery path there.
+async function removePlainIfSafe(ss, plain) {
+    let backend;
+    try { backend = await ss?.backend?.(); } catch { return; }
+    if (typeof backend !== 'string' || !backend || backend === 'basic_text' || backend === 'unknown') return;
+    try {
+        if (localStorage.getItem(ENCRYPTION_KEY_NAME) === plain) localStorage.removeItem(ENCRYPTION_KEY_NAME);
+    } catch (e) {
+        console.warn('Could not remove the plaintext key:', e);
+    }
+}
+
 /**
  * Gets or creates a persistent encryption key.
  * To protect the key on disk, we use Electron's safeStorage API when available.
@@ -38,104 +82,50 @@ async function getEncryptionKey() {
     }
 
     const doKeyWork = async () => {
-        // Try to get the secure key first
-        let secureKeyData = localStorage.getItem(SECURE_KEY_NAME);
-        let keyData = null;
+        const ss = window.electronAPI?.safeStorage;
+        const secure = localStorage.getItem(SECURE_KEY_NAME);
+        const plain = localStorage.getItem(ENCRYPTION_KEY_NAME);
 
-        if (secureKeyData && window.electronAPI?.safeStorage) {
-            try {
-                // Decrypt the key using OS-level secure storage
-                keyData = await window.electronAPI.safeStorage.decrypt(secureKeyData);
-            } catch (e) {
-                console.error('Failed to decrypt secure key:', e);
-                // Fallback to legacy key or re-generation
+        if (secure) {
+            let fromSecure = null;
+            if (ss) {
+                try { fromSecure = await ss.decrypt(secure); } catch (e) { console.warn('Secure key unreadable:', e); }
             }
+            const secureKey = await tryImport(fromSecure);
+            if (secureKey) {
+                if (plain && plain === fromSecure) await removePlainIfSafe(ss, plain);
+                cachedKey = secureKey;
+                return secureKey;
+            }
+            // The secure copy exists but can't be read now (keyring locked or changed,
+            // backend mismatch). Never replace it: the data on disk is encrypted with it,
+            // and it may read fine on the next launch.
+            const plainKey = await tryImport(plain);
+            if (plainKey) {
+                cachedKey = plainKey;
+                return plainKey;
+            }
+            throw keyUnavailable();
         }
 
-        if (!keyData) {
-            // Fallback to legacy plaintext key if exists
-            keyData = localStorage.getItem(ENCRYPTION_KEY_NAME);
+        if (plain) {
+            const plainKey = await tryImport(plain);
+            if (plainKey) {
+                await migrateToSecure(ss, plain);
+                cachedKey = plainKey;
+                return plainKey;
+            }
+            // Corrupt plaintext key and no secure copy: the data was unreadable anyway.
+            console.error('Encryption key corrupt — regenerating');
         }
 
-        if (!keyData) {
-            // Generate a new random key if none exists
-            const randomKey = crypto.getRandomValues(new Uint8Array(32));
-            keyData = uint8ToBase64(randomKey);
-
-            // Try to store it securely if possible
-            if (window.electronAPI?.safeStorage) {
-                try {
-                    const isAvailable = await window.electronAPI.safeStorage.isAvailable();
-                    if (isAvailable) {
-                        const encryptedKey = await window.electronAPI.safeStorage.encrypt(keyData);
-                        localStorage.setItem(SECURE_KEY_NAME, encryptedKey);
-                    } else {
-                        localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
-                    }
-                } catch (e) {
-                    console.error('Failed to store key securely:', e);
-                    localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
-                }
-            } else {
-                // Not in Electron environment (e.g. browser tests)
-                localStorage.setItem(ENCRYPTION_KEY_NAME, keyData);
-            }
-        } else if (!secureKeyData && window.electronAPI?.safeStorage) {
-            // Migration: keyData exists in plaintext, try to secure it
-            try {
-                const isAvailable = await window.electronAPI.safeStorage.isAvailable();
-                if (isAvailable) {
-                    const encryptedKey = await window.electronAPI.safeStorage.encrypt(keyData);
-                    localStorage.setItem(SECURE_KEY_NAME, encryptedKey);
-                    // Optionally remove the legacy plaintext key for better security
-                    // localStorage.removeItem(ENCRYPTION_KEY_NAME);
-                }
-            } catch (e) {
-                console.warn('Migration to secure storage failed:', e);
-            }
-        }
-
-        try {
-            const rawKey = base64ToUint8(keyData);
-            const key = await crypto.subtle.importKey(
-                'raw',
-                rawKey,
-                { name: 'AES-GCM' },
-                false,
-                ['encrypt', 'decrypt']
-            );
-            cachedKey = key;
-            return key;
-        } catch (e) {
-            // Corrupt key material would otherwise throw here and wedge every
-            // encrypt/decrypt call (including session load on startup). Regenerate;
-            // tabs encrypted with the old key become unreadable (handled by decrypt).
-            console.error('Encryption key corrupt — regenerating:', e);
-            const randomKey = crypto.getRandomValues(new Uint8Array(32));
-            const fresh = uint8ToBase64(randomKey);
-            try {
-                localStorage.removeItem(SECURE_KEY_NAME);
-                localStorage.removeItem(ENCRYPTION_KEY_NAME);
-                cachedKey = null; // Clear memo on regeneration
-                if (window.electronAPI?.safeStorage && await window.electronAPI.safeStorage.isAvailable()) {
-                    localStorage.setItem(SECURE_KEY_NAME, await window.electronAPI.safeStorage.encrypt(fresh));
-                } else {
-                    localStorage.setItem(ENCRYPTION_KEY_NAME, fresh);
-                }
-            } catch (persistErr) {
-                console.error('Failed to persist regenerated key:', persistErr);
-            }
-            const rawKey = base64ToUint8(fresh);
-            const key = await crypto.subtle.importKey(
-                'raw',
-                rawKey,
-                { name: 'AES-GCM' },
-                false,
-                ['encrypt', 'decrypt']
-            );
-            cachedKey = key;
-            return key;
-        }
+        // A new key starts as plaintext and is secured the same way as an old one, so an
+        // unreliable backend on this first launch can't leave a secure copy as the only copy.
+        const fresh = uint8ToBase64(crypto.getRandomValues(new Uint8Array(32)));
+        localStorage.setItem(ENCRYPTION_KEY_NAME, fresh);
+        await migrateToSecure(ss, fresh);
+        cachedKey = await importRaw(fresh);
+        return cachedKey;
     };
 
     // Wrap key create/migrate branch in Web Lock (P1-9) if available
@@ -144,6 +134,11 @@ async function getEncryptionKey() {
     } else {
         return await doKeyWork();
     }
+}
+
+// Rejects (KEY_UNAVAILABLE) when the key can't be read now; writes nothing in that case.
+export async function checkKey() {
+    await getEncryptionKey();
 }
 
 export async function encrypt(text) {
@@ -206,7 +201,10 @@ export async function decrypt(encryptedBase64) {
         const iv = combined.slice(0, 12);
         const data = combined.slice(12);
 
-        const key = await getEncryptionKey();
+        // A key we can't get is not "this was plaintext": showing ciphertext as text would
+        // get it saved back as content.
+        let key;
+        try { key = await getEncryptionKey(); } catch (keyErr) { throw Object.assign(keyErr, { fromKey: true }); }
         const decrypted = await crypto.subtle.decrypt(
             { name: 'AES-GCM', iv },
             key,
@@ -222,6 +220,7 @@ export async function decrypt(encryptedBase64) {
         // plaintext without the sentinel. Returning '' (old behavior) destroyed both real
         // legacy plaintext and irrecoverable lost-key ciphertext equally; passthrough is
         // the only heuristic that can preserve real plaintext without a marker.
+        if (e?.fromKey) throw e;
         console.error('Legacy decryption failed:', e);
         return encryptedBase64;
     }

@@ -182,6 +182,12 @@ safeHandle('safe-storage-available', async () => {
     return safeStorage.isEncryptionAvailable()
 })
 
+// Which keyring backs safeStorage. On Linux 'basic_text' is a fixed-key obfuscation,
+// not a real keyring, so the page keeps its plaintext key there. 'os' elsewhere.
+safeHandle('safe-storage-backend', async () => {
+    return process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : 'os'
+})
+
 safeHandle('read-file', async (event) => {
     const { canceled, filePaths } = await dialog.showOpenDialog(BrowserWindow.fromWebContents(event.sender), {
         properties: ['openFile'],

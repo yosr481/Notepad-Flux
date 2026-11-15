@@ -1,5 +1,5 @@
 import { openDB } from 'idb';
-import { encrypt, decrypt } from '../utils/crypto';
+import { encrypt, decrypt, checkKey } from '../utils/crypto';
 
 const DB_NAME = 'notepad-flux-db';
 const DB_VERSION = 1;
@@ -21,7 +21,16 @@ const encryptTab = async (tab) => {
     return out;
 };
 
+// Set when the session loads without its key (keyring locked/changed). For the rest of
+// this window's life nothing on disk is written or deleted: the stored tabs are
+// encrypted with a key we can't read now, and anything written would replace them.
+let writesLocked = false;
+
 export const storage = {
+    get writesLocked() { return writesLocked; },
+
+    lockWrites() { writesLocked = true; },
+
     async initDB() {
         return openDB(DB_NAME, DB_VERSION, {
             upgrade(db) {
@@ -42,6 +51,7 @@ export const storage = {
     },
 
     async saveTab(tab) {
+        if (writesLocked) return;
         // A tab that failed to decrypt on load carries an empty content placeholder.
         // Persisting it would re-encrypt '' over the still-intact ciphertext on disk.
         // Skip until the user actually puts content in it (then the overwrite is their choice).
@@ -53,11 +63,13 @@ export const storage = {
     },
 
     async deleteTab(tabId) {
+        if (writesLocked) return;
         const db = await this.initDB();
         await db.delete(STORE_TABS, tabId);
     },
 
     async saveMetadata(data) {
+        if (writesLocked) return;
         const db = await this.initDB();
 
         const encryptedData = {};
@@ -74,6 +86,7 @@ export const storage = {
     },
 
     async saveSnapshot({ tabs = [], metadata = {} }) {
+        if (writesLocked) return;
         const db = await this.initDB();
 
         // Check if schemaVersion exists before transaction (outside the txn)
@@ -119,6 +132,13 @@ export const storage = {
     },
 
     async loadSession() {
+        try {
+            await checkKey();
+        } catch (e) {
+            if (e?.code !== 'KEY_UNAVAILABLE') throw e;
+            this.lockWrites();
+            return { tabs: [], activeTabId: null, recentFiles: [], tabOrder: [], settings: null, keyUnavailable: true };
+        }
         const db = await this.initDB();
 
         const encryptedTabs = await db.getAll(STORE_TABS);
@@ -169,7 +189,7 @@ export const storage = {
 
         // Stamp schemaVersion if absent (lazy idempotent)
         const currentVersion = await db.get(STORE_METADATA, 'schemaVersion');
-        if (typeof currentVersion !== 'number') {
+        if (typeof currentVersion !== 'number' && !writesLocked) {
             await db.put(STORE_METADATA, SCHEMA_VERSION, 'schemaVersion');
         }
 
@@ -183,6 +203,7 @@ export const storage = {
     },
 
     async clearSession() {
+        if (writesLocked) return;
         const db = await this.initDB();
         await db.clear(STORE_TABS);
         await db.clear(STORE_METADATA);
