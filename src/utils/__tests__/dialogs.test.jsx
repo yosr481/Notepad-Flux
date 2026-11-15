@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { fireEvent, act } from '@testing-library/react';
 import { dialogs } from '../dialogs';
 

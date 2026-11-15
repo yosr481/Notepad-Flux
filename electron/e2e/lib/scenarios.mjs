@@ -1,6 +1,5 @@
 // Round-4 scenarios shared by packaged.mjs (Linux) and packaged-win.mjs (Windows).
 // ctx = { L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, isWin }
-const pagesOf = (app) => app.windows().filter(w => !w.isClosed() && /index\.html/.test(w.url()))
 const mainCount = (app) => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).length)
 
 export async function multiWindow(ctx) {

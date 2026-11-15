@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { storage, SCHEMA_VERSION } from '../storage';
 import { encrypt } from '../../utils/crypto';
 import 'fake-indexeddb/auto';

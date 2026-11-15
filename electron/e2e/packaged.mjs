@@ -11,6 +11,8 @@ import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
 import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
+// exact URL match on the openExternal log (array of URLs), not a substring test
+const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
 
 const here = dirname(fileURLToPath(import.meta.url))
 const argv = process.argv.slice(2)
@@ -166,7 +168,7 @@ await check('DOTDOT-1', 'grants', 'file names containing ".." (notes..md, v1..2.
     await waitFor(() => readFileSync(dotted2, 'utf8') === 'v12\nX', { what: 'v1..2.md saved' }); eq(await ui.saveCalls(app), 0, 'save dialog shown')
     await ui.dropFiles(win, [dotted]); await waitFor(async () => (await ui.activeTitle(win)) === 'notes..md', { what: 'dropped notes..md' })
     await ui.typeAtEnd(win, 'Y'); await win.keyboard.press('Control+s')
-    await waitFor(() => readFileSync(dotted, 'utf8') === 'dotted body\r\nY'.replace(/\r\n/, '\r\n'), { what: 'notes..md saved (CRLF kept)' })
+    await waitFor(() => readFileSync(dotted, 'utf8') === 'dotted body\r\nY', { what: 'notes..md saved (CRLF kept)' })
     const bad = await win.evaluate(async (p) => { try { return 'NOT DENIED ' + await window.electronAPI.saveFile({ filePath: p, content: 'x' }) } catch (e) { return String(e.message) } }, sec + '/../notes..md')
     assert(/not authorized|Unauthorized|internal system error/i.test(bad), 'traversal: ' + bad)
     for (let k = 0; k < 2; k++) { await waitFor(async () => !(await ui.tabsInfo(win)).find(t => t.active)?.dirty, { what: 'clean tab before Ctrl+W' }); await win.keyboard.press('Control+w'); await sleep(300) }
@@ -186,7 +188,7 @@ await check('SEC-6', 'security', 'window.open / navigation to foreign origins de
     const ext = await app.evaluate(() => globalThis.__ext)
     const winsAfter = (await ui.mainWindows(app)).length
     eq(winsAfter, winsBefore, 'a window opened')
-    assert(ext.includes('https://example.com/a'), 'https not handed to OS browser: ' + ext)
+    assert(openedUrl(ext, 'https://example.com/a'), 'https not handed to OS browser: ' + ext)
     assert(!ext.some(u => /^(javascript|file|ftp):/.test(u)), 'unsafe scheme reached openExternal: ' + ext)
     return 'ext=' + JSON.stringify(ext)
 }, { smoke: true })
@@ -526,7 +528,7 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
     await check('SEC-6b', 'security', 'will-navigate to a foreign https origin is cancelled and sent to the OS browser', async () => {
         await r.app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
         r.win.evaluate(() => { location.href = 'https://example.org/nav' }).catch(() => {})
-        await waitFor(async () => (await r.app.evaluate(() => globalThis.__ext)).includes('https://example.org/nav'), { what: 'openExternal for navigation' })
+        await waitFor(async () => openedUrl((await r.app.evaluate(() => globalThis.__ext)), 'https://example.org/nav'), { what: 'openExternal for navigation' })
         assert(/index\.html/.test(r.win.url()), 'page navigated away: ' + r.win.url())
     })
     await r.app.close().catch(() => {})
@@ -600,10 +602,10 @@ if (want('lp')) {
         await doc('badge', `first\n\n[plain](https://example.com/plain)\n\n[![badge](${BIG})](https://example.com/x)\n\nend\n`)
         await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
         await win.locator('.cm-content a.cm-link').first().click({ modifiers: ['Control'] }); await sleep(700)
-        assert((await app.evaluate(() => globalThis.__ext)).includes('https://example.com/plain'), 'CONTROL failed: Ctrl+click on a plain link opened nothing, so this check proves nothing')
+        assert(openedUrl((await app.evaluate(() => globalThis.__ext)), 'https://example.com/plain'), 'CONTROL failed: Ctrl+click on a plain link opened nothing, so this check proves nothing')
         await win.locator('.cm-content img.cm-image').first().click({ modifiers: ['Control'] }); await sleep(700)
         const ext = await app.evaluate(() => globalThis.__ext)
-        assert(ext.includes('https://example.com/x'), 'Ctrl+click on the linked image opened: ' + JSON.stringify(ext))
+        assert(openedUrl(ext, 'https://example.com/x'), 'Ctrl+click on the linked image opened: ' + JSON.stringify(ext))
     })
     await check('LP-4c', 'live preview', 'linked-image click handling: reference form opens its URL; a bare image, a plain click, and unsafe schemes (javascript:, file:) open nothing', async () => {
         await doc('badge2', `first\n\n[![r][pic]][site]\n\n![bare](${BIG})\n\n[![j](${BIG})](javascript:alert(1))\n\n[![f](${BIG})](file:///etc/passwd)\n\n[pic]: ${BIG}\n[site]: https://example.com/ref\n\nend\n`)
@@ -658,7 +660,7 @@ if (want('lp')) {
     })
     await check('LP-10', 'live preview', 'image split across a newline ![a](\\nfoo.png) does not break the editor: new tab shows ITS text, typing goes to it', async () => {
         await doc('prev', 'PREV-DOC-MARKER\n')
-        const f = await doc('splitimg', 'first\n\n![split](\nbroken.png)\n\nSPLIT-END\n')
+        await doc('splitimg', 'first\n\n![split](\nbroken.png)\n\nSPLIT-END\n')
         const t = await ui.editorText(win)
         assert(t.includes('SPLIT-END') && !t.includes('PREV-DOC-MARKER'), 'editor still shows the previous document: ' + JSON.stringify(t.slice(0, 80)))
     })
@@ -686,7 +688,6 @@ if (want('lp')) {
         await win.keyboard.press('Home')
         const app_ = []; for (let i = 0; i < 22; i++) { app_.push(await probe()); await win.keyboard.press('ArrowRight') }
         const ctl = {}; for (const m of ['stock', 'perline', 'perline-dir']) ctl[m] = await stockCaretSequence(app, m)
-        const dx = (seq) => seq.slice(1).map((o, i) => { const d = o.x - seq[i].x; return Math.abs(d) < 0.5 ? 0 : d > 0 ? '+' : '-' }).join('')
         const jumps = (seq) => seq.slice(1).filter((o, i) => Math.abs(o.x - seq[i].x) > 40).length   // > ~4 glyphs in one key press
         const ctlJumps = Object.fromEntries(Object.entries(ctl).map(([k, v]) => [k, jumps(v)]))
         assert(new Set(Object.values(ctlJumps)).size === 1, 'controls disagree: ' + JSON.stringify(ctlJumps))
@@ -702,7 +703,7 @@ if (want('lp')) {
         const links = win.locator('.cm-content a.cm-link')
         for (let i = 0; i < await links.count(); i++) { await links.nth(i).click({ modifiers: ['Control'] }); await sleep(400) }
         const ext = await app.evaluate(() => globalThis.__ext)
-        assert(ext.includes('https://example.com/ok'), 'CONTROL: https link did not open: ' + JSON.stringify(ext))
+        assert(openedUrl(ext, 'https://example.com/ok'), 'CONTROL: https link did not open: ' + JSON.stringify(ext))
         assert(!ext.some(u => /^(file|javascript):/.test(u)), 'unsafe URL opened: ' + JSON.stringify(ext)); eq((await ui.mainWindows(app)).length, wins0, 'window opened')
     })
     await check('EXPORT-1', 'export', 'File > Export to HTML and Export to PDF write real files (save dialog stubbed)', async () => {
@@ -1055,7 +1056,7 @@ if (want('newwin')) {
 // ---------------------------------------------------------------- scenario: single instance (A4)
 if (want('single')) {
     const Ui = tmp('nf-i-u-'), Xi = tmp('nf-i-x-'); cleanup.push(Ui, Xi)
-    const { app, win } = await L(Ui, { env: { XDG_CONFIG_HOME: Xi } })
+    const { app } = await L(Ui, { env: { XDG_CONFIG_HOME: Xi } })
     await check('SINGLE-1', 'launch', 'launching a second instance focuses the existing window: second process exits, no second window, no second start block (A4)', async () => {
         const { spawn } = await import('node:child_process')
         const args = noSandbox ? ['--no-sandbox'] : []
