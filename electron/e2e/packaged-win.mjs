@@ -522,10 +522,18 @@ await check('DND-1', 'drag-drop', 'real file drop (CDP drag with native path) op
     eq(await ui.saveCalls(app), 0)
     return 'OS drop simulated via CDP Input.dispatchDragEvent with file paths (real File objects with native paths)'
 }, { smoke: true })
-await check('DND-2', 'drag-drop', 'dropping two files opens two tabs; dropping a binary toasts "Not a text file."', async () => {
-    const before = (await ui.tabsInfo(win)).length
-    await ui.dropFiles(win, [dropB, join(W, 'granted.md')]); await sleep(1200)
-    eq((await ui.tabsInfo(win)).length, before + 2, 'tab count after 2-file drop')
+const dropC = join(W, 'dropped-c.md'); writeFileSync(dropC, 'dropped C body\n')
+await check('DND-2', 'drag-drop', 'dropping two not-yet-open files opens two tabs; dropping an already-open file adds no tab and focuses it; dropping a binary toasts "Not a text file."', async () => {
+    const before = await ui.tabsInfo(win)
+    assert(!before.some(t => t.title === 'dropped-b.md' || t.title === 'dropped-c.md'), 'precondition: drop targets already open: ' + before.map(t => t.title).join(','))
+    await ui.dropFiles(win, [dropB, dropC]); await sleep(1200)
+    const mid = await ui.tabsInfo(win)
+    eq(mid.length, before.length + 2, 'tab count after 2-file drop (open tabs before: ' + before.map(t => t.title).join(',') + ')')
+    // already-open file (v1.4.1 dedupe): no new tab, existing one is focused
+    await win.locator('[class*=tabsList] > div', { hasText: 'dropped-b.md' }).click(); await sleep(300)
+    await ui.dropFiles(win, [dropC]); await sleep(1200)
+    eq((await ui.tabsInfo(win)).length, mid.length, 'tab count after dropping an already-open file')
+    eq(await ui.activeTitle(win), 'dropped-c.md', 'already-open dropped file not focused')
     await ui.toastClear(win); await ui.dropFiles(win, [binf]); await ui.waitToast(win, /Not a text file/)
 })
 await check('DND-3', 'drag-drop', 'dropping TEXT (not a file) inserts at the caret and opens no tab', async () => {
@@ -896,11 +904,14 @@ if (want('session')) {
     await check('SES-5', 'recent', 'after a relaunch, a file opened in the previous run opens from File > Recent directly: no picker, no error, no denied read (D6)', async () => {
         await ui.toastClear(win)
         await app.evaluate(({ dialog }) => { globalThis.__picker = 0; dialog.showOpenDialog = async () => { globalThis.__picker++; return { canceled: true, filePaths: [] } } })
-        const n0 = (await ui.tabsInfo(win)).filter(t => t.title === 'alpha.md').length
+        const before = await ui.tabsInfo(win); const n0 = before.filter(t => t.title === 'alpha.md').length
+        assert(n0 === 1, 'precondition: alpha.md restored exactly once, got ' + n0 + ' in ' + before.map(t => t.title).join(','))
+        await win.locator('[class*=tabsList] > div', { hasText: 'my..notes.md' }).click(); await sleep(300)  // make another tab active
         await win.getByText('File', { exact: true }).first().click(); await win.getByText('Recent', { exact: true }).hover()
-        const sub = await win.evaluate(() => document.querySelector('[class*=submenu]')?.innerText); if (!/alpha\.md/.test(sub || '')) throw new Error('Recent submenu after relaunch: ' + JSON.stringify(sub))
         await win.locator('[class*=submenu] >> text=alpha.md').first().click()
-        await waitFor(async () => (await ui.tabsInfo(win)).filter(t => t.title === 'alpha.md').length === n0 + 1, { what: 'alpha.md tab from Recent' })
+        // v1.4.1 dedupe: alpha.md is already open, so Recent focuses it and adds no copy
+        await waitFor(async () => (await ui.activeTitle(win)) === 'alpha.md', { what: 'alpha.md focused from Recent' })
+        eq((await ui.tabsInfo(win)).length, before.length, 'tab count changed: Recent opened a duplicate'); eq((await ui.tabsInfo(win)).filter(t => t.title === 'alpha.md').length, 1, 'alpha.md copies')
         eq(await app.evaluate(() => globalThis.__picker), 0, 'picker opened'); assert(!/read: denied/.test(logOf(Us)), 'denied read in log'); assert((await ui.toastText(win)).trim() === '', 'toast: ' + await ui.toastText(win))
     })
     await app.close().catch(() => {})
@@ -1155,6 +1166,42 @@ if (want('caption')) {
         return trail.join('; ')
     })
     await app.close().catch(() => {})
+}
+
+// ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
+if (want('legacykey')) {
+// The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.
+// Needs an older packaged build: NF_LEGACY_BIN=<path to the 1.4.4 Notepad Flux.exe>. Skipped loudly otherwise.
+const legacyBin = process.env.NF_LEGACY_BIN || ''
+if (!legacyBin || !existsSync(legacyBin)) na('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', 'SKIPPED: no older build found; set NF_LEGACY_BIN to a pre-async-safeStorage packaged binary (e.g. the Notepad Flux.exe from an installed 1.4.4; install it with setup.exe /S /D=C:\\nf\\legacy)')
+else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', async () => {
+    const Uo = tmp('nf-legacy-'); cleanup.push(Uo)
+    const MARK = 'LEGACY-' + Date.now()
+    let oldKey
+    { // old build creates the profile
+        const { app, win } = await launch({ binary: legacyBin, userData: Uo, extraArgs: noSandbox ? ['--no-sandbox'] : [], env })
+        try {
+            await sleep(2500)
+            assert(await win.evaluate(async () => (await window.electronAPI.safeStorage.isAvailable())), 'legacy build: safeStorage unavailable (keyring)')
+            await ui.typeAtEnd(win, MARK + '-ONE')
+            await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, MARK + '-TWO')
+            await sleep(1500)
+            oldKey = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+            assert(oldKey, 'precondition: legacy build wrote no secure key copy, test would be vacuous')
+            await ui.closeViaX(app)
+        } finally { await app.close().catch(() => {}) }
+    }
+    const { app, win } = await L(Uo)
+    try {
+        await waitFor(async () => (await ui.tabsInfo(win)).length >= 2, { what: 'two restored tabs' })
+        const tabs = await ui.tabsInfo(win); const seen = []
+        for (let i = 0; i < tabs.length; i++) { await win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(win)) }
+        assert(seen.some(t => t.includes(MARK + '-ONE')) && seen.some(t => t.includes(MARK + '-TWO')), 'tabs not restored with their text: ' + JSON.stringify(seen))
+        const now = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+        assert(now, 'secure key copy vanished after loading with this build')
+        return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
+    } finally { await app.close().catch(() => {}) }
+})
 }
 
 // ---------------------------------------------------------------- done
