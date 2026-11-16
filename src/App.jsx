@@ -7,6 +7,7 @@ import ContextMenu from './components/Layout/ContextMenu';
 import FindReplacePanel from './components/Layout/FindReplacePanel';
 import GoToLineDialog from './components/Layout/GoToLineDialog';
 import Toast from './components/Layout/Toast';
+import toastStyles from './components/Layout/Toast.module.css';
 import styles from './App.module.css';
 import { useCommands } from './hooks/useCommands';
 import { useFileDrop } from './hooks/useFileDrop';
@@ -40,7 +41,7 @@ function App() {
     });
 
     const { settings } = useSettings();
-    const { restoreWarning } = useTabState();
+    const { restoreWarning, savingOnClose } = useTabState();
     const { clearRestoreWarning, createTab, addRecentFile } = useSessionActions();
 
     const [systemTheme, setSystemTheme] = useState(
@@ -330,6 +331,12 @@ function App() {
                     duration={3000}
                     onClose={hideToast}
                 />
+            )}
+
+            {savingOnClose && (
+                <div className={`${toastStyles.toast} ${toastStyles.show}`} role="status" data-testid="saving-on-close">
+                    Saving your tabs…
+                </div>
             )}
         </div>
     );

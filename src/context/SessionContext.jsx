@@ -69,6 +69,8 @@ export const SessionProvider = ({ children }) => {
         sessionWarnSize: 80,
     });
     const [restoreWarning, setRestoreWarning] = useState(null);
+    // True while a window close waits on a slow session save (shown as "Saving your tabs").
+    const [savingOnClose, setSavingOnClose] = useState(false);
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
@@ -637,11 +639,13 @@ export const SessionProvider = ({ children }) => {
         else if (loadGate.current.done) armLoadGate();
     }, [isSessionLoaded]);
 
-    // Electron: main waits for this before letting the window close (max 3s). A close
-    // during the session load waits for the load first; flushing before it would save
-    // nothing and still confirm, losing edits made meanwhile.
+    // Electron: main waits for this before letting the window close (it asks the user
+    // after 15s). A close during the session load waits for the load first; flushing
+    // before it would save nothing and still confirm, losing edits made meanwhile.
     useEffect(() => {
         return window.electronAPI?.onCloseRequested?.(async () => {
+            // Only a slow save shows the indicator; a normal one closes before it would flash.
+            const indicator = setTimeout(() => setSavingOnClose(true), 400);
             try {
                 // Re-check: a promotion may re-arm the gate while we wait.
                 let gate;
@@ -652,6 +656,9 @@ export const SessionProvider = ({ children }) => {
                 await flushRef.current();
             } catch (err) {
                 console.error('Failed to save session on close:', err);
+            } finally {
+                clearTimeout(indicator);
+                setSavingOnClose(false);
             }
         });
     }, []);
@@ -711,8 +718,9 @@ export const SessionProvider = ({ children }) => {
         isPrimaryWindow,
         isSessionLoaded,
         recentFiles,
-        restoreWarning
-    }), [tabs, activeTabId, isPrimaryWindow, isSessionLoaded, recentFiles, restoreWarning]);
+        restoreWarning,
+        savingOnClose
+    }), [tabs, activeTabId, isPrimaryWindow, isSessionLoaded, recentFiles, restoreWarning, savingOnClose]);
 
     const actionsValue = useMemo(() => ({
         setActiveTabId,

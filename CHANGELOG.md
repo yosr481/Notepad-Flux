@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Bug Fixes
 - **Session:** Closing a window while saved tabs were still loading (for example right after startup, while the system keyring was slow to answer) no longer loses what you typed in the meantime. The same applies when the last other window closes and this window takes over the session.
+- **Desktop:** Closing a window no longer gives up on saving your tabs after 3 seconds. A slow save shows "Saving your tabs…" and the window waits for it. If saving is still not done after 15 seconds, Notepad Flux asks whether to keep waiting or close without saving.
 
 ## [1.4.4] — 2026-11-15
 

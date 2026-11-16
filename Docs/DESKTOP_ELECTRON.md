@@ -49,7 +49,7 @@ All file system operations go through the main process via IPC. Channels:
 - take-launch-files: Drains the queue of files passed on the command line (first launch, or a later launch handed over by `second-instance`), reading and granting each. App page in its top frame only. Returns `[{ filePath, content } | { filePath, error }]`; main sends `launch-files` when new files are queued
 - file-exists(path): true/false for granted paths, null for anything else (restored-tab "moved/deleted" check)
 - quit-app: File > Exit. Main closes every app window, each through its own close handshake
-- close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot (max 3 s)
+- close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot; the page shows "Saving your tabs" after 400 ms, and after 15 s main asks the user (keep waiting or close without saving)
 - main-process-message: One-way message used for simple status pings
 
 Renderer should call these via preload-provided wrappers. Never enable nodeIntegration in the renderer.

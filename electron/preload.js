@@ -22,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     closeWindow: () => ipcRenderer.send('close-window'),
     // File > Exit: main closes every app window, each through its own close guard.
     quitApp: () => ipcRenderer.send('quit-app'),
-    // Main holds a window close until the callback's promise settles (max 3s).
+    // Main holds a window close until the callback's promise settles (asks the user after 15s).
     onCloseRequested: (callback) => {
         const subscription = async () => {
             try { await callback() } finally { ipcRenderer.send('close-ready') }
