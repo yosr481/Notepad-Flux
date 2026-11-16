@@ -91,3 +91,9 @@ without losing the "why".
 - **Housekeeping:** `release/` old installers deleted (3.1 GB → 712 MB, Yossi approved);
   `pending-questions.md` (2026-09) archived. Its Q2 and Q4 render gaps were fixed in
   `fb362b2`; leftovers became backlog F7 (raw HTML) and C4 (livePreview cleanup).
+
+## 2026-11-16 — math rendering library
+
+- **MathJax, not KaTeX.** Yossi chose "the library Obsidian uses"; Obsidian renders
+  `$…$` / `$$…$$` with MathJax, so notes written there look the same here. Cost: bigger and
+  slower than KaTeX, so it is lazy-loaded and only for documents that contain math.
