@@ -24,7 +24,7 @@
     "license-check": "license-checker-rseidelsohn --summary --failOn \"AGPL-3.0; LGPL-2.1; LGPL-3.0; GPL-1.0; GPL-2.0; GPL-3.0\""
   },
   "dependencies": {
-    "@codemirror/lang-markdown": "^6.5.0",
+    "@codemirror/lang-markdown": "^6.5.2",
     "@codemirror/language-data": "^6.5.2",
     "@codemirror/search": "^6.6.0",
     "@dnd-kit/core": "^6.3.1",
