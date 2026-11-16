@@ -63,6 +63,9 @@ export const SessionProvider = ({ children }) => {
     const [recentFiles, setRecentFiles] = useState([]);
     const [isPrimaryWindow, setIsPrimaryWindow] = useState(false);
     const [isSessionLoaded, setIsSessionLoaded] = useState(false);
+    // The gate of the last finished load. A new gate object per load, so the effect runs
+    // even when React batches a promotion's isSessionLoaded false->true into one render.
+    const [loadedGate, setLoadedGate] = useState(null);
     const [settings, setSettings] = useState({
         theme: 'system',
         sessionWarnTabs: 30,
@@ -83,6 +86,10 @@ export const SessionProvider = ({ children }) => {
         loadGate.current = gate;
     };
     if (!loadGate.current) armLoadGate();
+    const markLoaded = () => {
+        setIsSessionLoaded(true);
+        setLoadedGate(loadGate.current);
+    };
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
@@ -132,7 +139,7 @@ export const SessionProvider = ({ children }) => {
     useEffect(() => {
         if (!navigator.locks) {
             console.warn('Web Locks API not supported. Session persistence disabled.');
-            setIsSessionLoaded(true);
+            markLoaded();
             return;
         }
 
@@ -252,7 +259,7 @@ export const SessionProvider = ({ children }) => {
                 } catch (err) {
                     console.error('Failed to load session:', err);
                 } finally {
-                    setIsSessionLoaded(true);
+                    markLoaded();
                 }
 
                 await new Promise((resolve) => {
@@ -270,7 +277,7 @@ export const SessionProvider = ({ children }) => {
                 } catch (err) {
                     console.warn('Secondary window failed to load settings:', err);
                 }
-                setIsSessionLoaded(true);
+                markLoaded();
 
                 // Queue for promotion: when primary dies, this will be called with the lock
                 navigator.locks.request('notepad-flux-primary', { signal: abortController.signal }, onPromoted).catch(() => {});
@@ -279,6 +286,9 @@ export const SessionProvider = ({ children }) => {
 
         const onPromoted = async (_lock) => {
             // Called when this secondary window is promoted to primary
+            // Arm a fresh gate now: a close requested before the next render must wait for the
+            // merge. Always fresh, so a still-pending resolve of the previous load can't open it.
+            armLoadGate();
             // Gate the promotion window with isSessionLoaded = false to prevent saveTabDebounced
             // from writing pristine state while we're merging
             setIsSessionLoaded(false);
@@ -355,7 +365,7 @@ export const SessionProvider = ({ children }) => {
             } catch (err) {
                 console.error('Failed to promote to primary window:', err);
             } finally {
-                setIsSessionLoaded(true);
+                markLoaded();
             }
 
             // Hold the lock until this window unloads
@@ -633,11 +643,9 @@ export const SessionProvider = ({ children }) => {
     flushRef.current = flushPendingSaves;
 
     useEffect(() => {
-        // Re-arm when a promotion merge renders isSessionLoaded=false. Re-arming in
-        // onPromoted instead would hang a close when React batches false->true.
-        if (isSessionLoaded) loadGate.current.resolve();
-        else if (loadGate.current.done) armLoadGate();
-    }, [isSessionLoaded]);
+        // After the render that follows a finished load, so flushRef sees the loaded state.
+        loadedGate?.resolve();
+    }, [loadedGate]);
 
     // Electron: main waits for this before letting the window close (it asks the user
     // after 15s). A close during the session load waits for the load first; flushing
