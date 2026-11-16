@@ -59,3 +59,35 @@ without losing the "why".
   the other's blobs, `shouldReEncrypt` false. Still acted on (review finding): if the flag is
   set, crypto.js rewrites the secure copy, replacing the old one only after the new one reads
   back to the same key. Otherwise a rotated keyring could later leave the only key copy unreadable.
+
+## 2026-11-16 — backlog round (deps majors, B2–B5, housekeeping)
+
+- **Removed `vite-plugin-electron-renderer`.** It gives the renderer Node modules; a
+  sandboxed renderer with no `nodeIntegration` never uses them, and 0.14 breaks on Vite 8.
+- **Vite 8 broke the packaged app while unit tests and dev mode stayed green.** Rolldown
+  gives the bundle a `require` shim that returns Vite's empty browser stub for `path`, so a
+  guarded `require('path')` that was always undefined in the sandbox started "working" and
+  `path.basename` threw on every open/save/drop (39 e2e checks). Fix: delete the dead
+  require. Lesson: a bundler major needs the packaged e2e run, not only unit tests.
+- **`react-hooks/refs` set to warn.** New in eslint-plugin-react-hooks 7.1; it flags our
+  deliberate latest-value refs written in render. Rewriting the close-gate code for a lint
+  rule is risk with no gain.
+- **Overrides raised past advisories:** `minimatch ^11.0.1`, `glob ^14.0.2` (dev tooling
+  only). License Check verified after each change (a glob override broke it in 1.4.4).
+- **`esbuild` declared as a devDependency:** the e2e harness imports it; it used to come
+  through Vite 7.
+- **B2: the stale `resolveLinkDefs` memo is not real** (WeakMap per state; each new state
+  reads the fuller tree). The real defect was next to it: `decorationPlugin` ignored
+  tree-only updates, so reference images stayed raw text in large files until input.
+  Fixed; on large docs tree changes share the edit debounce (review finding: otherwise one
+  full-document scan per parse slice).
+- **B3 fixed with per-load gates:** `onPromoted` arms a fresh gate synchronously; each
+  finished load stores its own gate in state, and an effect resolves exactly that gate.
+  A counter alone left two races (review findings), which per-load gates close.
+- **B4 not fixed: not reproducible.** The page subscribes to `flush-before-close` before
+  `did-finish-load`, even with 20x CPU throttle. The `closereload` e2e scenario guards it.
+  No new IPC channel for an unseen race.
+- **B5:** real profile log has 2 launches on 1.5.0, no "close without saving". Keep watching.
+- **Housekeeping:** `release/` old installers deleted (3.1 GB → 712 MB, Yossi approved);
+  `pending-questions.md` (2026-09) archived. Its Q2 and Q4 render gaps were fixed in
+  `fb362b2`; leftovers became backlog F7 (raw HTML) and C4 (livePreview cleanup).
