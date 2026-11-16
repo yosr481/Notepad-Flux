@@ -1284,6 +1284,59 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
 })
 }
 
+// ---------------------------------------------------------------- scenario: the page reloads in the middle of a close
+if (want('closereload')) {
+// The close request reaches a page that is mid-reload and is lost; main must re-deliver it once the NEW page can
+// receive it. If the page's close subscription attaches after did-finish-load, a resend keyed on did-finish-load
+// is lost too and the user waits for the 15s "still saving" dialog. The first flush-before-close is swallowed in
+// main (stands for "the old page was already being replaced"); every later send passes through. Dialog is stubbed.
+for (let run = 1; run <= 3; run++) {
+    await check('CLOSE-RELOAD-' + run, 'close', 'close requested while the page reloads: window closes well under 15s, no "still saving" prompt, saved tab survives relaunch', async () => {
+        const Uc = tmp('nf-cr-'); cleanup.push(Uc)
+        const MARK = 'CLOSERELOAD' + Math.random().toString(36).slice(2, 8).toUpperCase()
+        const { app, win } = await L(Uc)
+        try {
+            await ui.typeAtEnd(win, MARK); await sleep(2000) // debounced save lands
+            await app.evaluate(({ BrowserWindow, dialog }) => {
+                globalThis.__asks = []; globalThis.__dropped = 0; globalThis.__sends = []
+                dialog.showMessageBox = (...a) => { globalThis.__asks.push(Date.now()); return Promise.resolve({ response: 0, checkboxChecked: false }) }
+                const wc = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && /index\.html/.test(w.webContents.getURL())).webContents
+                const send = wc.send.bind(wc)
+                wc.send = (ch, ...args) => {
+                    if (ch === 'flush-before-close') { globalThis.__sends.push(Date.now()); if (globalThis.__dropped++ === 0) return }
+                    return send(ch, ...args)
+                }
+            })
+            // A slow machine: the CPU-throttled reload makes the page's React mount (and so its close subscription) run late.
+            if (run > 1) { const cdp = await win.context().newCDPSession(win); await cdp.send('Emulation.setCPUThrottlingRate', { rate: run === 2 ? 6 : 20 }) }
+            const proc = app.process(); const exited = new Promise(r => proc.once('exit', r)); const t0 = Date.now()
+            await app.evaluate(({ BrowserWindow }) => {
+                const w = BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && /index\.html/.test(w.webContents.getURL()))
+                w.webContents.reload(); w.close()
+            }).catch(() => {})
+            await Promise.race([exited, sleep(10000)])
+            const ms = Date.now() - t0
+            const asks = await app.evaluate(() => globalThis.__asks).catch(() => null)
+            const sends = await app.evaluate(() => globalThis.__sends.length).catch(() => null)
+            assert(proc.exitCode !== null || proc.signalCode !== null, `window still open ${ms}ms after the close (resend lost? flush-before-close sends: ${sends})`)
+            assert(ms < 8000, `closed only after ${ms}ms: waited for the 15s prompt path`)
+            assert(!asks || asks.length === 0, 'the "still saving" prompt was shown')
+            assert(!logOf(Uc).includes('did not confirm session flush'), 'handshake timed out')
+            assert(await survives2(Uc, MARK), 'saved tab lost after relaunch')
+            return ms + 'ms'
+        } finally { await app.close().catch(() => {}) }
+    })
+}
+async function survives2(Uc, MARK) {
+    const r2 = await L(Uc); await sleep(1500)
+    try {
+        const tabs = await ui.tabsInfo(r2.win); const seen = []
+        for (let i = 0; i < tabs.length; i++) { await r2.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(r2.win)) }
+        return seen.some(t => t.includes(MARK))
+    } finally { await r2.app.close().catch(() => {}) }
+}
+}
+
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
 if (want('legacykey')) {
 // The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.

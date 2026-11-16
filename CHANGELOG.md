@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Reference images (`![alt][id]`) near the top of a large file now render once the whole file has loaded, even when their definition sits at the end. Before, they stayed as raw text until you typed, clicked or scrolled.
+- Closing a window right after it took over saving from a closed window now waits for the takeover to finish and saves your tabs, instead of closing without saving.
+
+### Changed
+
+- Updated the build toolchain (Vite 8) and dependencies, including lucide-react 1.x and jsdom 31.
+
 ## [1.5.0] — 2026-11-16
 
 ### Security
