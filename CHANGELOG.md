@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.6.0] — 2026-11-16
+
 ### Added
 
 - Math: `$…$` inline and `$$…$$` display formulas render with MathJax (the engine Obsidian uses), in the editor and in HTML export, PDF export and Print. Put the cursor in a formula or click it to edit the TeX; a `$$` block shows a live preview below while you edit it. `$5 and $10` stays plain text.
