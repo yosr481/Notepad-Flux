@@ -1,13 +1,3 @@
-let path = null;
-if (typeof require !== 'undefined') {
-    try {
-        // eslint-disable-next-line no-undef
-        path = require('path');
-    } catch (e) {
-        // path module not available
-    }
-}
-
 // The Electron IPC bridge (contextBridge) can't clone a Blob, and Node's
 // writeFile coerces one to the string "[object Blob]" — so a PDF/binary export
 // landed on disk as an 11-byte broken file. Normalise anything non-string to a
@@ -38,7 +28,7 @@ export const sanitizeFilename = (filename) => {
 
 export const getFilenameFromPath = (filePath) => {
     if (typeof filePath === 'string') {
-        return path ? path.basename(filePath) : filePath.split(/[\\/]/).pop();
+        return filePath.split(/[\\/]/).pop();
     }
     return filePath;
 };
