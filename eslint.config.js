@@ -29,6 +29,9 @@ export default defineConfig([
       'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_' }],
       // This rule is too strict for some of our effects that sync with external systems
       'react-hooks/set-state-in-effect': 'warn',
+      // New in react-hooks 7.1. We write "latest value" refs in render on purpose
+      // (SessionContext close gate, useCommands liveState), so warn, don't fail.
+      'react-hooks/refs': 'warn',
     },
   },
   // Electron main process (Node context)
