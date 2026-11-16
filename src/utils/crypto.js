@@ -56,6 +56,20 @@ async function migrateToSecure(ss, plain) {
     }
 }
 
+// The keyring rotated its key: rewrite the secure copy so it stays readable. The old
+// copy is replaced only by a new one that reads back to the same key.
+async function reEncryptIfAsked(ss, secure, key) {
+    try {
+        if (!(await ss?.needsReEncrypt?.(secure))) return;
+        const blob = await ss.encrypt(key);
+        if ((await ss.decrypt(blob)) === key && localStorage.getItem(SECURE_KEY_NAME) === secure) {
+            localStorage.setItem(SECURE_KEY_NAME, blob);
+        }
+    } catch (e) {
+        console.warn('Re-encrypting the secure key failed:', e);
+    }
+}
+
 // Drop the plaintext key once a later launch read the same key from the secure copy,
 // and only on a real keyring: on Linux 'basic_text' is a fixed-key obfuscation, so the
 // plaintext copy is the only real recovery path there.
@@ -94,6 +108,7 @@ async function getEncryptionKey() {
             const secureKey = await tryImport(fromSecure);
             if (secureKey) {
                 if (plain && plain === fromSecure) await removePlainIfSafe(ss, plain);
+                await reEncryptIfAsked(ss, secure, fromSecure);
                 cachedKey = secureKey;
                 return secureKey;
             }

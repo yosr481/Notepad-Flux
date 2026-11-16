@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-11-16
+
+### Security
+- **Desktop:** Updated Electron from 40 (no longer receiving security fixes) to 45.
+
+### Breaking Changes
+- **Windows:** 32-bit (ia32) Windows is no longer supported, because Electron no longer builds for it. A 32-bit install stays on 1.4.4: its automatic update to this version will fail and leave 1.4.4 in place.
+
+### Bug Fixes
+- **Session:** Closing a window while saved tabs were still loading (for example right after startup, while the system keyring was slow to answer) no longer loses what you typed in the meantime. The same applies when the last other window closes and this window takes over the session.
+- **Desktop:** Closing a window no longer gives up on saving your tabs after 3 seconds. A slow save shows "Saving your tabs…" and the window waits for it. If saving is still not done after 15 seconds, Notepad Flux asks whether to keep waiting or close without saving.
+
 ## [1.4.4] — 2026-11-15
 
 ### Security

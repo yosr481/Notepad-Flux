@@ -1,7 +1,7 @@
 // E2E against a PACKAGED Notepad Flux binary (linux-unpacked, .deb payload, AppImage).
 //   DISPLAY=:77 node electron/e2e/packaged.mjs <binary> [--target=<name>] [--smoke] [--no-sandbox]
 // Never touches real app data: every launch uses NOTEPAD_FLUX_USER_DATA=<temp dir>.
-import { realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
+import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -227,8 +227,10 @@ await check('SEC-9', 'security', 'safeStorage available (keyring) and encrypt/de
 }, { smoke: true })
 
 await check('LOG-1', 'log', 'main.log has start block (version, packaged:true, safeStorage backend) and no file content', async () => {
+    // The keyring line is written from an async .then after startup: wait for it, and require it as its own line (not just any 'safeStorage: true').
+    await waitFor(() => /^.*\bkeyring \{[^}]*safeStorage: true/m.test(logOf(U1)), { what: 'keyring { safeStorage: true } log line' })
     const t = logOf(U1)
-    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorage: true/.test(t), 'start block incomplete')
+    assert(/start \{/.test(t) && /packaged: true/.test(t) && /safeStorageBackend: '/.test(t), 'start block incomplete')
     return (t.match(/version: '([^']+)'/) || [])[0] + ' ' + (t.match(/safeStorageBackend: '([^']+)'/) || [])[0]
 }, { smoke: true })
 
@@ -896,7 +898,7 @@ if (want('close')) {
         }
         await check('CLOSE-' + via, 'close', `type then close immediately (${via}) with a dirty file tab: window closes without a prompt, text survives relaunch`, async () => {
             assert(res.exited, 'app did not exit within 10s (dirty tab blocked closing, or a prompt)')
-            assert(!logOf(Uc).includes('did not confirm session flush'), 'handshake timed out (fell back to 3s)')
+            assert(!logOf(Uc).includes('did not confirm session flush'), 'handshake timed out (forced close)')
             await app.close().catch(() => {})
             const r2 = await L(Uc); await sleep(1500)
             const tabs = await ui.tabsInfo(r2.win); const d = tabs.find(t => t.title === 'dirty.md'); assert(d, 'tab missing after relaunch'); assert(d.dirty, 'dirty mark lost')
@@ -965,7 +967,7 @@ if (want('race2')) {
         if (slow) {
             await app.evaluate(({ ipcMain, safeStorage }) => {
                 ipcMain.removeHandler('safe-storage-decrypt')
-                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return safeStorage.decryptString(Buffer.from(b64, 'base64')) })
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 600)); return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result })
             })
             await win.reload({ waitUntil: 'domcontentloaded' })
         }
@@ -1098,6 +1100,223 @@ await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab
         await waitFor(async () => (await ui.activeTitle(w1)) === 'argv-two.txt', { what: 'new tab focused' })
         assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
     } finally { await a1.close().catch(() => {}) }
+})
+}
+
+// ---------------------------------------------------------------- scenario: close while the session load is still running
+if (want('closeload')) {
+// Cold boot with a slow keyring: the session load (which decrypts the stored key first) is still running when the user types and closes.
+// The slow decrypt is the RACE-3s mechanism (ipcMain override from the test side, no app hook), 2s per call (the long-wait cases are in `closewait`).
+for (const via of ['x', 'menu-exit', 'menu-close-window']) {
+    const Ub = tmp('nf-cl-base-'), Uc = tmp('nf-cl-u-'); cleanup.push(Ub, Uc)
+    const MARK = 'EARLYCLOSE' + via.replace(/\W/g, '').toUpperCase() + Math.random().toString(36).slice(2, 7).toUpperCase()
+    { // profile with a stored key and one saved tab
+        const { app, win } = await L(Ub)
+        await ui.typeAtEnd(win, 'BASE-TAB-TEXT'); await sleep(1500); await ui.closeViaX(app); await app.close().catch(() => {})
+    }
+    cpSync(Ub, Uc, { recursive: true })
+    await check('CLOSE-LOAD-' + via, 'close', `typing then closing (${via}) while the session load is still running (slow keyring decrypt): the text survives relaunch`, async () => {
+        const { app, win } = await L(Uc, { settle: 0 })
+        let res
+        try {
+            await app.evaluate(({ ipcMain, safeStorage }) => {
+                ipcMain.removeHandler('safe-storage-decrypt')
+                ipcMain.handle('safe-storage-decrypt', async (e, b64) => { await new Promise(r => setTimeout(r, 2000)); return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result })
+            })
+            await win.reload({ waitUntil: 'domcontentloaded' })
+            await win.locator('.cm-content').waitFor({ timeout: 8000 })
+            await ui.typeAtEnd(win, MARK)
+            assert(!(await ui.tabsInfo(win)).some(t => /BASE-TAB/.test(t.title)), 'precondition: session load already finished, test would not exercise the race')
+            const proc = app.process(); const exited = new Promise(r => proc.once('exit', r)); const t0 = Date.now()
+            if (via === 'x') await ui.closeViaX(app)
+            else { await win.getByText('File', { exact: true }).first().click(); await win.getByText(via === 'menu-exit' ? 'Exit' : 'Close Window', { exact: true }).click() }
+            await Promise.race([exited, sleep(10000)]); res = { exited: proc.exitCode !== null || proc.signalCode !== null, ms: Date.now() - t0 }
+        } finally { await app.close().catch(() => {}) }
+        assert(res.exited, 'app did not exit within 10s')
+        assert(!logOf(Uc).includes('did not confirm session flush'), 'handshake timed out')
+        const r2 = await L(Uc); await sleep(1500)
+        try {
+            const tabs = await ui.tabsInfo(r2.win); const seen = []
+            for (let i = 0; i < tabs.length; i++) { await r2.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(r2.win)) }
+            assert(seen.some(t => t.includes(MARK)), `typed text lost after close-during-load (window closed in ${res.ms}ms); tabs after relaunch: ${JSON.stringify(seen.map(t => t.slice(0, 30)))}`)
+            assert(seen.some(t => t.includes('BASE-TAB-TEXT')), 'previously saved tab lost')
+        } finally { await r2.app.close().catch(() => {}) }
+        return res.ms + 'ms'
+    })
+}
+}
+
+// ---------------------------------------------------------------- scenario: close waits for a slow save (no forced close; user is asked after 15s)
+if (want('closewait')) {
+// Same slow-keyring mechanism as closeload, but the decrypt is held far longer than the old 3s limit, or never released.
+// main.js asks (dialog.showMessageBox, stubbed here: the real one is native) only after CLOSE_ASK_AFTER_MS = 15000.
+const Ub = tmp('nf-cw-base-'); cleanup.push(Ub)
+{
+    const { app, win } = await L(Ub)
+    await ui.typeAtEnd(win, 'BASE-TAB-TEXT'); await sleep(1500); await ui.closeViaX(app); await app.close().catch(() => {})
+}
+// holdMs: number = decrypt takes that long; null = blocked until globalThis.__open() is called
+// answers: showMessageBox responses in order (last repeats); stub accepts both (opts) and (window, opts)
+async function slowClose(Uc, holdMs, answers) {
+    const MARK = 'CLOSEWAIT' + Math.random().toString(36).slice(2, 8).toUpperCase()
+    const { app, win } = await L(Uc, { settle: 0 })
+    await app.evaluate(({ ipcMain, safeStorage, dialog }, { holdMs, answers }) => {
+        globalThis.__open = () => {}
+        const gate = new Promise(r => { globalThis.__open = r })
+        globalThis.__asks = []
+        ipcMain.removeHandler('safe-storage-decrypt')
+        ipcMain.handle('safe-storage-decrypt', async (e, b64) => {
+            await (holdMs === null ? gate : new Promise(r => setTimeout(r, holdMs)))
+            return (await safeStorage.decryptStringAsync(Buffer.from(b64, 'base64'))).result
+        })
+        dialog.showMessageBox = (...a) => {
+            const opts = a.find(x => x && typeof x === 'object' && 'buttons' in x)
+            globalThis.__asks.push({ buttons: opts.buttons, at: Date.now(), hasSignal: !!opts.signal })
+            const ans = answers[Math.min(globalThis.__asks.length - 1, answers.length - 1)]
+            // -1: a dialog the user never answers; like the real one it rejects when main aborts it
+            if (ans === -1) return new Promise((_, rej) => opts.signal.addEventListener('abort', () => rej(Object.assign(new Error('aborted'), { name: 'AbortError' }))))
+            return Promise.resolve({ response: ans, checkboxChecked: false })
+        }
+    }, { holdMs, answers })
+    await win.reload({ waitUntil: 'domcontentloaded' })
+    await win.locator('.cm-content').waitFor({ timeout: 8000 })
+    await ui.typeAtEnd(win, MARK)
+    assert(!(await ui.tabsInfo(win)).some(t => /BASE-TAB/.test(t.title)), 'precondition: session load already finished, test would not exercise the wait')
+    const asks = () => app.evaluate(() => globalThis.__asks).catch(() => null)
+    const proc = app.process(); const exited = new Promise(r => proc.once('exit', r))
+    const t0 = Date.now()
+    const closing = app.evaluate(({ BrowserWindow }) => {
+        BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && /index\.html/.test(w.webContents.getURL()))?.close()
+    }).catch(() => {})
+    const shown = async () => (await win.locator('[data-testid="saving-on-close"]').first().innerText({ timeout: 2500 }).catch(() => null))
+    return { app, win, MARK, asks, proc, exited, t0, closing, shown, exitedYet: () => proc.exitCode !== null || proc.signalCode !== null }
+}
+async function survives(Uc, MARK) {
+    const r2 = await L(Uc); await sleep(1500)
+    try {
+        const tabs = await ui.tabsInfo(r2.win); const seen = []
+        for (let i = 0; i < tabs.length; i++) { await r2.win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(r2.win)) }
+        return seen.some(t => t.includes(MARK))
+    } finally { await r2.app.close().catch(() => {}) }
+}
+const copyProfile = (tag) => { const Uc = tmp('nf-cw-' + tag + '-'); cleanup.push(Uc); cpSync(Ub, Uc, { recursive: true }); return Uc }
+
+await check('CLOSE-WAIT-a', 'close', 'a save/load that takes 6.5s (past the old 3s limit): window stays open, shows "Saving your tabs", closes after it, no prompt, text survives relaunch', async () => {
+    const Uc = copyProfile('a')
+    const c = await slowClose(Uc, 6500, [0])
+    try {
+        await sleep(600) // past the 400ms indicator delay
+        const txt = await c.shown(); assert(txt && /Saving your tabs/.test(txt), 'indicator [data-testid=saving-on-close] not visible during the wait: ' + JSON.stringify(txt))
+        const role = await c.win.locator('[data-testid="saving-on-close"]').first().getAttribute('role').catch(() => null); eq(role, 'status', 'indicator role')
+        await Promise.race([c.exited, sleep(15000)])
+        const ms = Date.now() - c.t0
+        assert(c.exitedYet(), 'app did not exit within 15s')
+        assert(ms > 3500, 'closed after ' + ms + 'ms: forced before the slow save finished (old 3s fallback?)')
+        const t = logOf(Uc); assert(!t.includes('did not confirm session flush'), 'handshake log says the flush was not confirmed')
+        assert(await survives(Uc, c.MARK), 'typed text lost after a slow close')
+        return ms + 'ms'
+    } finally { await c.app.close().catch(() => {}) }
+})
+
+await check('CLOSE-WAIT-b', 'close', 'a save that never finishes: no prompt before 15s; at ~15s the keep-waiting/close-without-saving prompt appears; "Close without saving" closes the window and logs it', async () => {
+    const Uc = copyProfile('b')
+    const c = await slowClose(Uc, null, [1])
+    try {
+        await sleep(600)
+        assert(/Saving your tabs/.test(await c.shown() ?? ''), 'indicator not visible during the wait')
+        await sleep(9000) // ~10s into the wait: still silent and open
+        eq(await c.asks(), [], 'prompt shown before 15s')
+        assert(!c.exitedYet(), 'window closed on its own at 10s')
+        await Promise.race([c.exited, sleep(12000)])
+        const ms = Date.now() - c.t0
+        assert(c.exitedYet(), 'app still running 22s into a stuck save after answering "Close without saving"')
+        assert(ms >= 14000 && ms < 19000, 'prompt/close at ' + ms + 'ms, expected ~15s')
+        const t = logOf(Uc)
+        assert(t.includes('did not confirm session flush; user chose to close without saving'), 'user-chose line missing from log')
+        return 'closed at ' + ms + 'ms'
+    } finally { await c.app.close().catch(() => {}) }
+})
+
+await check('CLOSE-WAIT-c', 'close', 'prompt answered "Keep waiting", then the save completes: asked once, buttons are Keep waiting/Close without saving, window closes, text survives relaunch, no user-chose line', async () => {
+    const Uc = copyProfile('c')
+    const c = await slowClose(Uc, null, [0])
+    try {
+        await waitFor(async () => (await c.asks())?.length >= 1, { timeout: 20000, every: 250, what: 'prompt after 15s' })
+        const asks = await c.asks(); eq(asks.length, 1, 'prompt count'); eq(asks[0].buttons, ['Keep waiting', 'Close without saving'], 'buttons')
+        assert(asks[0].at - c.t0 >= 14000, 'prompt came after only ' + (asks[0].at - c.t0) + 'ms')
+        assert(!c.exitedYet(), '"Keep waiting" closed the window')
+        assert(/Saving your tabs/.test(await c.shown() ?? ''), 'indicator gone after "Keep waiting"')
+        await c.app.evaluate(() => globalThis.__open())
+        await Promise.race([c.exited, sleep(10000)])
+        assert(c.exitedYet(), 'window did not close after the save completed')
+        const ms = Date.now() - c.t0; assert(ms < 25000, 'closed at ' + ms + 'ms: waited for a second prompt cycle (asked again?)')
+        const t = logOf(Uc); assert(!t.includes('did not confirm session flush'), 'log says flush unconfirmed / user chose close')
+        assert(await survives(Uc, c.MARK), 'typed text lost although the save completed')
+        return 'closed at ' + ms + 'ms'
+    } finally { await c.app.close().catch(() => {}) }
+})
+await check('CLOSE-WAIT-d', 'close', 'prompt left open (user away) and the save then completes: the prompt is aborted and the window closes without any answer', async () => {
+    const Uc = copyProfile('d')
+    const c = await slowClose(Uc, null, [-1])
+    try {
+        await waitFor(async () => (await c.asks())?.length >= 1, { timeout: 20000, every: 250, what: 'prompt after 15s' })
+        assert((await c.asks())[0].hasSignal, 'prompt has no AbortSignal: it could not be dismissed when the save finishes')
+        await c.app.evaluate(() => globalThis.__open())
+        await Promise.race([c.exited, sleep(10000)])
+        assert(c.exitedYet(), 'window did not close after the save completed while the prompt was open')
+        assert(!logOf(Uc).includes('user chose to close without saving'), 'log claims the user chose to close')
+        assert(await survives(Uc, c.MARK), 'typed text lost although the save completed')
+        return 'closed at ' + (Date.now() - c.t0) + 'ms'
+    } finally { await c.app.close().catch(() => {}) }
+})
+
+await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: window/app closes promptly, no prompt', async () => {
+    const Uc = copyProfile('e')
+    const c = await slowClose(Uc, null, [0])
+    try {
+        await sleep(1500)
+        await c.app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().find(w => /index\.html/.test(w.webContents.getURL()))?.webContents.forcefullyCrashRenderer()).catch(() => {})
+        await Promise.race([c.exited, sleep(8000)])
+        assert(c.exitedYet(), 'app still running 8s after the renderer crashed during a pending close')
+        assert(Date.now() - c.t0 < 12000, 'took ' + (Date.now() - c.t0) + 'ms')
+        return 'closed at ' + (Date.now() - c.t0) + 'ms'
+    } finally { await c.app.close().catch(() => {}) }
+})
+}
+
+// ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
+if (want('legacykey')) {
+// The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.
+// Needs an older packaged build: NF_LEGACY_BIN=<path> (default: the installed /opt/Notepad Flux/notepad-flux if it exists). Skipped loudly otherwise.
+const legacyBin = process.env.NF_LEGACY_BIN || (existsSync('/opt/Notepad Flux/notepad-flux') ? '/opt/Notepad Flux/notepad-flux' : '')
+if (!legacyBin || !existsSync(legacyBin)) na('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', 'SKIPPED: no older build found; set NF_LEGACY_BIN to a pre-async-safeStorage packaged binary (e.g. /opt/Notepad Flux/notepad-flux from 1.4.4)')
+else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electron 40 (sync safeStorage) build still loads saved tabs on this build', async () => {
+    const Uo = tmp('nf-legacy-'); cleanup.push(Uo)
+    const MARK = 'LEGACY-' + Date.now()
+    let oldKey
+    { // old build creates the profile
+        const { app, win } = await launch({ binary: legacyBin, userData: Uo, extraArgs: noSandbox ? ['--no-sandbox'] : [], env })
+        try {
+            await sleep(2500)
+            assert(await win.evaluate(async () => (await window.electronAPI.safeStorage.isAvailable())), 'legacy build: safeStorage unavailable (keyring)')
+            await ui.typeAtEnd(win, MARK + '-ONE')
+            await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, MARK + '-TWO')
+            await sleep(1500)
+            oldKey = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+            assert(oldKey, 'precondition: legacy build wrote no secure key copy, test would be vacuous')
+            await ui.closeViaX(app)
+        } finally { await app.close().catch(() => {}) }
+    }
+    const { app, win } = await L(Uo)
+    try {
+        await waitFor(async () => (await ui.tabsInfo(win)).length >= 2, { what: 'two restored tabs' })
+        const tabs = await ui.tabsInfo(win); const seen = []
+        for (let i = 0; i < tabs.length; i++) { await win.locator('[class*=tabsList] > div').nth(i).click(); await sleep(300); seen.push(await ui.editorText(win)) }
+        assert(seen.some(t => t.includes(MARK + '-ONE')) && seen.some(t => t.includes(MARK + '-TWO')), 'tabs not restored with their text: ' + JSON.stringify(seen))
+        const now = await win.evaluate(() => localStorage.getItem('notepad-flux-secure-key'))
+        assert(now, 'secure key copy vanished after loading with this build')
+        return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
+    } finally { await app.close().catch(() => {}) }
 })
 }
 

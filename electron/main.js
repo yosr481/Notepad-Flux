@@ -163,23 +163,32 @@ const safeHandle = (channel, handler) => {
 }
 
 safeHandle('safe-storage-encrypt', async (event, plainText) => {
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) {
         throw new Error('Safe storage is not available.')
     }
-    const buffer = safeStorage.encryptString(plainText)
+    const buffer = await safeStorage.encryptStringAsync(plainText)
     return buffer.toString('base64')
 })
 
 safeHandle('safe-storage-decrypt', async (event, encryptedBase64) => {
-    if (!safeStorage.isEncryptionAvailable()) {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) {
         throw new Error('Safe storage is not available.')
     }
     const buffer = Buffer.from(encryptedBase64, 'base64')
-    return safeStorage.decryptString(buffer)
+    const { result } = await safeStorage.decryptStringAsync(buffer)
+    return result
+})
+
+// True when the keyring rotated its key: the page then rewrites its secure key copy.
+safeHandle('safe-storage-needs-reencrypt', async (event, encryptedBase64) => {
+    if (!(await safeStorage.isAsyncEncryptionAvailable())) return false
+    const { shouldReEncrypt } = await safeStorage.decryptStringAsync(Buffer.from(encryptedBase64, 'base64'))
+    if (shouldReEncrypt) log.info('safeStorage: re-encrypting the secure key copy')
+    return shouldReEncrypt
 })
 
 safeHandle('safe-storage-available', async () => {
-    return safeStorage.isEncryptionAvailable()
+    return safeStorage.isAsyncEncryptionAvailable()
 })
 
 // Which keyring backs safeStorage. On Linux 'basic_text' is a fixed-key obfuscation,
@@ -401,11 +410,9 @@ ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender
 // unsaved-changes prompt). A window the user keeps open keeps the app running.
 ipcMain.on('quit-app', () => appWindows().forEach(w => w.close()))
 
-// Close handshake: hold every app window's close until its renderer confirms the
-// session snapshot is written (the async encrypt + IndexedDB write can't finish
-// inside beforeunload), max 3s. One-shot: a close the page then blocks (dirty
-// secondary window -> "Keep editing") re-runs the handshake next time.
-const CLOSE_FLUSH_TIMEOUT_MS = 3000
+// Close handshake: hold a window's close until its page confirms the session is saved;
+// a save still running after CLOSE_ASK_AFTER_MS (stuck or hung page) asks the user.
+const CLOSE_ASK_AFTER_MS = 15000
 const guardClose = (w) => {
     let ready = false
     let pending = false
@@ -414,21 +421,61 @@ const guardClose = (w) => {
         e.preventDefault()
         if (pending) return
         pending = true
+        let timer
+        let askAbort = null
+        let asking = null
+        const wc = w.webContents
         const done = () => {
+            if (!pending) return
             clearTimeout(timer)
             ipcMain.removeListener('close-ready', onReady)
+            wc.removeListener('render-process-gone', done)
+            wc.removeListener('did-finish-load', resend)
             pending = false
-            if (w.isDestroyed()) return
-            ready = true
-            w.close()
+            const close = () => {
+                if (w.isDestroyed()) return
+                ready = true
+                w.close()
+            }
+            // Let a dialog attached to this window go away before the window does.
+            if (asking) { askAbort.abort(); asking.finally(close) } else close()
         }
-        const onReady = (ev) => { if (ev.sender === w.webContents) done() }
-        const timer = setTimeout(() => {
-            log.warn('close: renderer did not confirm session flush within 3s; closing anyway')
-            done()
-        }, CLOSE_FLUSH_TIMEOUT_MS)
+        const onReady = (ev) => { if (ev.sender === wc) done() }
+        // A page that reloaded mid-close never got the request; a dead page has nothing to save.
+        const resend = () => wc.send('flush-before-close')
+        const ask = () => {
+            askAbort = new AbortController()
+            asking = dialog.showMessageBox(w, {
+                type: 'warning',
+                buttons: ['Keep waiting', 'Close without saving'],
+                defaultId: 0,
+                cancelId: 0,
+                noLink: true,
+                title: 'Notepad Flux',
+                message: 'Notepad Flux is still saving your tabs.',
+                detail: 'Saving usually takes under a second. If you close now, changes since the last save may be lost.',
+                signal: askAbort.signal,
+            }).then(({ response }) => {
+                asking = null
+                if (!pending) return // the save finished while the dialog was open
+                if (response === 1) {
+                    log.warn('close: renderer did not confirm session flush; user chose to close without saving')
+                    done()
+                } else {
+                    timer = setTimeout(ask, CLOSE_ASK_AFTER_MS)
+                }
+            }).catch((err) => {
+                asking = null
+                log.warn('close: wait dialog failed; closing anyway', err)
+                done()
+            })
+        }
+        timer = setTimeout(ask, CLOSE_ASK_AFTER_MS)
         ipcMain.on('close-ready', onReady)
-        w.webContents.send('flush-before-close')
+        wc.once('render-process-gone', done)
+        wc.on('did-finish-load', resend)
+        if (wc.isCrashed()) return done()
+        resend()
     })
 }
 
@@ -596,9 +643,12 @@ if (gotTheLock) app.whenReady().then(() => {
         platform: `${process.platform} ${process.arch}`,
         packaged: app.isPackaged,
         userData: userDataPath,
-        safeStorage: safeStorage.isEncryptionAvailable(),
         safeStorageBackend: process.platform === 'linux' ? safeStorage.getSelectedStorageBackend() : 'os',
     })
+    // Off the startup path: a slow or failing keyring must not hold up the window.
+    safeStorage.isAsyncEncryptionAvailable()
+        .then(ok => log.info('keyring', { safeStorage: ok }))
+        .catch(err => log.warn('safeStorage check failed', err?.message))
     splash = new BrowserWindow({
         width: 300,
         height: 300,

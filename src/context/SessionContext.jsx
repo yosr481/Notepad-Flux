@@ -69,9 +69,20 @@ export const SessionProvider = ({ children }) => {
         sessionWarnSize: 80,
     });
     const [restoreWarning, setRestoreWarning] = useState(null);
+    // True while a window close waits on a slow session save (shown as "Saving your tabs").
+    const [savingOnClose, setSavingOnClose] = useState(false);
 
     const nextTabId = useRef(2);
     const saveTimers = useRef(new Map());
+    // Resolves once a session load (first load or a promotion merge) has finished and
+    // rendered, so a close requested mid-load can wait for it and then save.
+    const loadGate = useRef(null);
+    const armLoadGate = () => {
+        const gate = { done: false };
+        gate.promise = new Promise(r => { gate.resolve = () => { gate.done = true; r(); }; });
+        loadGate.current = gate;
+    };
+    if (!loadGate.current) armLoadGate();
     const metadataTimer = useRef(null);
     const currentTabsRef = useRef(tabs);
     const currentActiveTabIdRef = useRef(activeTabId);
@@ -617,16 +628,40 @@ export const SessionProvider = ({ children }) => {
         });
     }, [isPrimaryWindow, isSessionLoaded]);
 
-    // Electron: main waits for this before letting the window close.
+    // Latest flush, for a close that waited on the load and must see post-load state.
+    const flushRef = useRef(flushPendingSaves);
+    flushRef.current = flushPendingSaves;
+
+    useEffect(() => {
+        // Re-arm when a promotion merge renders isSessionLoaded=false. Re-arming in
+        // onPromoted instead would hang a close when React batches false->true.
+        if (isSessionLoaded) loadGate.current.resolve();
+        else if (loadGate.current.done) armLoadGate();
+    }, [isSessionLoaded]);
+
+    // Electron: main waits for this before letting the window close (it asks the user
+    // after 15s). A close during the session load waits for the load first; flushing
+    // before it would save nothing and still confirm, losing edits made meanwhile.
     useEffect(() => {
         return window.electronAPI?.onCloseRequested?.(async () => {
+            // Only a slow save shows the indicator; a normal one closes before it would flash.
+            const indicator = setTimeout(() => setSavingOnClose(true), 400);
             try {
-                await flushPendingSaves();
+                // Re-check: a promotion may re-arm the gate while we wait.
+                let gate;
+                do {
+                    gate = loadGate.current;
+                    await gate.promise;
+                } while (gate !== loadGate.current);
+                await flushRef.current();
             } catch (err) {
                 console.error('Failed to save session on close:', err);
+            } finally {
+                clearTimeout(indicator);
+                setSavingOnClose(false);
             }
         });
-    }, [flushPendingSaves]);
+    }, []);
 
     useEffect(() => {
         const onHide = () => {
@@ -683,8 +718,9 @@ export const SessionProvider = ({ children }) => {
         isPrimaryWindow,
         isSessionLoaded,
         recentFiles,
-        restoreWarning
-    }), [tabs, activeTabId, isPrimaryWindow, isSessionLoaded, recentFiles, restoreWarning]);
+        restoreWarning,
+        savingOnClose
+    }), [tabs, activeTabId, isPrimaryWindow, isSessionLoaded, recentFiles, restoreWarning, savingOnClose]);
 
     const actionsValue = useMemo(() => ({
         setActiveTabId,

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         isAvailable: () => ipcRenderer.invoke('safe-storage-available'),
         encrypt: (text) => ipcRenderer.invoke('safe-storage-encrypt', text),
         decrypt: (encrypted) => ipcRenderer.invoke('safe-storage-decrypt', encrypted),
+        needsReEncrypt: (encrypted) => ipcRenderer.invoke('safe-storage-needs-reencrypt', encrypted),
         backend: () => ipcRenderer.invoke('safe-storage-backend'),
     },
     onMainMessage: (callback) => {
@@ -21,7 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     closeWindow: () => ipcRenderer.send('close-window'),
     // File > Exit: main closes every app window, each through its own close guard.
     quitApp: () => ipcRenderer.send('quit-app'),
-    // Main holds a window close until the callback's promise settles (max 3s).
+    // Main holds a window close until the callback's promise settles (asks the user after 15s).
     onCloseRequested: (callback) => {
         const subscription = async () => {
             try { await callback() } finally { ipcRenderer.send('close-ready') }
