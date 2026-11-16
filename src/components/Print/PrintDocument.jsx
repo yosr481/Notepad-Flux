@@ -1,10 +1,9 @@
 import React from 'react';
 import styles from './Print.module.css';
-import { marked } from 'marked';
-import { sanitizeHTML } from '../../utils/sanitize';
 
-const PrintDocument = ({ title, content }) => {
-    const htmlContent = sanitizeHTML(marked(content));
+// `html` is already sanitized, with math rendered (renderMarkdownHtml).
+const PrintDocument = ({ title, html }) => {
+    const htmlContent = html;
 
     return (
         <div className={styles.printContainer}>

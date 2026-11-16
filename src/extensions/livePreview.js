@@ -68,6 +68,9 @@ export const buildDecorations = (state, range) => {
         enter: (node) => {
             const { name, from: nodeFrom, to: nodeTo } = node;
 
+            // Math is drawn by mathPreview; nothing inside it is markdown.
+            if (name === "InlineMath" || name === "BlockMath") return false;
+
             if (name === "EmphasisMark") {
                 const parent = node.node.parent;
                 if (parent && (parent.name === "Emphasis" || parent.name === "StrongEmphasis" || parent.name === "Strikethrough")) {
@@ -550,6 +553,13 @@ export function convertTableToHTML(text) {
 // Let's assume we need to regex search for it in the visible ranges or use a ViewPlugin.
 
 // Let's use a ViewPlugin for Highlights that respects selection
+const insideMath = (state, pos) => {
+    for (let n = syntaxTree(state).resolveInner(pos, 1); n; n = n.parent) {
+        if (n.name === "InlineMath" || n.name === "BlockMath") return true;
+    }
+    return false;
+};
+
 const highlightPlugin = ViewPlugin.fromClass(class {
     constructor(view) {
         this.decorations = this.compute(view);
@@ -573,6 +583,7 @@ const highlightPlugin = ViewPlugin.fromClass(class {
             while ((match = regex.exec(text))) {
                 const start = from + match.index;
                 const end = start + match[0].length;
+                if (insideMath(state, start)) continue;
 
                 // If cursor touches, don't hide markers (just style background if we want, or nothing)
                 if (isCursorTouching(selection, start, end)) {

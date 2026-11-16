@@ -94,3 +94,13 @@
         counter-reset: page 1;
     }
 }
+.content :global(.math-block),
+.content :global(.math-display) {
+    display: block;
+    text-align: center;
+    margin: 1em 0;
+}
+
+.content :global(.math) svg {
+    vertical-align: middle;
+}
