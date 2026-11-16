@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Math: `$…$` inline and `$$…$$` display formulas render with MathJax (the engine Obsidian uses), in the editor and in HTML export, PDF export and Print. Put the cursor in a formula or click it to edit the TeX; a `$$` block shows a live preview below while you edit it. `$5 and $10` stays plain text.
+
 ### Fixed
 
 - Reference images (`![alt][id]`) near the top of a large file now render once the whole file has loaded, even when their definition sits at the end. Before, they stayed as raw text until you typed, clicked or scrolled.

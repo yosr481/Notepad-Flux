@@ -6,6 +6,8 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { SearchQuery, setSearchQuery, findNext, findPrevious, search } from '@codemirror/search';
 import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
+import { mathSyntax } from '../extensions/mathSyntax';
+import { mathPreview } from '../extensions/mathPreview';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -266,8 +268,9 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // editor were LTR, which garbles caret movement and highlighting on
         // Hebrew/Arabic lines.
         EditorView.perLineTextDirection.of(true),
-        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd] }),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax] }),
         livePreview,
+        mathPreview,
         imagePreview,
         linkPreview,
         linkHandler,

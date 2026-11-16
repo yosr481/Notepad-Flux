@@ -2,7 +2,7 @@ import React, { useRef, useMemo, useCallback } from 'react';
 import { useTabState, useSessionActions } from '../context/SessionContext';
 import { fileSystem } from '../utils/fileSystem';
 import { dialogs } from '../utils/dialogs';
-import { exportToHtml } from '../utils/export';
+import { exportToHtml, renderMarkdownHtml } from '../utils/export';
 import { normalizeEol, applyCharset } from '../utils/eol';
 import { openIntoTab } from '../utils/openIntoTab';
 import { createRoot } from 'react-dom/client';
@@ -264,12 +264,21 @@ export const useCommands = (showToast, editorRef) => {
 
         showToast('Exporting to PDF...');
 
+        // Before the container exists, so a failure here leaves nothing mounted.
+        let html;
+        try {
+            html = await renderMarkdownHtml(activeTab.content);
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            showToast('Could not export to PDF.');
+            return;
+        }
         const printContainer = document.createElement('div');
         printContainer.id = 'print-container';
         document.body.appendChild(printContainer);
 
         const root = createRoot(printContainer);
-        const content = React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content });
+        const content = React.createElement(PrintDocument, { title: activeTab.title, html });
         root.render(content);
 
         await nextPaint();
@@ -347,17 +356,25 @@ export const useCommands = (showToast, editorRef) => {
         }
     }, [tabs, activeTabId, showToast]);
 
-    const print = useCallback(() => {
+    const print = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
 
+        let html;
+        try {
+            html = await renderMarkdownHtml(activeTab.content);
+        } catch (error) {
+            console.error('Print failed:', error);
+            showToast('Could not prepare the document for printing.');
+            return;
+        }
         const printContainer = document.createElement('div');
         printContainer.id = 'print-container';
         document.body.appendChild(printContainer);
 
         const root = createRoot(printContainer);
         root.render(
-            React.createElement(PrintDocument, { title: activeTab.title, content: activeTab.content })
+            React.createElement(PrintDocument, { title: activeTab.title, html })
         );
 
         nextPaint().then(() => {
@@ -365,7 +382,7 @@ export const useCommands = (showToast, editorRef) => {
             root.unmount();
             document.body.removeChild(printContainer);
         });
-    }, [tabs, activeTabId]);
+    }, [tabs, activeTabId, showToast]);
 
     const closeWindow = useCallback(async ({ quit = false } = {}) => {
         if (!isPrimaryWindow) {

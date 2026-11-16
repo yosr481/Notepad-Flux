@@ -626,7 +626,6 @@ Potential areas for expansion:
 - **Collapsible Sections**: Fold/unfold headings
 - **Table Editing**: Enhanced table editing experience with visual row/column manipulation
 - **Image Resizing**: Width and height attributes for image sizing
-- **Math Equations**: LaTeX/MathJax support
 - **Diagrams**: Mermaid diagram rendering
 - **Embeds**: YouTube, Twitter, etc. embed support
 

@@ -22,6 +22,7 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 9. [Line Breaks](#line-breaks)
 10. [Task Lists](#task-lists)
 11. [Highlights](#highlights)
+12. [Math](#math)
 
 ---
 
@@ -397,6 +398,33 @@ You can combine ==**bold highlighted**== text.
 This is ==highlighted text== for emphasis.
 
 You can combine ==**bold highlighted**== text.
+
+---
+
+## Math
+
+LaTeX math, rendered with MathJax (the engine Obsidian uses). Put the cursor inside a formula, or click it, to edit the TeX.
+
+```markdown
+Inline: the area is $\pi r^2$.
+
+Display on its own lines:
+
+$$
+\int_0^1 x^2\,dx = \frac{1}{3}
+$$
+
+Display inside a line: $$e^{i\pi} + 1 = 0$$
+```
+
+Rules:
+
+- `$` opens a formula only when the next character isn't a space, and closes at a `$` with no space before it and no digit after it. So `costs $5 and $10` stays plain text.
+- `\$` is a literal dollar sign.
+- A `$$` line with no closing `$$` further down stays plain text.
+- Math inside code spans and code blocks is never rendered.
+- Supported packages: AMS math, `\newcommand` (inside one formula), `\boldsymbol`, `\color`, `\cancel`, `\ce` (chemistry, mhchem) and `\bra`/`\ket` (braket). Links and raw HTML in TeX (`\href`, `\style`) are not supported.
+- HTML export, PDF export and Print render math too.
 
 ---
 

@@ -42,6 +42,7 @@ vi.mock('../../utils/dialogs', () => ({
 
 vi.mock('../../utils/export', () => ({
     exportToHtml: vi.fn(async () => true),
+    renderMarkdownHtml: vi.fn(async () => '<p>stub</p>'),
 }));
 
 vi.mock('../../components/Print/PrintDocument', () => ({

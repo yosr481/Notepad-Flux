@@ -804,6 +804,80 @@ if (want('lp')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: math rendering (F1, Docs/internal/math-spec.md)
+// Only the packaged build proves the lazy MathJax chunk and the runtime font ranges load from app.asar.
+if (want('math')) {
+    const Um = tmp('nf-m-u-'), Wm = tmp('nf-m-w-'); cleanup.push(Um, Wm)
+    const { app, win } = await L(Um)
+    const consoleMsgs = []
+    win.on('console', m => consoleMsgs.push(`[${m.type()}] ${m.text()}`.slice(0, 300)))
+    const errs0 = pageErrors.length
+    const f = join(Wm, 'math.md')
+    writeFileSync(f, 'first\n\nInline $x^2$ here.\n\n$$\n\\frac{a}{b}\n$$\n\nReal $\\mathbb{R}$ line.\n\nשלום $a+b$ עולם\n\ncosts $5 and $10\n\nend\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'math.md', { what: 'tab math.md' })
+    const lineOf = (text) => win.locator('.cm-content .cm-line', { hasText: text })
+    const lineText = async (text) => await lineOf(text).first().innerText()
+    // caret to the very start of the "Inline" line: Ctrl+Home, two lines down (blank line between), Home
+    const caretInlineStart = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+Home'); await win.keyboard.press('ArrowDown'); await win.keyboard.press('ArrowDown'); await win.keyboard.press('Home') }
+
+    await check('MATH-1', 'math', 'inline $x^2$, a $$ block and $\\mathbb{R}$ (lazy font range) render as svg with paths, no error, no page errors, no "font range" console error', async () => {
+        await waitFor(() => win.evaluate(() => document.querySelectorAll('.cm-math-inline').length >= 3 && document.querySelectorAll('.cm-math-block').length >= 1 && !document.querySelector('.cm-math-loading')), { timeout: 60000, what: 'math widgets rendered (MathJax chunk + font range)' })
+        const r = await win.evaluate(() => [...document.querySelectorAll('.cm-math')].map(w => ({ cls: w.className, svgs: w.querySelectorAll('svg').length, paths: w.querySelectorAll('svg path').length, err: !!w.querySelector('[data-mjx-error]') || !!w.closest('[data-mjx-error]') })))
+        assert(r.length >= 4, 'expected >= 4 math widgets (x^2, block, R, a+b), got ' + JSON.stringify(r))
+        for (const w of r) { assert(w.svgs >= 1 && w.paths >= 1, 'widget without svg paths: ' + JSON.stringify(w)); assert(!w.err, 'data-mjx-error in widget: ' + JSON.stringify(w)) }
+        assert(r.some(w => /cm-math-block/.test(w.cls)), 'no block widget')
+        // \mathbb{R} specifically: its widget is the one on the "Real ... line." row
+        const real = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /Real/.test(x.innerText)); const s = l?.querySelector('.cm-math-inline svg'); return { has: !!s, paths: s ? s.querySelectorAll('path').length : 0, err: !!l?.querySelector('[data-mjx-error]') } })
+        assert(real.has && real.paths >= 1 && !real.err, '\\mathbb{R} not rendered: ' + JSON.stringify(real))
+        const bad = consoleMsgs.filter(m => /font range|not bundled|mathjax/i.test(m))
+        assert(bad.length === 0, 'console: ' + JSON.stringify(bad.slice(0, 3)))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        await win.screenshot({ path: join(shots, `${target}-math.png`) }).catch(() => {})
+    })
+    await check('MATH-2', 'math', 'caret into $x^2$ shows raw TeX (no widget on that line); caret out renders the svg again', async () => {
+        await caretInlineStart(); for (let i = 0; i < 7; i++) await win.keyboard.press('ArrowRight')   // offset 7 = touching the opening $ = inside
+        await waitFor(async () => (await lineText('Inline')).includes('$x^2$'), { what: 'raw $x^2$ with caret inside' })
+        eq(await lineOf('Inline').first().locator('.cm-math-inline').count(), 0, 'widget still shown with caret inside')
+        await win.keyboard.press('Control+End')
+        await waitFor(async () => (await lineOf('Inline').first().locator('.cm-math-inline svg path').count()) > 0, { what: 'svg again after caret left' })
+        assert(!(await lineText('Inline')).includes('$x^2$'), 'raw TeX still visible with caret outside')
+    })
+    await check('MATH-3', 'math', 'clicking a rendered formula opens its TeX (raw $x^2$ shown, widget gone)', async () => {
+        await ui.focusEditor(win)   // caret at doc end, all formulas rendered
+        await waitFor(async () => (await lineOf('Inline').first().locator('.cm-math-inline svg').count()) > 0, { what: 'inline widget present' })
+        await lineOf('Inline').first().locator('.cm-math-inline').click()
+        await waitFor(async () => (await lineText('Inline')).includes('$x^2$'), { what: 'raw TeX after clicking the widget' })
+        eq(await lineOf('Inline').first().locator('.cm-math-inline').count(), 0, 'widget still shown after click')
+    })
+    await check('MATH-4', 'math', 'Hebrew line with $a+b$: widget is dir=ltr and the Hebrew words stay intact', async () => {
+        await ui.focusEditor(win)   // caret back to doc end (outside every formula)
+        await waitFor(async () => (await lineOf('שלום').first().locator('.cm-math-inline svg path').count()) > 0, { what: 'Hebrew-line widget rendered' })
+        const r = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); const w = l.querySelector('.cm-math-inline'); return { dir: w.getAttribute('dir'), text: l.innerText } })
+        eq(r.dir, 'ltr', 'widget dir')
+        assert(r.text.includes('שלום') && r.text.includes('עולם'), 'Hebrew text lost: ' + JSON.stringify(r.text))
+        assert(r.text.indexOf('שלום') < r.text.indexOf('עולם'), 'Hebrew word order changed: ' + JSON.stringify(r.text))
+        assert(!r.text.includes('$a+b$'), 'raw TeX visible with caret outside')
+    })
+    await check('MATH-5', 'math', 'File > Export to HTML writes the math as svg and no TeX source (\\frac)', async () => {
+        const dst = join(Wm, 'math-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8')
+        const n = h.split('<svg').length - 1
+        assert(n >= 4, 'expected >= 4 <svg (x^2, block, R, a+b), got ' + n)
+        assert(!h.includes('\\frac'), 'TeX source \\frac leaked into the export')
+        assert(!h.includes('$x^2$') && !h.includes('data-mjx-error'), 'raw inline TeX or an error leaked into the export')
+        assert(h.includes('costs $5 and $10'), 'non-math dollars were altered in the export')
+        assert(!/<script|<foreignObject/i.test(h), 'script/foreignObject in export')
+    })
+    await check('MATH-6', 'math', '"costs $5 and $10" stays plain text (no widget, text unchanged)', async () => {
+        const r = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /costs/.test(x.innerText)); return { text: l.innerText, math: l.querySelectorAll('.cm-math').length } })
+        eq(r.text, 'costs $5 and $10'); eq(r.math, 0, 'widgets on the dollar line')
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
