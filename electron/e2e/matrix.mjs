@@ -24,7 +24,7 @@ const rows = [
     ['CHANGELOG', 'CL-12', 'Native window controls kept on Linux (titleBarStyle hidden Windows-only)', ['WIN-2'], 'Xephyr runs no window manager, so the title bar/buttons are never drawn; only the WM hints (decorations on) are asserted'],
     ['CHANGELOG', 'CL-13', 'Preload bridge loads in packaged build; safeStorage keychain', ['LAUNCH-1', 'SEC-1', 'SEC-2', 'SEC-9']],
     ['CHANGELOG', 'CL-14', 'Grants persisted by main; page cannot self-grant', ['SES-1', 'SES-2', 'SEC-2', 'SEC-3', 'LOG-4']],
-    ['CHANGELOG', 'CL-15', 'Close waits (<=3s) for session flush', ['CLOSE-1', 'CLOSE-x', 'CLOSE-menu-exit', 'CLOSE-menu-close-window']],
+    ['CHANGELOG', 'CL-15', 'Close waits for the session flush (no forced close; asks the user after 15s)', ['CLOSE-1', 'CLOSE-x', 'CLOSE-menu-exit', 'CLOSE-menu-close-window', 'CLOSE-WAIT-a', 'CLOSE-WAIT-b', 'CLOSE-WAIT-c', 'CLOSE-WAIT-d', 'CLOSE-WAIT-e']],
     ['CHANGELOG', 'CL-16', 'Text drag/drop in the editor works; only file drops open tabs', ['DND-3'], 'dragging a selection inside the editor (internal move) is not driven; external text drop is (CDP drag with text/plain)'],
     ['CHANGELOG', 'CL-17', 'Save As keeps CRLF and BOM', ['EOL-3']],
     ['CHANGELOG', 'CL-18', 'Recent: binary/permission failure shows reason and keeps entry; only missing offers Locate', ['RECENT-3', 'RECENT-2', 'RECENT-4'], 'binary-file-via-Recent variant not driven'],

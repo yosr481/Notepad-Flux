@@ -18,7 +18,8 @@ import {
 //  * SessionProvider exposes THREE context values, each wrapped in useMemo:
 //      useSettings()       -> { settings, updateSettings }
 //      useTabState()       -> { tabs, activeTabId, isPrimaryWindow,
-//                              isSessionLoaded, recentFiles, restoreWarning }
+//                              isSessionLoaded, recentFiles, restoreWarning,
+//                              savingOnClose }
 //      useSessionActions() -> { setActiveTabId, createTab, closeTab, updateTab,
 //                              switchTab, setTabs, reorderTabs, addRecentFile,
 //                              saveSession, clearSessionData, clearRestoreWarning }
@@ -54,6 +55,7 @@ const TAB_STATE_KEYS = [
     'isSessionLoaded',
     'recentFiles',
     'restoreWarning',
+    'savingOnClose', // true while a window close waits on a slow session save
 ];
 const ACTION_KEYS = [
     'setActiveTabId',
