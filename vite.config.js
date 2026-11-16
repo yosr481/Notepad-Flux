@@ -1,7 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
-import renderer from 'vite-plugin-electron-renderer'
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -30,13 +29,12 @@ export default defineConfig({
               output: {
                 format: 'cjs',
                 entryFileNames: 'preload.cjs',
-                inlineDynamicImports: true,
+                codeSplitting: false,
               },
             },
           },
         },
       },
     ]),
-    renderer(),
   ],
 })
