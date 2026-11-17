@@ -1455,7 +1455,7 @@ const { app, win } = await L(UP)
 try {
     const SHAPE = (s) => { assert(s && typeof s === 'object', 'status not an object: ' + JSON.stringify(s)); eq(Object.keys(s).sort(), ['error', 'percent', 'state', 'version'], 'status keys'); assert(['unsupported', 'idle', 'checking', 'available', 'not-available', 'downloading', 'downloaded', 'error'].includes(s.state), 'bad state ' + s.state) }
     const errs0 = pageErrors.length
-    await check('UPD-1', 'updates', 'preload exposes updates API; inactive (unpacked, not AppImage) updater reports unsupported and the calls are harmless no-ops', async () => {
+    await check('UPDAPI-1', 'updates', 'preload exposes updates API; inactive (unpacked, not AppImage) updater reports unsupported and the calls are harmless no-ops', async () => {
         const api = await win.evaluate(() => Object.keys(window.electronAPI?.updates || {}).sort())
         eq(api, ['check', 'download', 'getStatus', 'install', 'onStatus'], 'updates API keys')
         const s = await win.evaluate(() => window.electronAPI.updates.getStatus())
@@ -1471,7 +1471,7 @@ try {
         eq((await win.evaluate(() => window.electronAPI.updates.getStatus())).state, 'unsupported', 'after settle')
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
-    await check('UPD-2', 'updates', 'Settings > About: no update button, View Releases still there, no "Downloading update" in the status bar', async () => {
+    await check('UPDAPI-2', 'updates', 'Settings > About: no update button, View Releases still there, no "Downloading update" in the status bar', async () => {
         await win.locator('button[title="Settings"]').click()
         await win.getByText('View Releases').waitFor({ timeout: 5000 })
         eq(await win.locator('[data-testid="update-button"]').count(), 0, 'update-button count')
