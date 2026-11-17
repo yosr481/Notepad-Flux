@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useUpdateStatus } from './hooks/useUpdateStatus';
 import Editor from './components/Editor';
 import MenuBar from './components/Layout/MenuBar';
 import Tabs from './components/Layout/Tabs';
@@ -22,6 +23,7 @@ function App() {
     const [showSettings, setShowSettings] = useState(false);
     const [toast, setToast] = useState({ message: '', show: false });
     const [appVersion, setAppVersion] = useState(version);
+    const updateStatus = useUpdateStatus();
 
     useEffect(() => {
         if (window.electronAPI?.getAppVersion) {
@@ -289,7 +291,7 @@ function App() {
                 />
             </div>
 
-            <StatusBar stats={stats} appVersion={appVersion} eol={activeTab.eol} charset={activeTab.charset} />
+            <StatusBar stats={stats} appVersion={appVersion} updateStatus={updateStatus} eol={activeTab.eol} charset={activeTab.charset} />
 
             {contextMenu && (
                 <ContextMenu

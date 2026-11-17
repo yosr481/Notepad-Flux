@@ -85,3 +85,7 @@
 .statusItem button:hover {
     color: var(--color-flux-violet);
 }
+.statusUpdate {
+    /* Same text colour as the other items (keeps contrast); fixed-width digits so it doesn't jitter. */
+    font-variant-numeric: tabular-nums;
+}

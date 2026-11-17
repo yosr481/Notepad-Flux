@@ -14,6 +14,7 @@ import { buildWindowOptions } from './windowOptions.js'
 import { isProbablyText } from './isProbablyText.js'
 import { toUserMessage } from './ipcErrorMessage.js'
 import { isAppPage } from './appPage.js'
+import { createUpdater } from './updater.js'
 import { filesFromArgv } from './launchArgs.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -344,33 +345,28 @@ autoUpdater.logger.transports.file.level = 'info'
 autoUpdater.autoDownload = false
 autoUpdater.autoInstallOnAppQuit = true
 
-autoUpdater.on('update-available', async (info) => {
-    const { response } = await dialog.showMessageBox({
-        type: 'info',
-        buttons: ['Download Now', 'Later'],
-        title: 'Update Available',
-        message: `A new version (${info.version}) of Notepad Flux is available. Would you like to download it now?`,
-    })
-    if (response === 0) {
-        autoUpdater.downloadUpdate()
-    }
+// Status, progress and the Settings button live in updater.js (Docs/internal/update-spec.md).
+const updater = createUpdater({
+    autoUpdater,
+    dialog,
+    getWindows: () => appWindows(),
+    prepareInstall: () => closeAllForInstall(),
+    // isUpdaterActive(): false for a Linux run that isn't an AppImage/deb install (e.g. unpacked).
+    isPackaged: app.isPackaged && !process.env.VITE_DEV_SERVER_URL && autoUpdater.isUpdaterActive(),
+    log,
 })
 
-autoUpdater.on('update-downloaded', async () => {
-    const { response } = await dialog.showMessageBox({
-        type: 'info',
-        buttons: ['Restart and Install', 'Later'],
-        title: 'Update Ready',
-        message: 'The update has been downloaded and is ready to be installed. Would you like to restart the application now?',
-    })
-    if (response === 0) {
-        autoUpdater.quitAndInstall()
+// Only the app's own page, in its top frame, may drive updates (install quits the app).
+const updateHandle = (channel, fn) => safeHandle(channel, async (event) => {
+    if (event.senderFrame !== event.sender.mainFrame || !isOwnPage(event.senderFrame.url)) {
+        throw new Error('Access denied.')
     }
+    return fn()
 })
-
-autoUpdater.on('error', (err) => {
-    console.error('Auto Updater error:', err)
-})
+updateHandle('update-get-status', () => updater.getStatus())
+updateHandle('update-check', () => updater.check({ manual: true }))
+updateHandle('update-download', () => updater.download())
+updateHandle('update-install', () => updater.install())
 
 safeHandle('get-app-version', async () => {
     return app.getVersion()
@@ -409,6 +405,40 @@ ipcMain.on('close-window', (event) => BrowserWindow.fromWebContents(event.sender
 // Menu Exit: close every window, each through its own close guard (flush handshake,
 // unsaved-changes prompt). A window the user keeps open keeps the app running.
 ipcMain.on('quit-app', () => appWindows().forEach(w => w.close()))
+
+// Restart to update: close every window through its close guard (tabs get saved), then
+// updater.js calls quitAndInstall. While this runs, window-all-closed must not quit on its own.
+// A window that refuses ("Keep editing") cancels the install; quitting works normally again.
+let installingUpdate = false
+let cancelInstall = null
+let quitting = false
+const closeAllForInstall = () => new Promise((resolve) => {
+    const wins = appWindows()
+    installingUpdate = true
+    const finish = (ok) => {
+        cancelInstall = null
+        if (!ok) {
+            installingUpdate = false
+            return resolve(false)
+        }
+        // quitAndInstall quits on success; on some failures it only logs. Windows are gone and
+        // the session is saved, so never linger without a UI: quit anyway after a grace period.
+        setTimeout(() => {
+            if (quitting) return
+            log.warn('update: install did not quit the app; quitting')
+            installingUpdate = false
+            app.quit()
+        }, 10000)
+        resolve(true)
+    }
+    cancelInstall = () => finish(false)
+    if (!wins.length) return finish(true)
+    let left = wins.length
+    for (const w of wins) {
+        w.once('closed', () => { if (--left === 0 && cancelInstall) finish(true) })
+        w.close()
+    }
+})
 
 // Close handshake: hold a window's close until its page confirms the session is saved;
 // a save still running after CLOSE_ASK_AFTER_MS (stuck or hung page) asks the user.
@@ -549,6 +579,7 @@ function createWindow() {
 // opens (New Window from a New Window too), so all of them follow the same rules.
 function wireWindow(w) {
     guardClose(w)
+    updater.attachWindow(w)
     w.webContents.on('did-create-window', wireWindow)
 
     w.webContents.on('did-finish-load', () => {
@@ -600,6 +631,7 @@ function wireWindow(w) {
 }
 
 app.on('window-all-closed', () => {
+    if (installingUpdate) return // updater.js quits and installs
     if (process.platform !== 'darwin') app.quit()
 })
 
@@ -627,6 +659,7 @@ app.on('web-contents-created', (_event, contents) => {
             message: 'This window has unsaved changes that are not part of the saved session. Close it and discard them?',
         })
         if (choice === 0) event.preventDefault()
+        else cancelInstall?.()
     })
 })
 
@@ -634,7 +667,10 @@ app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
 })
 
-app.on('before-quit', () => log.info('quit'))
+app.on('before-quit', () => {
+    quitting = true
+    log.info('quit')
+})
 
 if (gotTheLock) app.whenReady().then(() => {
     log.info('start', {
@@ -662,8 +698,6 @@ if (gotTheLock) app.whenReady().then(() => {
 
     // Check for updates on startup
     if (!process.env.VITE_DEV_SERVER_URL) {
-        autoUpdater.checkForUpdates().catch(err => {
-            console.error('Failed to check for updates:', err)
-        })
+        updater.check({ manual: false })
     }
 })
