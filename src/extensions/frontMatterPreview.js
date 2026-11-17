@@ -1,18 +1,14 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { StateField } from "@codemirror/state";
 import yaml from "js-yaml";
-import { scanFrontMatter } from "./frontMatterSyntax";
+import { scanFrontMatter, FRONT_MATTER_MAX_LINES } from "./frontMatterSyntax";
+import { isCursorTouching } from "./selection";
 
-const isObject = (v) => v !== null && typeof v === "object" && !(v instanceof Date);
-const dateText = (d) => {
-    const iso = d.toISOString();
-    return d.getTime() % 86400000 === 0 ? iso.slice(0, 10) : `${iso.slice(0, 10)} ${iso.slice(11, 16)}`;
-};
-const scalarText = (v) => (v == null ? "" : v instanceof Date ? dateText(v) : String(v));
+const isObject = (v) => v !== null && typeof v === "object";
+const scalarText = (v) => (v == null ? "" : String(v));
 
 function rowOf(key, v) {
     if (v == null || v === "") return { key, kind: "empty", value: "" };
-    if (v instanceof Date) return { key, kind: "date", value: dateText(v) };
     if (Array.isArray(v) && !v.some(isObject)) return { key, kind: "list", value: v.map(scalarText) };
     if (isObject(v)) return { key, kind: "yaml", value: yaml.dump(v, { flowLevel: 0 }).trim() };
     const kind = typeof v === "number" ? "number" : typeof v === "boolean" ? "boolean" : "text";
@@ -24,7 +20,7 @@ function rowOf(key, v) {
 export function propertiesFromYaml(yamlText) {
     let data;
     try {
-        data = yaml.load(yamlText);
+        data = yaml.load(yamlText, { schema: yaml.CORE_SCHEMA });
     } catch (e) {
         return { error: String(e.message).split("\n")[0] };
     }
@@ -78,20 +74,10 @@ class PropertiesWidget extends WidgetType {
     }
 }
 
-const FENCE = /^\uFEFF?---[ \t]*$/, CLOSER = /^(?:---|\.\.\.)[ \t]*$/;
-// ponytail: a closer more than MAX_LINES down is not front matter here, so an unclosed fence never
-// rescans a huge document per keystroke. Raise it (or cache by changed range) if that bites.
-const MAX_LINES = 500;
-
-// Reads only the head of the document, up to the first closer line; scanFrontMatter stays the one rule.
+// Head slice bounded by the cap, so scanner, parser, widget and export agree and an unclosed fence stays cheap.
 function headScan(doc) {
-    if (!FENCE.test(doc.line(1).text)) return null;
-    const last = Math.min(doc.lines, MAX_LINES);
-    for (let n = 2; n <= last; n++) {
-        const line = doc.line(n);
-        if (CLOSER.test(line.text)) return scanFrontMatter(doc.sliceString(0, line.to));
-    }
-    return null;
+    if (doc.line(1).text.replace(/^\uFEFF/, "").trimEnd() !== "---") return null;
+    return scanFrontMatter(doc.sliceString(0, doc.line(Math.min(doc.lines, FRONT_MATTER_MAX_LINES + 2)).to));
 }
 
 const fenceMark = Decoration.mark({ class: "cm-faint-syntax" });
@@ -112,7 +98,7 @@ function rawDecos(doc, fm) {
 // The only selection input: does it touch the block. Same decoration set while that stays the same.
 function withSelection(value, state) {
     const { fm } = value;
-    const touched = state.selection.ranges.some((r) => r.from <= fm.to && r.to >= fm.from);
+    const touched = isCursorTouching(state.selection, fm.from, fm.to);
     if (value.decos && touched === value.touched) return value;
     const decos = touched ? rawDecos(state.doc, fm)
         : Decoration.set([Decoration.replace({ widget: new PropertiesWidget(value.text), block: true }).range(fm.from, fm.to)]);

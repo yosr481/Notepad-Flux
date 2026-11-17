@@ -1,9 +1,9 @@
 // Lezer markdown extension: YAML front matter at the very start of the document.
 // Rules in Docs/internal/frontmatter-spec.md ("Syntax"). scanFrontMatter is the one copy of the rule,
-// shared by this block parser and (later) the export renderer.
+// shared by this block parser, the properties widget and the export renderer.
 const DASH = 45, BOM = 0xFEFF;
-const FENCE = /^\uFEFF?---[ \t]*$/;
-const OPEN = /^---[ \t]*$/, CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
+export const FRONT_MATTER_MAX_LINES = 500;
+const OPEN = /^\uFEFF?---[ \t]*$/, CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
 
 // Line text at `pos` without its newline or a CR before it: { text, end (offset after text), next (start of next line, or -1) }.
 function lineAt(text, pos) {
@@ -20,8 +20,9 @@ export function scanFrontMatter(text) {
     const open = lineAt(text, from);
     if (!OPEN.test(open.text) || open.next < 0) return null;
     const contentFrom = open.next;
-    for (let pos = contentFrom; pos >= 0;) {
+    for (let pos = contentFrom, yamlLines = 0; pos >= 0;) {
         const line = lineAt(text, pos);
+        if (!CLOSE.test(line.text) && ++yamlLines > FRONT_MATTER_MAX_LINES) return null;
         if (CLOSE.test(line.text)) {
             let contentTo = pos === contentFrom ? contentFrom : pos - 1;
             if (contentTo > contentFrom && text.charCodeAt(contentTo - 1) === 13) contentTo--;
@@ -34,6 +35,7 @@ export function scanFrontMatter(text) {
 
 // Head text from offset 0 up to the closer, read in doubling chunks so a long doc is not copied per reparse.
 // Chunks are cut after a newline so scanFrontMatter never sees a partial line.
+// ponytail: each reparse re-reads and rescans from 0, at most ~2x the cap (opener + cap + 1 lines) of text, and stops there for an unclosed opener.
 function scanHead(input) {
     for (let size = 1024; ; size *= 2) {
         const n = Math.min(size, input.length);
@@ -41,13 +43,13 @@ function scanHead(input) {
         if (n < input.length) text = text.slice(0, text.lastIndexOf('\n') + 1);
         const fm = scanFrontMatter(text);
         if (fm) return { text, fm };
-        if (n === input.length) return null;
+        if (n === input.length || text.split('\n').length > FRONT_MATTER_MAX_LINES + 2) return null;
     }
 }
 
 function frontMatter(cx, line) {
     if (cx.lineStart !== 0 || line.pos !== 0 || (line.next !== DASH && line.next !== BOM)) return false;
-    if (!FENCE.test(line.text.replace(/\r$/, ""))) return false;
+    if (!OPEN.test(line.text.replace(/\r$/, ""))) return false;
     const head = scanHead(cx.input);
     if (!head) return false;
     const { text, fm } = head;

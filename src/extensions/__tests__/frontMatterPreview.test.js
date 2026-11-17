@@ -15,11 +15,11 @@ import { frontMatterPreview, propertiesFromYaml } from '../frontMatterPreview';
 // Spec: Docs/internal/frontmatter-spec.md ("Parsing", "Editor"). Offsets via doc.indexOf / scanFrontMatter, never by hand.
 // Pinned choices (spec silent / task contract):
 //  - propertiesFromYaml(yamlText) -> { rows: [{ key, kind, value }] } | { error }. js-yaml `load`, default schema.
-//    kinds: text (string), number (String(n)), boolean ('true'/'false'), date (YYYY-MM-DD, or 'YYYY-MM-DD HH:MM'
-//    when not midnight UTC), list (array of scalars -> string[]; an empty array is a list with []), empty
+//    Schema is js-yaml CORE_SCHEMA: timestamps are plain strings shown as written (kind 'text'), no 'date' kind.
+//    kinds: text (string), number (String(n)), boolean ('true'/'false'), list (array of scalars -> string[]; an empty array is a list with []), empty
 //    (null/undefined/'' -> ''), yaml (nested map, or array containing a map/array -> dump(v,{flowLevel:0}).trim()).
 //  - Empty / whitespace / comment-only content -> { rows: [] }. Top level not a mapping, YAML syntax error and
-//    duplicate keys -> { error } (error = first line of js-yaml's message; assertion is toContain).
+//    duplicate keys and !!binary/!!set/!!omap/!!timestamp tags (unknown under CORE_SCHEMA) -> { error } (error = first line of js-yaml's message; assertion is toContain).
 //  - Widget range = the FrontMatter node range (from..to as scanFrontMatter gives it). Any selection range with
 //    range.from <= to && range.to >= from shows raw YAML and NO widget. Block replace, ONE widget div.cm-properties.
 //  - Header: widget text contains "Properties" (non-error, incl. empty). Error box: div.cm-properties-error holds the
@@ -99,17 +99,33 @@ describe('propertiesFromYaml: kinds', () => {
         expect(one('b: true')).toEqual({ key: 'b', kind: 'boolean', value: 'true' });
         expect(one('b: false')).toEqual({ key: 'b', kind: 'boolean', value: 'false' });
     });
-    it('date only -> YYYY-MM-DD', () => {
-        expect(one('d: 2024-01-05')).toEqual({ key: 'd', kind: 'date', value: '2024-01-05' });
+    it('timestamps are plain text exactly as written (CORE_SCHEMA), no date kind', () => {
+        expect(one('d: 2024-01-05')).toEqual({ key: 'd', kind: 'text', value: '2024-01-05' });
+        expect(one('d: 2024-01-05T10:30:00Z')).toEqual({ key: 'd', kind: 'text', value: '2024-01-05T10:30:00Z' });
+        expect(one('d: 2001-12-14 23:30:00 -05:00')).toEqual({ key: 'd', kind: 'text', value: '2001-12-14 23:30:00 -05:00' });
     });
-    it('date with a non-midnight UTC time -> YYYY-MM-DD HH:MM', () => {
-        expect(one('d: 2024-01-05T10:30:00Z')).toEqual({ key: 'd', kind: 'date', value: '2024-01-05 10:30' });
-    });
-    it('date at exactly midnight UTC -> date only', () => {
-        expect(one('d: 2024-01-05T00:00:00Z')).toEqual({ key: 'd', kind: 'date', value: '2024-01-05' });
+    it('invalid dates are shown as written, not normalised (2001-02-30 stays)', () => {
+        expect(one('d: 2001-02-30')).toEqual({ key: 'd', kind: 'text', value: '2001-02-30' });
     });
     it('quoted date-looking string stays text', () => {
         expect(one('d: "2024-01-05"')).toEqual({ key: 'd', kind: 'text', value: '2024-01-05' });
+    });
+    it('no row ever has kind "date"', () => {
+        const r = propertiesFromYaml('a: 2024-01-05\nb: 2024-01-05T10:30:00Z\nc: 2001-02-30');
+        expect(r.rows.map((x) => x.kind)).toEqual(['text', 'text', 'text']);
+    });
+    it('YAML 1.1 booleans and dates are not special under CORE_SCHEMA (yes stays text)', () => {
+        expect(one('v: yes')).toEqual({ key: 'v', kind: 'text', value: 'yes' });
+    });
+    it('a list of timestamps is a list of the written strings', () => {
+        expect(one('l: [2024-01-05, 2024-02-30]')).toEqual({ key: 'l', kind: 'list', value: ['2024-01-05', '2024-02-30'] });
+    });
+    it('merge key << is an ordinary key (no merge)', () => {
+        const r = propertiesFromYaml('b: &x {p: 1}\nc:\n  <<: *x');
+        expect(r.error).toBeUndefined();
+        expect(r.rows.map((x) => x.key)).toEqual(['b', 'c']);
+        expect(r.rows[1].kind).toBe('yaml'); // dump may quote the key ('<<'); intent: ordinary key, no merge, no error
+        expect(r.rows[1].value).toMatch(/^\{.*<<.*\{p: 1\}\}$/);
     });
     it('list of scalars -> list of strings', () => {
         expect(one('l: [a, 1, true]')).toEqual({ key: 'l', kind: 'list', value: ['a', '1', 'true'] });
@@ -186,6 +202,14 @@ describe('propertiesFromYaml: errors', () => {
     });
     it('never throws on garbage', () => {
         expect(() => propertiesFromYaml('{{{ : ]]\n\t- !!js/function x')).not.toThrow();
+    });
+    it('!!binary / !!set / !!omap / !!timestamp are unknown tags under CORE_SCHEMA -> error, no throw', () => {
+        for (const y of ['a: !!binary aGVsbG8=', 'a: !!set {x}', 'a: !!omap [x: 1]', 'a: !!timestamp 2001-01-01']) {
+            const r = propertiesFromYaml(y);
+            expect(typeof r.error, y).toBe('string');
+            expect(r.error).toContain('unknown tag');
+            expect('rows' in r).toBe(false);
+        }
     });
     it('executable tags are not honoured (safe schema)', () => {
         const r = propertiesFromYaml('a: !!js/function "function(){}"');
@@ -436,16 +460,27 @@ describe('frontMatterPreview: raw YAML styling (spec: monospace, fences faint)',
     });
 });
 
-describe('frontMatterPreview: closer-distance cap (decision: closer on line 500 previews, line 501 does not)', () => {
-    const docWithCloserAt = (n) => `---\n${Array.from({ length: n - 2 }, (_, i) => `k${i}: ${i}`).join('\n')}\n---\n\ntail`;
-    it('closer on line 500 -> widget', () => {
-        expect(widgets(mkView(docWithCloserAt(500)))).toHaveLength(1);
+describe('frontMatterPreview: size cap = FRONT_MATTER_MAX_LINES (500 YAML lines between the fences)', () => {
+    // Pinned boundary: up to 500 YAML lines is front matter; 501 is not. Same rule in scanner, lezer node, widget, export.
+    const docWith = (n) => `---\n${Array.from({ length: n }, (_, i) => `k${i}: ${i}`).join('\n')}\n---\n\ntail`;
+    it('500 YAML lines -> widget', () => {
+        expect(widgets(mkView(docWith(500)))).toHaveLength(1);
     });
-    it('closer on line 501 -> no widget, raw YAML shown, no hr and no throw', () => {
-        const v = mkView(docWithCloserAt(501));
+    it('501 YAML lines -> no widget, no raw-front-matter styling, today\'s hr behaviour', () => {
+        const v = mkView(docWith(501));
         expect(widgets(v)).toHaveLength(0);
-        expect(lineEl(v, 'k0: 0')).toBeTruthy();
-        expect(qa(v, 'hr')).toHaveLength(0);
+        expect(qa(v, '.cm-frontmatter-line')).toHaveLength(0);
+        expect(qa(v, 'hr').length).toBeGreaterThan(0);
+    });
+    it('the widget range agrees with scanFrontMatter at the boundary', () => {
+        expect(scanFrontMatter(docWith(500))).not.toBeNull();
+        expect(scanFrontMatter(docWith(501))).toBeNull();
+    });
+    it('unclosed opening fence in a long document: no widget, no throw', () => {
+        const doc = '---\n' + 'a: 1\n'.repeat(5000) + 'tail';
+        let v;
+        expect(() => { v = mkView(doc); }).not.toThrow();
+        expect(widgets(v)).toHaveLength(0);
     });
 });
 
@@ -559,6 +594,11 @@ describe('Editor.jsx wiring (source guard)', () => {
 
     it('frontMatterSyntax is in the markdown({ extensions: [...] }) list', () => {
         expect(src).toMatch(/markdown\(\{[^)]*extensions:\s*\[[^\]]*\bfrontMatterSyntax\b[^\]]*\]/);
+    });
+
+    it('the widget reuses isCursorTouching from ./selection (one touching rule across extensions)', () => {
+        const own = readFileSync(resolve(process.cwd(), 'src/extensions/frontMatterPreview.js'), 'utf8');
+        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]/);
     });
 
     it('frontMatterPreview is in the extensions array, after mermaidPreview', () => {

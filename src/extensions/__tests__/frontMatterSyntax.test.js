@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { mathSyntax } from '../mathSyntax';
 import { footnoteSyntax } from '../footnoteSyntax';
-import { frontMatterSyntax, scanFrontMatter } from '../frontMatterSyntax';
+import { frontMatterSyntax, scanFrontMatter, FRONT_MATTER_MAX_LINES } from '../frontMatterSyntax';
 
 // Spec: Docs/internal/frontmatter-spec.md ("Syntax", "Editor").
 // Pinned choices where the spec is silent:
@@ -609,6 +609,91 @@ describe('frontMatterSyntax: parser agrees with scanFrontMatter at read-chunk ed
             }
             check('---' + eol + 'k: ' + 'y'.repeat(5000) + eol + '---' + eol + 'body'); // one line > several chunks
             check('---' + eol + ('a: b' + eol).repeat(1000)); // unclosed, ~5 KB
+        }
+    });
+});
+
+describe('scanFrontMatter / parser: size cap (FRONT_MATTER_MAX_LINES)', () => {
+    // Pinned: the cap counts YAML lines strictly between the fences. Up to MAX is front matter, MAX + 1 is not.
+    // One rule: the scanner returns null past it, so the lezer node (and every other consumer) is absent too.
+    const docWith = (n, close = '---', eol = '\n') =>
+        `---${eol}${Array.from({ length: n }, (_, i) => `k${i}: ${i}`).join(eol)}${n ? eol : ''}${close}${eol}body`;
+
+    it('exports the cap as 500', () => {
+        expect(FRONT_MATTER_MAX_LINES).toBe(500);
+    });
+
+    for (const close of ['---', '...']) {
+        for (const eol of ['\n', '\r\n']) {
+            const tag = `closer ${JSON.stringify(close)}, ${JSON.stringify(eol)}`;
+            it(`MAX YAML lines is front matter, MAX + 1 is null (${tag})`, () => {
+                const ok = docWith(FRONT_MATTER_MAX_LINES, close, eol);
+                const r = scanFrontMatter(ok);
+                expect(r).not.toBeNull();
+                expect(ok.slice(r.to - 3, r.to)).toBe(close);
+                expect(scanFrontMatter(docWith(FRONT_MATTER_MAX_LINES + 1, close, eol))).toBeNull();
+            });
+        }
+    }
+
+    it('the BOM does not change the boundary', () => {
+        expect(scanFrontMatter('\uFEFF' + docWith(FRONT_MATTER_MAX_LINES))).not.toBeNull();
+        expect(scanFrontMatter('\uFEFF' + docWith(FRONT_MATTER_MAX_LINES + 1))).toBeNull();
+    });
+
+    it('blank lines count as lines', () => {
+        const ok = '---\n' + '\n'.repeat(FRONT_MATTER_MAX_LINES) + '---\nbody';
+        expect(scanFrontMatter(ok)).not.toBeNull();
+        expect(scanFrontMatter('---\n' + '\n'.repeat(FRONT_MATTER_MAX_LINES + 1) + '---\nbody')).toBeNull();
+    });
+
+    it('a closer past the cap is not found even when it exists (the 600-line case)', () => {
+        expect(scanFrontMatter('---\n' + 'a: 1\n'.repeat(600) + '---\nbody')).toBeNull();
+    });
+
+    it('unclosed opening fence in a ~1 MB document -> null', () => {
+        expect(scanFrontMatter('---\n' + 'a: 1\n'.repeat(200000))).toBeNull();
+    });
+
+    it('closer beyond the cap in a ~1 MB document -> null', () => {
+        expect(scanFrontMatter('---\n' + 'a: 1\n'.repeat(200000) + '---\n')).toBeNull();
+    });
+
+    it('parser: FrontMatter node at MAX lines, none at MAX + 1, same span as the scanner', () => {
+        const ok = docWith(FRONT_MATTER_MAX_LINES);
+        const r = scanFrontMatter(ok);
+        expect(spans(ok, 'FrontMatter')).toEqual([[r.from, r.to]]);
+        const over = docWith(FRONT_MATTER_MAX_LINES + 1);
+        expect(spans(over, 'FrontMatter')).toEqual([]);
+        expect(spans(over, 'FrontMatterMark')).toEqual([]);
+        expect(spans(over, 'FrontMatterContent')).toEqual([]);
+    });
+
+    it('parser past the cap yields exactly the tree of a parser without the extension', () => {
+        const over = '---\n' + 'a: 1\n'.repeat(600) + '---\nbody';
+        expect(shape(over)).toEqual(shape(over, baseParser));
+    });
+
+    it('parser: unclosed fence in a ~1 MB document: no node, same tree as without the extension', () => {
+        const doc = '---\n' + 'a: 1\n'.repeat(200000);
+        expect(spans(doc, 'FrontMatter')).toEqual([]);
+    });
+});
+
+describe('parser: cap boundary agrees with the scanner when the closer sits past read-chunk edges', () => {
+    // Early stop in the chunked read must never reject a block whose closer is within the cap, whatever the line width.
+    it('500 YAML lines (node) vs 501 (none) for line widths 1, 30, 200 and CRLF', () => {
+        for (const pad of [0, 30, 200]) {
+            for (const eol of ['\n', '\r\n']) {
+                const line = (i) => `k${i % 10}: ${'x'.repeat(pad)}`;
+                const mk = (n) => '---' + eol + Array.from({ length: n }, (_, i) => line(i)).join(eol) + eol + '---' + eol + 'body';
+                const ok = mk(FRONT_MATTER_MAX_LINES), over = mk(FRONT_MATTER_MAX_LINES + 1);
+                const r = scanFrontMatter(ok);
+                expect(r, `scan ${pad} ${JSON.stringify(eol)}`).not.toBeNull();
+                expect(spans(ok, 'FrontMatter'), `node ${pad} ${JSON.stringify(eol)}`).toEqual([[r.from, r.to]]);
+                expect(scanFrontMatter(over)).toBeNull();
+                expect(spans(over, 'FrontMatter')).toEqual([]);
+            }
         }
     });
 });

@@ -1,5 +1,6 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
+import { isCursorTouching } from "./selection";
 import { isClosedBlock, mathSource } from "./mathSyntax";
 import { renderTex } from "../utils/math";
 import { decorationField } from "./decorationField";
@@ -51,8 +52,6 @@ class MathWidget extends WidgetType {
     }
 }
 
-const touches = (selection, from, to) => selection.ranges.some((r) => r.from <= to && r.to >= from);
-
 function buildMath(state) {
     const decorations = [];
     if (state.doc.length === 0) return Decoration.none;
@@ -61,7 +60,7 @@ function buildMath(state) {
     syntaxTree(state).iterate({
         enter: (node) => {
             if (node.name === "InlineMath") {
-                if (!touches(selection, node.from, node.to)) {
+                if (!isCursorTouching(selection, node.from, node.to)) {
                     const display = doc.sliceString(node.from, node.from + 2) === "$$";
                     decorations.push(Decoration.replace({
                         widget: new MathWidget(mathSource(doc, node.node), display ? "display" : "inline"),
@@ -74,7 +73,7 @@ function buildMath(state) {
                 const tex = mathSource(doc, node.node);
                 // Block widgets must cover whole lines (a block inside "> " included).
                 const from = doc.lineAt(node.from).from, to = doc.lineAt(node.to).to;
-                if (!touches(selection, from, to)) {
+                if (!isCursorTouching(selection, from, to)) {
                     decorations.push(Decoration.replace({ widget: new MathWidget(tex, "block"), block: true }).range(from, to));
                 } else {
                     decorations.push(Decoration.widget({ widget: new MathWidget(tex, "preview"), block: true, side: 1 }).range(to));

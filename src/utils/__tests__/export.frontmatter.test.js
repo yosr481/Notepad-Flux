@@ -11,7 +11,7 @@ import { renderMarkdownHtml, exportToHtml } from '../export';
 
 // Spec: Docs/internal/frontmatter-spec.md ("Syntax", "Export (HTML, PDF, Print)").
 // Pinned choices (spec silent or only implied):
-//  - renderMarkdownHtml removes the block found by scanFrontMatter (same rule as the editor, NO 500-line cap) before marked lexes.
+//  - renderMarkdownHtml removes the block found by scanFrontMatter (same rule as the editor: scanFrontMatter, incl. its FRONT_MATTER_MAX_LINES = 500 cap) before marked lexes.
 //  - Equivalence is the contract: renderMarkdownHtml(fm + body, o) === renderMarkdownHtml(body, o) as exact HTML strings
 //    (ids/markup carry no per-call randomness in the final output; mermaid is mocked deterministically).
 //  - The text right after the closing fence's own line break is the body; the fence line break itself is not part of the body.
@@ -95,8 +95,8 @@ describe('export front matter: syntax variants', () => {
         const html = await same(crlf(FM), crlf('# H\n\ntext\n\n- a\n- b\n'));
         expect(html).not.toMatch(/title|Hello|<hr/);
     });
-    it('closer more than 500 lines down is still stripped (no cap in export)', async () => {
-        const yaml = Array.from({ length: 700 }, (_, i) => `key${i}: value${i}`).join('\n');
+    it('exactly 500 YAML lines is still stripped', async () => {
+        const yaml = Array.from({ length: 500 }, (_, i) => `key${i}: value${i}`).join('\n');
         const html = await same('---\n' + yaml + '\n---\n', 'Body\n');
         expect(html).not.toMatch(/key\d|value\d|<hr|<h2/);
     });
@@ -107,6 +107,28 @@ describe('export front matter: syntax variants', () => {
     it('front matter followed directly by end of document with no trailing newline', async () => {
         const html = await render('---\ntitle: x\n---');
         expect(html).not.toMatch(/<hr|<h2|title/);
+    });
+});
+
+describe('export front matter: size cap (same rule as the editor)', () => {
+    it('501 YAML lines is not front matter: hr + text exported as today', async () => {
+        const yaml = Array.from({ length: 501 }, (_, i) => `key${i}: value${i}`).join('\n');
+        const html = await render('---\n' + yaml + '\n---\nBody\n');
+        expect(html).toContain('<hr');
+        expect(html).toContain('key0: value0');
+        expect(html).toContain('key500: value500');
+        expect(html).toContain('Body');
+    });
+    it('the 600-line case: nothing is swallowed', async () => {
+        const html = await render('---\n' + 'a: 1\n'.repeat(600) + '---\nbody');
+        expect(html).toContain('<hr');
+        expect(html).toContain('body');
+        expect(html).toContain('a: 1');
+    });
+    it('unclosed opening fence in a ~1 MB document renders the text as today', async () => {
+        const html = await render('---\n' + 'a: 1\n'.repeat(1000) + 'end');
+        expect(html).toContain('<hr');
+        expect(html).toContain('end');
     });
 });
 
