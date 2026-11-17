@@ -97,6 +97,7 @@ export class TableWidget extends WidgetType {
                     selection: { anchor: pos, head: pos },
                     scrollIntoView: true
                 });
+                view.focus();
             }
         });
 

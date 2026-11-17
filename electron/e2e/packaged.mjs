@@ -1496,6 +1496,158 @@ if (want('subsupemoji')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: table cells (B12, Docs/internal/table-cells-spec.md)
+// Real layout, computed styles, MathJax, link click and the keyboard: what jsdom cannot cover.
+if (want('tablecells')) {
+    const Ut = tmp('nf-tc-u-'), Wt = tmp('nf-tc-w-'); cleanup.push(Ut, Wt)
+    const { app, win } = await L(Ut)
+    const errs0 = pageErrors.length
+    const f = join(Wt, 'tc.md')
+    writeFileSync(f, 'Intro[^a] paragraph.\n\n| Head A | Head B |\n|---|---|\n| plain | plain |\n| H~2~O | x^2^ |\n| $x^2$ | plain |\n| :smile: | [^b] |\n| ^[inline] | ==hi== |\n| **bold [link *em*](https://example.com)** | שלום עולם |\n\n[^a]: note a\n\n[^b]: note b\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'tc.md', { what: 'tab tc.md' })
+    const caretFar = async () => { await win.locator('.cm-content .cm-line').last().click({ position: { x: 400, y: 2 } }); await win.keyboard.press('Control+End') }   // not ui.focusEditor: it clicks the middle of .cm-content, which is the table widget here (mousedown there moves the caret into the table without focusing the editor)
+    const tbl = win.locator('.cm-content .cm-table-widget')
+    const tableReady = async () => {
+        await caretFar()
+        try { await waitFor(async () => (await tbl.count()) === 1 && (await tbl.locator('svg').count()) > 0, { timeout: 30000, what: 'table widget with the MathJax svg' }) }
+        catch (e) { throw new Error(e.message + ' | ' + await win.evaluate(() => JSON.stringify({ widgets: document.querySelectorAll('.cm-table-widget').length, svg: document.querySelectorAll('.cm-table-widget svg').length, math: [...document.querySelectorAll('.cm-table-widget .cm-math')].map(m => m.className + ' ' + m.innerHTML.slice(0, 80)), lines: [...document.querySelectorAll('.cm-content .cm-line')].map(l => l.innerText).slice(0, 14) }))) }
+    }
+    const cellOf = (re) => win.evaluate((s) => { const c = [...document.querySelectorAll('.cm-table-widget td')].find(x => new RegExp(s).test(x.textContent)); return c ? c.textContent : null }, re.source)
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+
+    await check('TC-1', 'tablecells', 'caret outside: table widget has a real MathJax svg, sub/sup lowered/raised (edge vs plain neighbour), 😄 as span.cm-emoji, footnote refs 2 and 3 next to the paragraph\'s 1, .cm-highlight with a non-transparent background, no raw $ ~ ^ :smile: ==', async () => {
+        await tableReady()
+        const r = await win.evaluate(() => {
+            const t = document.querySelector('.cm-table-widget'), cs = (e) => getComputedStyle(e)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('td'), NodeFilter.SHOW_TEXT); let ref = null; for (let n = tw.nextNode(); n; n = tw.nextNode()) { if (!n.length || el.contains(n) || !(el.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(n, n.length - 1); rg.setEnd(n, n.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }
+            const s = t.querySelector('.cm-subscript'), p = t.querySelector('.cm-superscript'), hl = t.querySelector('.cm-highlight'), mathCell = [...t.querySelectorAll('td')].find(c => c.querySelector('svg'))
+            const body = document.querySelector('.cm-content .cm-line')
+            return {
+                svgPaths: mathCell ? mathCell.querySelectorAll('svg path').length : 0, mjxErr: !!t.querySelector('[data-mjx-error]'), loading: !!t.querySelector('.cm-math-loading'),
+                subBot: s?.getBoundingClientRect().bottom, supBot: p?.getBoundingClientRect().bottom, subRef: s && prevCharBottom(s), supRef: p && prevCharBottom(p),
+                subFs: s && parseFloat(cs(s).fontSize), supFs: p && parseFloat(cs(p).fontSize), bodyFs: parseFloat(cs(body).fontSize), subText: s?.textContent, supText: p?.textContent,
+                emoji: [...t.querySelectorAll('span.cm-emoji')].map(e => ({ t: e.textContent, role: e.getAttribute('role'), label: e.getAttribute('aria-label'), w: e.getBoundingClientRect().width })),
+                tableFn: [...t.querySelectorAll('.cm-footnote-ref')].map(e => e.textContent),
+                paraFn: [...document.querySelectorAll('.cm-content .cm-footnote-ref')].filter(e => !e.closest('.cm-table-widget')).map(e => e.textContent),
+                hlBg: hl && cs(hl).backgroundColor, hlText: hl?.textContent, text: t.innerText,
+            }
+        })
+        assert(r.svgPaths >= 1 && !r.mjxErr && !r.loading, 'math cell has no real svg: ' + JSON.stringify({ paths: r.svgPaths, err: r.mjxErr, loading: r.loading }))
+        assert(r.subRef !== null && r.supRef !== null && r.subBot != null, 'no sub/sup node or no plain text before it to compare with')
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        assert(r.subFs < r.bodyFs && r.supFs < r.bodyFs, `font-size not smaller than body: sub ${r.subFs} sup ${r.supFs} body ${r.bodyFs}`)
+        eq(r.subText, '2', 'subscript content'); eq(r.supText, '2', 'superscript content')
+        eq(r.emoji.length, 1, 'span.cm-emoji count in the table'); eq(r.emoji[0].t, '😄', 'emoji text'); eq(r.emoji[0].role, 'img', 'emoji role'); eq(r.emoji[0].label, 'smile', 'emoji aria-label')
+        assert(r.emoji[0].w > 0, 'emoji glyph has no width')
+        eq(r.paraFn, ['1'], 'paragraph footnote number'); eq(r.tableFn, ['2', '3'], 'table footnote numbers')
+        assert(r.hlBg && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(r.hlBg) && r.hlBg !== 'transparent', '.cm-highlight background is transparent: ' + r.hlBg); eq(r.hlText, 'hi', 'highlight text')
+        for (const s of ['$', '~', '^', ':smile:', '==']) assert(!r.text.includes(s), `raw ${s} visible in the table: ` + JSON.stringify(r.text))
+        await win.screenshot({ path: join(shots, `${target}-tablecells.png`) }).catch(() => {})
+        return `footnotes para ${r.paraFn} / table ${r.tableFn}, highlight bg ${r.hlBg}, sub ${(r.subBot - r.subRef).toFixed(2)} px below / sup ${(r.supRef - r.supBot).toFixed(2)} px above neighbour`
+    })
+    await check('TC-2', 'tablecells', 'row heights: sub/sup row at most 5% taller than the plain row; the math, emoji+footnote and highlight+footnote rows at most 30% taller (numbers reported)', async () => {
+        await tableReady(); await sleep(300)
+        const r = await win.evaluate(() => {
+            const rows = [...document.querySelectorAll('.cm-table-widget tbody tr')], h = (re) => { const t = rows.find(x => re.test(x.textContent)); return t ? t.getBoundingClientRect().height : null }
+            return { plain: rows[0].getBoundingClientRect().height, subsup: h(/H2O/), math: rows.find(x => x.querySelector('svg'))?.getBoundingClientRect().height ?? null, emoji: h(/😄/), hl: h(/hi/) }
+        })
+        const rel = (k) => `${k} ${r[k]?.toFixed(2)} px (x${(r[k] / r.plain).toFixed(3)})`
+        const info = `plain ${r.plain.toFixed(2)} px, ` + ['subsup', 'math', 'emoji', 'hl'].map(rel).join(', ')
+        for (const k of ['subsup', 'math', 'emoji', 'hl']) assert(r[k] != null, 'row not found: ' + k + ' | ' + info)
+        assert(r.subsup <= r.plain * 1.05, 'sub/sup row more than 5% taller than the plain row: ' + info)
+        for (const k of ['math', 'emoji', 'hl']) assert(r[k] <= r.plain * 1.3, `${k} row more than 30% taller than the plain row: ` + info)
+        return info
+    })
+    await check('TC-3', 'tablecells', 'plain click on the <em> inside the cell link: no raw table (widget stays, caret not in the table), the link is followed (openExternal https://example.com); a plain cell click shows the raw table', async () => {
+        await tableReady()
+        await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
+        const a = tbl.locator('a'); eq(await a.count(), 1, 'link count'); eq(await a.getAttribute('href'), 'https://example.com', 'link href')
+        const em = tbl.locator('a em'); eq(await em.count(), 1, 'em inside the link')
+        await em.click(); await sleep(700)
+        const ext = await app.evaluate(() => globalThis.__ext)
+        assert(openedUrl(ext, 'https://example.com'), 'link not followed, openExternal got: ' + JSON.stringify(ext))
+        eq(await tbl.count(), 1, 'table widget gone after clicking the em (raw table shown)')
+        const raw = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |')))
+        assert(!raw, 'raw table lines visible after clicking the em')
+        // control: a plain cell shows the raw table
+        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
+        await tableReady()
+        return 'openExternal ' + JSON.stringify(ext)
+    })
+    await check('TC-4', 'tablecells', 'type a new ref [^c] in the paragraph and its definition at the end: with the caret off the table its footnote numbers shift to 3 and 4 and the paragraph numbers are 1 and 2', async () => {
+        await tableReady()
+        await win.locator('.cm-content .cm-line', { hasText: 'paragraph' }).first().click(); await win.keyboard.press('End')
+        await win.keyboard.type('[^c]')
+        await win.keyboard.press('Control+End'); await win.keyboard.type('\n[^c]: note c\n')
+        await caretFar()
+        await waitFor(async () => (await tbl.count()) === 1 && (await tbl.locator('.cm-footnote-ref').allInnerTexts()).join() === '3,4', { what: 'table footnote numbers 3,4' })
+        const para = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-footnote-ref')].filter(e => !e.closest('.cm-table-widget')).map(e => e.textContent))
+        eq(para.slice(0, 2), ['1', '2'], 'paragraph footnote numbers')
+        return 'paragraph ' + para + ', table ' + (await tbl.locator('.cm-footnote-ref').allInnerTexts())
+    })
+    await check('TC-5', 'tablecells', 'contrast of .cm-highlight text on its (composited) background in the table >= 4.5:1 in light and dark', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await tableReady(); await sleep(300)
+                const p = await win.evaluate(() => {
+                    const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+                    const over = (top, under) => top.rgb.map((c, i) => c * top.a + under[i] * (1 - top.a))
+                    const hl = document.querySelector('.cm-table-widget .cm-highlight')
+                    const chain = []; for (let e = hl; e; e = e.parentElement) chain.push(parse(getComputedStyle(e).backgroundColor))
+                    let under = [255, 255, 255]; for (const c of chain.slice(1).reverse()) under = over(c, under)
+                    return { color: parse(getComputedStyle(hl).color).rgb, bg: over(chain[0], under), rawBg: getComputedStyle(hl).backgroundColor, rawColor: getComputedStyle(hl).color }
+                })
+                const r = ratio(p.color, p.bg)
+                out.push(`${theme} ${r.toFixed(2)} (text ${p.rawColor} on ${p.rawBg} = ${p.bg.map(Math.round)})`)
+                if (r < 4.5) throw new Error(`${theme}: contrast ${r.toFixed(2)} < 4.5 (${out.join(', ')})`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('TC-7', 'tablecells', 'editor blurred, plain click on a table cell: the raw table shows, the editor takes focus, and a typed character lands in the document at the table (then undone)', async () => {
+        await tableReady()
+        await win.locator('button[title="Settings"]').focus()   // real focus elsewhere: a bare blur() lets the editor take focus back on its own
+        assert(await win.evaluate(() => !document.activeElement?.closest('.cm-content')), 'setup: editor still focused after blur')
+        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
+        const focused = await win.evaluate(() => !!document.activeElement?.closest('.cm-content'))
+        await win.keyboard.type('Z'); await sleep(300)
+        const lines = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].map(l => l.innerText))
+        const hit = (await lines()).some(l => /^Z\|\s*Head A/.test(l))
+        try { assert(focused, 'editor not focused after the cell click (typing goes nowhere)'); assert(hit, 'typed Z did not land at the table: ' + JSON.stringify((await lines()).slice(0, 6))) }
+        finally { if (hit) { await win.keyboard.press('Control+z'); await sleep(300) } }
+        assert(!(await lines()).some(l => /^Z\|/.test(l)), 'undo left the Z behind')
+        await tableReady()
+        return 'focused after click: ' + focused + ', Z landed at the table start'
+    })
+    await check('TC-6', 'tablecells', 'Hebrew cell stays right-to-left (שלום drawn right of עולם, cell text intact); no page errors through the whole scenario', async () => {
+        await tableReady()
+        const r = await win.evaluate(() => {
+            const td = [...document.querySelectorAll('.cm-table-widget td')].find(c => /שלום/.test(c.textContent)), n = td.firstChild
+            const box = (a, b) => { const rg = document.createRange(); rg.setStart(n, a); rg.setEnd(n, b); return rg.getBoundingClientRect() }
+            const t = n.textContent, i = t.indexOf('עולם'), j = t.indexOf('שלום')
+            return { text: td.textContent, dir: getComputedStyle(td).direction, firstX: box(j, j + 4).left, secondX: box(i, i + 4).left }
+        })
+        eq(r.text, 'שלום עולם', 'Hebrew cell text')
+        assert(r.firstX > r.secondX, `Hebrew words not laid out right-to-left: שלום x=${r.firstX} עולם x=${r.secondX}`)
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return `cell direction ${r.dir}, שלום x ${r.firstX.toFixed(1)} > עולם x ${r.secondX.toFixed(1)}`
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
