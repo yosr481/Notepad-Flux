@@ -4,6 +4,7 @@ import { sanitizeHTML } from './sanitize';
 import { createMath } from './exportMath';
 import { createFootnotes } from './exportFootnotes';
 import { subSupExtension } from './exportSubSup';
+import { emojiExtension } from './exportEmoji';
 import { createCallouts } from './exportCallouts';
 import { createMermaid } from './exportMermaid';
 import { scanFrontMatter } from '../extensions/frontMatterSyntax';
@@ -33,7 +34,7 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const footnotes = createFootnotes(idMark);
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
-    const m = new Marked(math.extension, subSupExtension, footnotes.extension, callouts.extension, mermaid.extension);
+    const m = new Marked(math.extension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
     const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 

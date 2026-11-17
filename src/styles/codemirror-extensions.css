@@ -456,3 +456,11 @@
     vertical-align: super;
     font-size: 0.8em;
 }
+
+/* ============================================
+   EMOJI SHORTCODES
+   ============================================ */
+
+.cm-emoji {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
