@@ -1458,6 +1458,35 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
 })
 }
 
+if (want('updates')) {
+// U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
+
+const UP = tmp('nf-upd-'); cleanup.push(UP)
+const { app, win } = await L(UP)
+try {
+    const SHAPE = (s) => { assert(s && typeof s === 'object', 'status not an object: ' + JSON.stringify(s)); eq(Object.keys(s).sort(), ['error', 'percent', 'state', 'version'], 'status keys'); assert(['unsupported', 'idle', 'checking', 'available', 'not-available', 'downloading', 'downloaded', 'error'].includes(s.state), 'bad state ' + s.state) }
+    const errs0 = pageErrors.length
+    await check('UPD-1', 'updates', 'preload exposes updates API; installed (NSIS) app has an ACTIVE updater: valid status shape, state other than unsupported', async () => {
+        const api = await win.evaluate(() => Object.keys(window.electronAPI?.updates || {}).sort())
+        eq(api, ['check', 'download', 'getStatus', 'install', 'onStatus'], 'updates API keys')
+        const s = await win.evaluate(() => window.electronAPI.updates.getStatus())
+        SHAPE(s); assert(s.state !== 'unsupported', 'installed app reported unsupported')
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+        return 'state ' + s.state
+    })
+    await check('UPD-2', 'updates', 'Settings > About shows the update button with a spec label, View Releases stays (no download triggered)', async () => {
+        await win.locator('button[title="Settings"]').click()
+        const btn = win.locator('[data-testid="update-button"]')
+        await btn.waitFor({ timeout: 5000 })
+        const label = (await btn.innerText()).trim()
+        assert(/^(Check for updates|Checking…|Update to v\S+|Downloading… \d+%|Restart to update|Up to date)$/.test(label), 'unexpected label: ' + label)
+        assert(await win.getByText('View Releases').isVisible(), 'View Releases not visible')
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+        return 'label "' + label + '"'
+    })
+} finally { await app.close().catch(() => {}) }
+}
+
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-windows.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })
