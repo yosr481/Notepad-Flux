@@ -101,6 +101,40 @@ describe('emojiSyntax: lezer config', () => {
     });
 });
 
+describe('emojiSyntax: long single lines parse in linear time (editor freeze guard)', () => {
+    // The parser must not rescan to the end of the line for every colon (it used to: 37-50 s for 200 KB).
+    // Timing with a generous bound, as in the 300 KB mathSyntax test; counts guard behaviour on the same inputs.
+    const parser = markdown({
+        base: markdownLanguage,
+        extensions: [mathSyntax, footnoteSyntax, frontMatterSyntax, Subscript, Superscript, emojiSyntax],
+    }).language.parser;
+    const run = (doc) => {
+        const t0 = performance.now();
+        const tree = parser.parse(doc);
+        const ms = performance.now() - t0;
+        let n = 0;
+        tree.iterate({ enter: (node) => { if (node.name === 'Emoji') n++; } });
+        return { n, ms };
+    };
+    const LIMIT_MS = 2000;
+    const T = 180000; // so a regression fails the assertion, not the test timeout
+    it('":a" x 100,000 (200 KB, no shortcode): under 2 s, no Emoji nodes', () => {
+        const { n, ms } = run(':a'.repeat(100_000));
+        expect(n).toBe(0);
+        expect(ms).toBeLessThan(LIMIT_MS);
+    }, T);
+    it('":a:" x 100,000 (300 KB, adjacent shortcodes): under 2 s, one Emoji node each', () => {
+        const { n, ms } = run(':a:'.repeat(100_000));
+        expect(n).toBe(100_000);
+        expect(ms).toBeLessThan(LIMIT_MS);
+    }, T);
+    it('50,000 real ":smile:" separated by spaces on one line: under 2 s, one node each', () => {
+        const { n, ms } = run(':smile: '.repeat(50_000));
+        expect(n).toBe(50_000);
+        expect(ms).toBeLessThan(LIMIT_MS);
+    }, T);
+});
+
 describe('Editor.jsx wiring (source guard)', () => {
     const src = readFileSync(resolve(process.cwd(), 'src/components/Editor.jsx'), 'utf8');
     const list = (src.match(/markdown\(\{[^)]*?extensions:\s*\[([^\]]*)\]/) || [])[1] || '';

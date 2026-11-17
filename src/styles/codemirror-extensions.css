@@ -450,11 +450,13 @@
 .cm-subscript {
     vertical-align: sub;
     font-size: 0.8em;
+    line-height: 0;
 }
 
 .cm-superscript {
     vertical-align: super;
     font-size: 0.8em;
+    line-height: 0;
 }
 
 /* ============================================

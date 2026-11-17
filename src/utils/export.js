@@ -34,6 +34,7 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const footnotes = createFootnotes(idMark);
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
+    // marked tries the last-registered inline extension first: footnotes must come after subSup so `^[note]` stays a footnote.
     const m = new Marked(math.extension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
     const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;

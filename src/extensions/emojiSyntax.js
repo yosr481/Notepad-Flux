@@ -1,7 +1,7 @@
 // Emoji shortcodes `:name:`. One scanner shared by the lezer parser below and the marked export extension.
 // Rule: `:` + [a-zA-Z0-9_+-]+ + `:`, and no [a-zA-Z0-9] directly before the opening colon or after the closing one.
 // Not lezer's built-in Emoji: that one can't read `:+1:` or `:t-rex:` and has no boundary rule.
-const COLON = 58, NEWLINE = 10;
+const COLON = 58;
 const NAME = /[a-zA-Z0-9_+-]/;
 const ALNUM = /[a-zA-Z0-9]/;
 
@@ -16,12 +16,13 @@ export function scanEmoji(text, pos) {
     return { from: pos, to: i + 1, name: text.slice(pos + 1, i) };
 }
 
+// ponytail: names longer than this never match; the longest gemoji name is 40. Keeps each colon's scan O(1).
+const MAX_NAME = 64;
+
 function emoji(cx, next, start) {
     if (next !== COLON) return -1;
-    let eol = start;
-    while (eol < cx.end && cx.char(eol) !== NEWLINE) eol++;
     const from = Math.max(cx.offset, start - 1);
-    const hit = scanEmoji(cx.slice(from, eol), start - from);
+    const hit = scanEmoji(cx.slice(from, Math.min(cx.end, start + MAX_NAME + 3)), start - from);
     return hit ? cx.addElement(cx.elt('Emoji', start, start + hit.to - hit.from)) : -1;
 }
 
