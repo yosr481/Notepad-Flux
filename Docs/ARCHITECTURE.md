@@ -81,6 +81,7 @@ src/
 │   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
 │   ├── calloutSyntax.js / callouts.js     - Callouts (`> [!type]`): shared scanner + type table / header widgets, fold, tint classes
 │   ├── mermaidPreview.js   - Mermaid: fenced diagram widget outside the cursor, raw source inside
+│   ├── frontMatterSyntax.js / frontMatterPreview.js - Front matter: shared scanner + Lezer block node / Properties box (js-yaml)
 │   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes; callouts and mermaid use their own field)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
@@ -339,7 +340,11 @@ The editor's functionality is built through composable CodeMirror extensions:
 10. **`mermaidPreview.js`**: Mermaid (`` `mermaid` `` fences)
    - Block widget with the rendered diagram outside the fence; raw source inside it. Click on the diagram puts the cursor in the source (click-to-edit). A theme watcher re-renders visible diagrams when the app theme changes. Uses `utils/mermaid.js` for rendering. Mermaid itself runs only in `mermaid-frame.html` (`src/mermaidFrame.js`), a hidden same-origin iframe with the CSP `default-src 'none'; script-src 'self'; style-src 'unsafe-inline'`, so nothing Mermaid builds from document text can fetch. It is a second Vite build input next to `index.html` and is created on the first render, not at startup.
 
-Export: one module per feature in `src/utils/` follows one contract, `createX(...) → { extension, prepare?, has?, finish(root) }`, and `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each `finish(root)` (the post-sanitize DOM pass): math (after `prepare`), footnotes (ids; its `appendSection` runs before sanitizing), callouts (icons) and mermaid (SVG). Sanitizing lives in `sanitize.js`, plus the SVG sanitizers in `math.js` and `mermaid.js` (MathJax/Mermaid output is inserted after `sanitizeHTML`). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`.
+11. **`frontMatterSyntax.js`** / **`frontMatterPreview.js`**: YAML front matter (a `---` block at offset 0)
+   - `frontMatterSyntax.js`: `scanFrontMatter` (the one copy of the rule, shared by the editor and export) and a Lezer block node, so no HR or heading is parsed inside the block.
+   - `frontMatterPreview.js`: Properties box widget (parsed with js-yaml) outside the block; raw YAML inside it. Click the box to edit.
+
+Export: one module per feature in `src/utils/` follows one contract, `createX(...) → { extension, prepare?, has?, finish(root) }`, and `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each `finish(root)` (the post-sanitize DOM pass): math (after `prepare`), footnotes (ids; its `appendSection` runs before sanitizing), callouts (icons) and mermaid (SVG). Sanitizing lives in `sanitize.js`, plus the SVG sanitizers in `math.js` and `mermaid.js` (MathJax/Mermaid output is inserted after `sanitizeHTML`). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). It strips front matter before marked lexes the document. `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`.
 
 ---
 

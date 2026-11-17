@@ -1256,6 +1256,166 @@ if (want('mermaid')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: front matter (F5, Docs/internal/frontmatter-spec.md)
+// Real layout, computed fonts/colours/direction, mouse click, export and keystroke timing: what jsdom cannot cover.
+if (want('frontmatter')) {
+    const Uf = tmp('nf-fm-u-'), Wf = tmp('nf-fm-w-'); cleanup.push(Uf, Wf)
+    const { app, win } = await L(Uf)
+    const errs0 = pageErrors.length
+    const f = join(Wf, 'fm.md')
+    writeFileSync(f, '---\ntitle: Sample Title\nauthor: שלום עולם\ntags: [alpha, beta, gamma]\ndate: 2026-03-05\nmeta:\n  nested: one\n  other: two\n---\n# Body Heading\n\nBody text line.\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'fm.md', { what: 'tab fm.md' })
+    const box = win.locator('.cm-content div.cm-properties')
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+
+    await check('FM-1', 'frontmatter', 'front matter at the top renders div.cm-properties with 5 rows (title, Hebrew author, tags chips, date, nested map), no hr and no YAML line/heading in the editor, Hebrew value right-to-left', async () => {
+        await caretFar()
+        await waitFor(async () => (await box.count()) === 1, { what: 'box with the caret in the body' })
+        const r = await win.evaluate(() => {
+            const b = document.querySelector('.cm-content div.cm-properties')
+            const rows = [...b.querySelectorAll('.cm-property')].map(p => ({
+                key: p.querySelector('.cm-property-key')?.textContent, val: p.querySelector('.cm-property-value')?.textContent,
+                chips: [...p.querySelectorAll('.cm-property-chip')].map(c => c.textContent),
+                dir: getComputedStyle(p.querySelector('.cm-property-value')).direction,
+            }))
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')]
+            const top = document.querySelector('.cm-content').getBoundingClientRect().top
+            return {
+                header: b.querySelector('.cm-properties-header')?.textContent, rows, hr: document.querySelectorAll('.cm-content hr, .cm-content .cm-hr').length,
+                yamlLines: lines.filter(l => /Sample Title|tags:|nested:/.test(l.innerText)).length, boxTop: b.getBoundingClientRect().top - top,
+                firstLine: lines[0]?.innerText, errorBox: !!b.closest('.cm-properties-error') || b.classList.contains('cm-properties-error'),
+            }
+        })
+        eq(r.header, 'Properties', 'header'); eq(r.errorBox, false, 'error box for valid YAML')
+        eq(r.rows.map(x => x.key).join(','), 'title,author,tags,date,meta', 'row keys')
+        const by = Object.fromEntries(r.rows.map(x => [x.key, x]))
+        eq(by.title.val, 'Sample Title', 'title'); eq(by.author.val, 'שלום עולם', 'Hebrew value')
+        eq(by.tags.chips.join(','), 'alpha,beta,gamma', 'tag chips'); eq(by.date.val, '2026-03-05', 'date')
+        assert(/nested/.test(by.meta.val) && /one/.test(by.meta.val) && /other/.test(by.meta.val), 'nested map text: ' + by.meta.val)
+        eq(by.author.dir, 'rtl', 'Hebrew value direction'); eq(by.title.dir, 'ltr', 'Latin value direction')
+        eq(r.hr, 0, 'hr elements'); eq(r.yamlLines, 0, 'raw YAML lines visible next to the box')
+        assert(r.boxTop < 40, 'box not at the top of the content: ' + r.boxTop)
+        assert(/Body Heading/.test(r.firstLine), 'first editor line is not the body heading: ' + JSON.stringify(r.firstLine))
+        await win.screenshot({ path: join(shots, `${target}-frontmatter.png`) }).catch(() => {})
+    })
+    await check('FM-2', 'frontmatter', 'click the box: raw YAML in monospace (cm-frontmatter-line), fences faint, box gone; cursor to the body brings the box back', async () => {
+        await caretFar()
+        await waitFor(async () => (await box.count()) === 1, { what: 'box' })
+        await box.locator('.cm-properties-header').click()
+        await waitFor(async () => (await box.count()) === 0, { what: 'box gone after click' })
+        const r = await win.evaluate(() => {
+            const ls = [...document.querySelectorAll('.cm-content .cm-frontmatter-line')]
+            const plain = [...document.querySelectorAll('.cm-content .cm-line:not(.cm-frontmatter-line)')][0]
+            const f = document.querySelector('.cm-content .cm-frontmatter-line .cm-faint-syntax')
+            return { n: ls.length, fonts: ls.map(l => getComputedStyle(l).fontFamily), text: ls.map(l => l.innerText).join('\n'),
+                bodyFont: plain && getComputedStyle(plain).fontFamily, faint: f && { text: f.textContent, opacity: getComputedStyle(f).opacity, color: getComputedStyle(f).color }, lineColor: ls[1] && getComputedStyle(ls[1]).color }
+        })
+        eq(r.n, 9, 'cm-frontmatter-line count (fence + 7 YAML + fence)')
+        assert(r.fonts.every(x => /mono|courier|consolas/i.test(x)), 'not monospace: ' + JSON.stringify(r.fonts[0]))
+        assert(r.fonts[0] !== r.bodyFont, 'same font as the body: ' + r.bodyFont)
+        assert(/title: Sample Title/.test(r.text) && /---/.test(r.text), 'raw YAML missing: ' + r.text)
+        assert(r.faint && r.faint.text.trim() === '---', 'fence not marked faint: ' + JSON.stringify(r.faint))
+        assert(r.faint.opacity !== '1' || r.faint.color !== r.lineColor, 'faint fence looks like the YAML text: ' + JSON.stringify(r.faint))
+        await win.keyboard.press('Control+End')
+        await waitFor(async () => (await box.count()) === 1, { what: 'box back with the caret in the body' })
+        eq(await win.locator('.cm-content .cm-frontmatter-line').count(), 0, 'raw YAML lines left behind')
+    })
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    // nativeTheme.themeSource does not flip prefers-color-scheme under Xephyr, so use Settings > App theme (the real user path)
+    const setTheme = async (t) => {
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const paint = () => win.evaluate(() => {
+        const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+        const over = (top, base) => ({ rgb: top.rgb.map((c, i) => c * top.a + base.rgb[i] * (1 - top.a)), a: 1 })
+        const bgOf = (el) => { const chain = []; for (let e = el; e; e = e.parentElement) { const p = parse(getComputedStyle(e).backgroundColor); if (p.a > 0) { chain.push(p); if (p.a === 1) break } } let acc = { rgb: [255, 255, 255], a: 1 }; for (const p of chain.reverse()) acc = over(p, acc); return acc }
+        const one = (sel) => { const e = document.querySelector(sel); if (!e) return null; return { color: parse(getComputedStyle(e).color).rgb, bg: bgOf(e).rgb } }
+        const b = document.querySelector('.cm-content div.cm-properties')
+        return { theme: document.body.getAttribute('data-theme'), key: one('.cm-property-key'), value: one('.cm-property-value'), chip: one('.cm-property-chip'), box: one('.cm-properties'),
+            boxAlpha: b && parse(getComputedStyle(b).backgroundColor).a }
+    })
+    await check('FM-3', 'frontmatter', 'key, value, chip text and box background: text vs its background >= 4.5:1 in light and dark (box bg opaque)', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await caretFar()
+                await waitFor(async () => (await box.count()) === 1, { what: 'box' }); await sleep(300)
+                const p = await paint()
+                eq(p.boxAlpha, 1, `${theme}: box background not opaque`)
+                for (const k of ['key', 'value', 'chip', 'box']) {
+                    assert(p[k], `${theme}/${k}: element missing`)
+                    const r = ratio(p[k].color, p[k].bg); assert(r >= 4.5, `${theme}/${k}: contrast ${r.toFixed(2)} (text ${p[k].color} on ${p[k].bg.map(Math.round)})`)
+                    out.push(`${theme}/${k} ${r.toFixed(1)}`)
+                }
+                assert(ratio(p.chip.bg, p.box.bg) > 1.05, `${theme}: chip background indistinguishable from the box`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('FM-4', 'frontmatter', 'invalid YAML: div.cm-properties-error with a message and the raw text, no page error', async () => {
+        const bad = join(Wf, 'fm-bad.md'); writeFileSync(bad, '---\ntitle: [unclosed\nfoo: bar: baz\n---\nBad body.\n')
+        await ui.openViaDialog(app, win, bad)
+        await waitFor(async () => (await ui.activeTitle(win)) === 'fm-bad.md', { what: 'tab fm-bad.md' })
+        try {
+            await caretFar()
+            const err = win.locator('.cm-content div.cm-properties-error')
+            await waitFor(async () => (await err.count()) === 1, { what: 'error box' })
+            const msg = (await err.locator('.cm-properties-message').innerText()).trim(); assert(msg.length > 0, 'empty error message')
+            const raw = await err.locator('.cm-properties-raw').innerText(); assert(/title: \[unclosed/.test(raw) && /foo: bar: baz/.test(raw), 'raw YAML not shown: ' + JSON.stringify(raw))
+            eq(await win.locator('.cm-content hr, .cm-content .cm-hr').count(), 0, 'hr next to the error box')
+            const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+            return 'message: ' + msg.replace(/\s+/g, ' ').slice(0, 80)
+        } finally {
+            await win.keyboard.press('Control+w'); await sleep(300)
+            await waitFor(async () => (await ui.activeTitle(win)) === 'fm.md', { what: 'back on fm.md' })
+        }
+    })
+    await check('FM-5', 'frontmatter', 'File > Export to HTML of the FM-1 fixture: none of the front matter text, no <hr>, the body is there', async () => {
+        await caretFar()
+        const dst = join(Wf, 'fm-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body'))
+        for (const s of ['Sample Title', 'שלום עולם', 'alpha', 'gamma', '2026-03-05', 'nested', 'title:', 'tags:']) assert(!h.includes(s), 'front matter text leaked into the export: ' + s)
+        assert(!/<hr/i.test(b), '<hr in the export body')
+        assert(!/<h2/i.test(b), 'setext <h2> in the export body')
+        assert(/<h1[^>]*>\s*Body Heading/.test(b) && b.includes('Body text line.'), 'body missing: ' + b.slice(0, 300).replace(/\s+/g, ' '))
+    })
+    await check('FM-6', 'frontmatter', '~1 MB doc starting with front matter: 20 keystrokes at the end, key-to-paint median <= 1.5 x the same doc without front matter + 50 ms (smoke check for O(doc) work per keystroke; absolute time is the app\'s large-doc cost, so a control doc sets the baseline)', async () => {
+        const body = Array.from({ length: 22000 }, (_, i) => `Line ${i} lorem ipsum dolor sit amet consectetur`).join('\n') + '\n'
+        const toTop = () => win.evaluate(() => { document.querySelector('.cm-scroller').scrollTop = 0 })   // the box is outside the viewport while the caret sits at the end
+        const measure = async (name, head, hasFm) => {
+            const p = join(Wf, name); writeFileSync(p, head + body)
+            await ui.openViaDialog(app, win, p)
+            await waitFor(async () => (await ui.activeTitle(win)) === name, { timeout: 60000, what: 'tab ' + name })
+            await ui.focusEditor(win); await sleep(500)
+            if (hasFm) await waitFor(async () => { await toTop(); await sleep(300); return (await box.count()) === 1 }, { timeout: 60000, what: 'box on ' + name })
+            await win.keyboard.press('Control+End'); await sleep(300)
+            await win.evaluate(() => { window.__t0 = 0; if (!window.__kd) { window.__kd = 1; document.addEventListener('keydown', () => { window.__t0 = performance.now() }, true) } })
+            const times = []
+            for (let i = 0; i < 24; i++) {
+                await win.keyboard.press('x')
+                times.push(await win.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(performance.now() - window.__t0))))))
+            }
+            const t = times.slice(4).sort((a, b) => a - b)   // first 4 are warm-up
+            if (hasFm) { await waitFor(async () => { await toTop(); await sleep(300); return (await box.count()) === 1 }, { what: 'box still there after typing in the body' }); await win.keyboard.press('Control+End') }
+            return { med: t[Math.floor(t.length / 2)], max: t[t.length - 1] }
+        }
+        const ctrl = await measure('fm-ctrl.md', 'Intro\n\n', false)
+        const fm = await measure('fm-big.md', '---\ntitle: Big\ntags: [a, b]\n---\n', true)
+        const info = `front matter median ${fm.med.toFixed(1)} ms (max ${fm.max.toFixed(1)}), control median ${ctrl.med.toFixed(1)} ms (max ${ctrl.max.toFixed(1)})`
+        assert(fm.med <= ctrl.med * 1.5 + 50, 'keystroke-to-paint slower with front matter than without: ' + info)
+        return info
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)

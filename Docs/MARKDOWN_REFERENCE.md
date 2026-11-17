@@ -26,6 +26,7 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 13. [Footnotes](#footnotes)
 14. [Callouts](#callouts)
 15. [Diagrams (Mermaid)](#diagrams-mermaid)
+16. [Front matter (Properties)](#front-matter-properties)
 
 ---
 
@@ -560,6 +561,31 @@ Rules:
 - Works offline. Mermaid is bundled with the app. It loads the first time a diagram appears, so a document without diagrams never loads it.
 - For safety, links you click in a diagram are off, and HTML labels are off. Diagrams are drawn in an isolated hidden page that can't load anything from the network or disk, so a diagram can't contact the network. A web address in a label is just text. A `%%{init}%%` line or front matter config in the document can't change the theme, the look or the styles.
 - Syntax reference: [mermaid.js.org syntax docs](https://mermaid.js.org/intro/syntax-reference.html).
+
+---
+
+## Front matter (Properties)
+
+A YAML block at the very top of the file, between two `---` lines, is front matter. With the cursor outside the block, it shows as a Properties box. The box lists one row per key.
+
+````markdown
+---
+title: Trip notes
+date: 2026-11-17
+tags: [travel, family]
+---
+````
+
+Rules:
+
+- The first line of the file must be `---`. The block ends at the next line that is `---` or `...`.
+- Lists show as chips. Dates show exactly as written. Nested values show as compact YAML.
+- An empty block shows "No properties".
+- Invalid YAML shows the error and the raw text.
+- Click the box, or move the cursor into it, to edit the raw YAML.
+- A `---` anywhere else is a horizontal rule, as before.
+- HTML export, PDF export and Print leave front matter out.
+- Known limits: keys that are whole numbers (`1:`, `2:`) are listed first. A block with more than 500 lines between the `---` lines is not front matter (the editor and export treat it as normal text).
 
 ---
 
