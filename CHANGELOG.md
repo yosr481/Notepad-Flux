@@ -15,6 +15,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Callouts: a blockquote that starts with `[!note]`, `[!warning]`, `[!tip]` or another Obsidian type (GitHub's `[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]` and `[!CAUTION]` too) shows as a coloured box with an icon and title, in the editor, HTML export, PDF export and Print. Add a title after the type (`> [!warning] Back up first`). Write `-` after the type to start a callout folded, or `+` to start it open; click the arrow on its header to fold or unfold it. Folding only changes what you see on screen and is never saved. HTML export keeps the folds; PDF export and Print open them all.
 - Mermaid diagrams: a `mermaid` code fence shows as a flowchart, sequence diagram or other Mermaid diagram when the cursor is outside it. Click the diagram, or move the cursor into the block, to edit the source. Diagrams follow the app's light or dark theme and work offline. HTML export, PDF export and Print draw them in the light theme. A syntax error shows Mermaid's message in place of the diagram.
 - Front matter: a YAML block at the top of a file (between two `---` lines) shows as a Properties box with one row per key, when the cursor is outside it. Click the box to edit the raw YAML. HTML export, PDF export and Print leave it out.
+- Subscript and superscript: `H~2~O` and `x^2^` show as subscript and superscript. Put the cursor on one to see the raw marks. HTML export, PDF export and Print show them too. Use `\ ` for a space inside.
+- Emoji shortcodes: `:smile:`, `:+1:` and `:tada:` show as emoji when the cursor is outside them, and HTML export, PDF export and Print write the emoji character. GitHub's names are supported, about 1,900 including aliases. Unknown names stay as typed.
+
+### Changed
+
+- A single `~text~` now exports as subscript instead of strikethrough. Use `~~text~~` for strikethrough.
 
 ### Fixed
 

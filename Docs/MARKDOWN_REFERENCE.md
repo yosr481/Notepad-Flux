@@ -27,6 +27,8 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 14. [Callouts](#callouts)
 15. [Diagrams (Mermaid)](#diagrams-mermaid)
 16. [Front matter (Properties)](#front-matter-properties)
+17. [Subscript and superscript](#subscript-and-superscript)
+18. [Emoji shortcodes](#emoji-shortcodes)
 
 ---
 
@@ -586,6 +588,56 @@ Rules:
 - A `---` anywhere else is a horizontal rule, as before.
 - HTML export, PDF export and Print leave front matter out.
 - Known limits: keys that are whole numbers (`1:`, `2:`) are listed first. A block with more than 500 lines between the `---` lines is not front matter (the editor and export treat it as normal text).
+
+---
+
+## Subscript and superscript
+
+Write `~text~` for subscript and `^text^` for superscript.
+
+```markdown
+Water is H~2~O, and x^2^ is x squared.
+
+Use a backslash for a space: H~a\ b~.
+```
+
+**Renders as:**
+
+Water is H~2~O, and x^2^ is x squared.
+
+Use a backslash for a space: H~a\ b~.
+
+Rules:
+
+- The text can't hold a plain space. Write `\ ` for a space.
+- The text isn't formatted further. `~*a*~` shows the asterisks.
+- `~~text~~` is still strikethrough.
+- A single `~text~` used to export as strikethrough. It now exports as subscript. Use `~~text~~` for strikethrough.
+- `^[note]` is still an inline footnote, not a superscript.
+- Subscript and superscript don't work inside code or math.
+
+---
+
+## Emoji shortcodes
+
+Write a name between colons to get an emoji.
+
+```markdown
+Shipped it :tada: Thanks :+1:
+```
+
+**Renders as:**
+
+Shipped it :tada: Thanks :+1:
+
+Rules:
+
+- Names are GitHub's, about 1,900 including aliases. `:smile:`, `:+1:` and `:tada:` all work.
+- Unknown names stay as typed.
+- A letter or digit right before or after the colons blocks it. So `12:100:45` and `a:smile:b` stay as typed.
+- Not inside code, math, link addresses or front matter.
+- With the cursor outside the shortcode, you see the emoji. Put the cursor on it to see the raw text.
+- HTML export, PDF export and Print write the emoji character.
 
 ---
 

@@ -1416,6 +1416,126 @@ if (want('frontmatter')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: sub/superscript + emoji (F6, Docs/internal/subsup-emoji-spec.md)
+// Real layout, computed styles, line height, emoji font and export: what jsdom cannot cover.
+if (want('subsupemoji')) {
+    const Ue = tmp('nf-se-u-'), We = tmp('nf-se-w-'); cleanup.push(Ue, We)
+    const { app, win } = await L(Ue)
+    const errs0 = pageErrors.length
+    const f = join(We, 'se.md')
+    writeFileSync(f, 'Plain body line here.\n\nH~2~O and E=mc^2^\n\n:smile: :+1: :t-rex: 12:100:45 a:smile:b\n\nשלום H~2~O :smile: x^2^ עולם\n\n~a~ and ~~del~~\n\nTail plain line.\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'se.md', { what: 'tab se.md' })
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+    const sub = win.locator('.cm-content .cm-subscript'), sup = win.locator('.cm-content .cm-superscript')
+
+    await check('SE-1', 'subsupemoji', 'H~2~O and E=mc^2^ with the caret elsewhere: .cm-subscript/.cm-superscript exist, bottom edge >= 1 px lower (sub) / higher (sup) than the adjacent plain glyph, font-size smaller than body, marks hidden, the line is at most 5% taller than a plain body line and keeps its height (+-1 px) with the caret on it (raw)', async () => {
+        await caretFar()
+        await waitFor(async () => (await sub.count()) > 0 && (await sup.count()) > 0, { what: 'sub and sup nodes' })
+        const r = await win.evaluate(() => {
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')]
+            const plain = lines.find(l => /Plain body line/.test(l.innerText)), fx = lines.find(l => /E=mc/.test(l.innerText))
+            const s = fx.querySelector('.cm-subscript'), p = fx.querySelector('.cm-superscript'), cs = (e) => getComputedStyle(e)
+            // plain neighbour = last visible char before the node on the same line (bottom edge of its glyph box)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('.cm-line'), NodeFilter.SHOW_TEXT); let ref = null; for (let t = tw.nextNode(); t; t = tw.nextNode()) { if (!t.length || el.contains(t) || !(el.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(t, t.length - 1); rg.setEnd(t, t.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }   // last visible char before the node (hidden ~ / ^ marks have no width)
+            const bottom = (e) => e.getBoundingClientRect().bottom
+            return { subBot: bottom(s), supBot: bottom(p), subRef: prevCharBottom(s), supRef: prevCharBottom(p), subFs: parseFloat(cs(s).fontSize), supFs: parseFloat(cs(p).fontSize), bodyFs: parseFloat(cs(plain).fontSize),
+                subText: s.textContent, supText: p.textContent, lineText: fx.innerText, plainH: plain.getBoundingClientRect().height, fxH: fx.getBoundingClientRect().height }
+        })
+        // visual contract (holds for vertical-align: sub|super or a relative-offset technique): sub drops below, sup rises above the plain glyph next to it
+        assert(r.subRef !== null && r.supRef !== null, 'no plain text node before the sub/sup node to compare with')
+        // edges, not centres: a smaller glyph on the baseline already has a lower centre; its bottom edge is only lower than the neighbour's if it really dropped
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        assert(r.subFs < r.bodyFs && r.supFs < r.bodyFs, `font-size not smaller than body: sub ${r.subFs} sup ${r.supFs} body ${r.bodyFs}`)
+        eq(r.subText, '2', 'subscript content'); eq(r.supText, '2', 'superscript content')
+        assert(!r.lineText.includes('~') && !r.lineText.includes('^'), 'marks visible with the caret elsewhere: ' + JSON.stringify(r.lineText))
+        const info = `plain line ${r.plainH.toFixed(2)} px, sub/sup line ${r.fxH.toFixed(2)} px (x${(r.fxH / r.plainH).toFixed(3)}), sub bottom ${(r.subBot - r.subRef).toFixed(2)} px below / sup bottom ${(r.subRef && r.supRef - r.supBot).toFixed(2)} px above its plain neighbour`
+        assert(r.fxH <= r.plainH * 1.05, 'sub/sup line more than 5% taller than a plain line: ' + info)
+        // caret inside the ~2~ run, then inside the ^2^ run (raw marks shown): the line must keep its height, or the text below jumps
+        const lh = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^H.?2.?O and/.test(l.innerText)).getBoundingClientRect().height)
+        const rawText = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^H.?2.?O and/.test(l.innerText)).innerText)
+        await win.locator('.cm-content .cm-line', { hasText: /^H.?2.?O and/ }).first().click({ position: { x: 2, y: 8 } })
+        await win.keyboard.press('Home'); await win.keyboard.press('ArrowRight'); await win.keyboard.press('ArrowRight')
+        await waitFor(async () => (await rawText()).includes('H~2~O'), { what: 'raw ~2~ with the caret inside' }); await sleep(200)
+        const subRawH = await lh()
+        await win.keyboard.press('End'); await win.keyboard.press('ArrowLeft')
+        await waitFor(async () => (await rawText()).includes('mc^2^') && !(await rawText()).includes('~'), { what: 'raw ^2^ with the caret inside' }); await sleep(200)
+        const supRawH = await lh()
+        const info2 = info + `, raw ~2~ ${subRawH.toFixed(2)} px, raw ^2^ ${supRawH.toFixed(2)} px`
+        assert(Math.abs(subRawH - r.fxH) <= 1 && Math.abs(supRawH - r.fxH) <= 1, 'line height changes when the caret enters it (text below jumps): ' + info2)
+        await win.keyboard.press('Control+End')
+        await win.screenshot({ path: join(shots, `${target}-subsup.png`) }).catch(() => {})
+        return info2
+    })
+    await check('SE-2', 'subsupemoji', 'click into H~2~O: raw ~2~ shows; caret away: renders again', async () => {
+        await caretFar()
+        await waitFor(async () => (await sub.count()) > 0, { what: 'sub rendered' })
+        await win.locator('.cm-content .cm-line', { hasText: /^H.?2.?O and/ }).first().click({ position: { x: 2, y: 8 } })
+        await win.keyboard.press('Home'); await win.keyboard.press('ArrowRight'); await win.keyboard.press('ArrowRight')
+        await waitFor(() => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('H~2~O'))), { what: 'raw H~2~O with the caret inside' })
+        await win.keyboard.press('Control+End')
+        await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /E=mc/.test(x.innerText)); return !!l && !l.innerText.includes('~') && !!l.querySelector('.cm-subscript') }), { what: 'H~2~O rendered again' })
+    })
+    await check('SE-3', 'subsupemoji', ':smile: :+1: :t-rex: 12:100:45 a:smile:b: exactly 3 span.cm-emoji (role=img, aria-labels smile,+1,t-rex, text 😄 👍 🦖), the rest literal, glyph width > 0', async () => {
+        await caretFar()
+        await waitFor(async () => (await win.locator('.cm-content span.cm-emoji').count()) >= 3, { what: 'emoji widgets' })
+        const r = await win.evaluate(() => {
+            const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /12:100:45/.test(x.innerText))
+            const es = [...l.querySelectorAll('span.cm-emoji')]
+            return { n: es.length, labels: es.map(e => e.getAttribute('aria-label')), roles: es.map(e => e.getAttribute('role')), texts: es.map(e => e.textContent), widths: es.map(e => e.getBoundingClientRect().width), line: l.innerText }
+        })
+        eq(r.n, 3, 'span.cm-emoji count on the line'); eq(r.labels.join(','), 'smile,+1,t-rex', 'aria-labels')
+        assert(r.roles.every(x => x === 'img'), 'roles: ' + JSON.stringify(r.roles)); eq(r.texts.join(' '), '😄 👍 🦖', 'emoji text')
+        assert(r.line.includes('12:100:45') && r.line.includes('a:smile:b'), 'literal text changed: ' + JSON.stringify(r.line))
+        assert(!r.line.includes(':smile: ') && !r.line.includes(':t-rex:') && !r.line.includes(':+1:'), 'raw shortcode still shown: ' + JSON.stringify(r.line))
+        assert(r.widths.every(w => w > 0), 'emoji glyph has no width (no emoji font?): ' + JSON.stringify(r.widths))
+        return 'emoji widths ' + r.widths.map(w => w.toFixed(1)).join('/') + ' px'
+    })
+    await check('SE-4', 'subsupemoji', 'Hebrew line with H~2~O, :smile: and x^2^: line is right-to-left, sub/sup/emoji render, no page error', async () => {
+        await caretFar()
+        await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); return !!l && !!l.querySelector('.cm-subscript') && !!l.querySelector('.cm-superscript') && !!l.querySelector('span.cm-emoji') }), { what: 'Hebrew line rendered' })
+        const r = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); return { dir: getComputedStyle(l).direction, matchesRtl: l.matches(':dir(rtl)'), text: l.innerText, emoji: l.querySelector('span.cm-emoji').textContent } })
+        assert(r.dir === 'rtl' || r.matchesRtl, 'line not rtl: ' + JSON.stringify(r))
+        eq(r.emoji, '😄', 'emoji'); assert(r.text.includes('שלום') && r.text.includes('עולם') && r.text.indexOf('שלום') < r.text.indexOf('עולם'), 'Hebrew text changed: ' + JSON.stringify(r.text))
+        assert(!/[~^:]/.test(r.text), 'raw marks visible: ' + JSON.stringify(r.text))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+    })
+    await check('SE-5', 'subsupemoji', 'File > Export to HTML: <sub>2</sub>, <sup>2</sup>, 😄 👍 🦖, literal 12:100:45 and a:smile:b, no <del> for single ~a~, ~~del~~ stays <del>', async () => {
+        await caretFar()
+        const dst = join(We, 'se-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body'))
+        for (const s of ['<sub>2</sub>', '<sup>2</sup>', '😄', '👍', '🦖', '12:100:45', 'a:smile:b']) assert(b.includes(s), 'export missing ' + s + ': ' + b.slice(0, 400).replace(/\s+/g, ' '))
+        assert(!/<del>\s*a\s*<\/del>/.test(b), 'single ~a~ became <del>')
+        assert(/<del>\s*del\s*<\/del>/.test(b), '~~del~~ is not <del>')
+        eq((b.match(/<del>/g) || []).length, 1, '<del> count')
+        assert(!b.includes(':smile: ') && !b.includes(':t-rex:'), 'raw shortcode left in export')
+    })
+    await check('SE-6', 'subsupemoji', 'computed colour of .cm-subscript / .cm-superscript equals the body text colour in light and dark', async () => {
+        const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+            await win.locator('button[title="Settings"]').click()
+            await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+            await win.locator('[class*=backButton]').click()
+        }
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await caretFar()
+                await waitFor(async () => (await sub.count()) > 0 && (await sup.count()) > 0, { what: 'sub/sup rendered' }); await sleep(300)
+                const c = await win.evaluate(() => { const lines = [...document.querySelectorAll('.cm-content .cm-line')], plain = lines.find(l => /Plain body line/.test(l.innerText)); return { body: getComputedStyle(plain).color, sub: getComputedStyle(document.querySelector('.cm-subscript')).color, sup: getComputedStyle(document.querySelector('.cm-superscript')).color } })
+                eq(c.sub, c.body, `${theme}: subscript colour`); eq(c.sup, c.body, `${theme}: superscript colour`)
+                out.push(`${theme} ${c.body}`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
