@@ -4,11 +4,28 @@ import styles from './Settings.module.css';
 import { version } from '../../../package.json';
 import { dialogs } from '../../utils/dialogs';
 import { useSettings, useSessionActions } from '../../context/SessionContext';
+import { useUpdateStatus } from '../../hooks/useUpdateStatus';
+
+// Label, action and disabled flag of the update button per update state (update-spec.md).
+const updateButton = (status) => {
+    switch (status.state) {
+        case 'idle':
+        case 'error': return { label: 'Check for updates', action: 'check' };
+        case 'checking': return { label: 'Checking…', disabled: true };
+        case 'available': return { label: `Update to v${status.version}`, action: 'download' };
+        case 'downloading': return { label: `Downloading… ${status.percent ?? 0}%`, disabled: true };
+        case 'downloaded': return { label: 'Restart to update', action: 'install' };
+        case 'not-available': return { label: 'Up to date', action: 'check' };
+        default: return null; // unsupported
+    }
+};
 
 const Settings = ({ isOpen, onClose, appVersion }) => {
     const [errors, setErrors] = useState({});
     const { settings, updateSettings } = useSettings();
     const { clearSessionData } = useSessionActions();
+    const updateStatus = useUpdateStatus();
+    const update = updateStatus && updateButton(updateStatus);
 
     if (!isOpen) return null;
 
@@ -131,7 +148,25 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
                             <div className={styles.versionInfo}>
                                 {appVersion ? `v${appVersion}` : `v${version}`}
                             </div>
+                            {updateStatus?.error && (
+                                <div className={styles.description}>Update failed: {updateStatus.error}</div>
+                            )}
                         </div>
+                        <div className={styles.aboutActions}>
+                        {update && (
+                            <button
+                                className={styles.button}
+                                data-testid="update-button"
+                                disabled={!!update.disabled}
+                                onClick={() => {
+                                    if (!update.action) return;
+                                    Promise.resolve(window.electronAPI?.updates?.[update.action]())
+                                        .catch((err) => console.error('Update action failed:', err));
+                                }}
+                            >
+                                {update.label}
+                            </button>
+                        )}
                         <a
                             className={styles.button}
                             href="https://github.com/yosr481/Notepad-Flux/releases"
@@ -140,6 +175,7 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
                         >
                             View Releases
                         </a>
+                        </div>
                     </div>
                 </div>
             </div>

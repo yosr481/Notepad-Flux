@@ -245,3 +245,9 @@
         transform: translateY(0);
     }
 }
+.aboutActions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-8, 8px);
+    justify-content: flex-end;
+}

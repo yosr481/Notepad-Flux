@@ -1,7 +1,7 @@
 import React from 'react';
 import styles from './StatusBar.module.css';
 
-const StatusBar = ({ stats, appVersion, eol = 'LF', charset = 'UTF-8' }) => {
+const StatusBar = ({ stats, appVersion, eol = 'LF', charset = 'UTF-8', updateStatus = null }) => {
     const { line, col, wordCount, charCount } = stats;
 
     return (
@@ -9,6 +9,11 @@ const StatusBar = ({ stats, appVersion, eol = 'LF', charset = 'UTF-8' }) => {
             {appVersion && (
                 <div className={styles.statusVersion}>
                     v{appVersion}
+                </div>
+            )}
+            {updateStatus?.state === 'downloading' && (
+                <div className={`${styles.statusItem} ${styles.statusUpdate}`} role="status">
+                    Downloading update {updateStatus.percent ?? 0}%
                 </div>
             )}
             <div className={`${styles.statusItem} ${styles.primaryItem}`}>

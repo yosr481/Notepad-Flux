@@ -1447,6 +1447,41 @@ else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electr
 })
 }
 
+if (want('updates')) {
+// U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
+
+const UP = tmp('nf-upd-'); cleanup.push(UP)
+const { app, win } = await L(UP)
+try {
+    const SHAPE = (s) => { assert(s && typeof s === 'object', 'status not an object: ' + JSON.stringify(s)); eq(Object.keys(s).sort(), ['error', 'percent', 'state', 'version'], 'status keys'); assert(['unsupported', 'idle', 'checking', 'available', 'not-available', 'downloading', 'downloaded', 'error'].includes(s.state), 'bad state ' + s.state) }
+    const errs0 = pageErrors.length
+    await check('UPDAPI-1', 'updates', 'preload exposes updates API; inactive (unpacked, not AppImage) updater reports unsupported and the calls are harmless no-ops', async () => {
+        const api = await win.evaluate(() => Object.keys(window.electronAPI?.updates || {}).sort())
+        eq(api, ['check', 'download', 'getStatus', 'install', 'onStatus'], 'updates API keys')
+        const s = await win.evaluate(() => window.electronAPI.updates.getStatus())
+        SHAPE(s); eq(s, { state: 'unsupported', version: null, percent: null, error: null }, 'initial status')
+        const after = await win.evaluate(async () => {
+            const u = window.electronAPI.updates
+            const r = []
+            for (const f of ['check', 'download', 'install']) r.push(await u[f]())
+            return { r, s: await u.getStatus() }
+        })
+        for (const x of [...after.r, after.s]) { SHAPE(x); eq(x.state, 'unsupported', 'after call') }
+        await sleep(1500) // a startup check may still be settling; must stay unsupported
+        eq((await win.evaluate(() => window.electronAPI.updates.getStatus())).state, 'unsupported', 'after settle')
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await check('UPDAPI-2', 'updates', 'Settings > About: no update button, View Releases still there, no "Downloading update" in the status bar', async () => {
+        await win.locator('button[title="Settings"]').click()
+        await win.getByText('View Releases').waitFor({ timeout: 5000 })
+        eq(await win.locator('[data-testid="update-button"]').count(), 0, 'update-button count')
+        assert(await win.getByText('View Releases').isVisible(), 'View Releases not visible')
+        eq(await win.getByText(/Downloading update/).count(), 0, 'Downloading update items')
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+} finally { await app.close().catch(() => {}) }
+}
+
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-linux.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })

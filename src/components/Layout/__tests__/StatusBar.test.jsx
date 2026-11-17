@@ -51,3 +51,47 @@ describe('StatusBar — line-ending + charset cells (TASK 10)', () => {
         expect(screen.getByText('UTF-8')).toBeInTheDocument();
     });
 });
+
+// ---------------------------------------------------------------------------
+// U1 — update download progress (Docs/internal/update-spec.md)
+// ASSUMPTION: the spec does not say how StatusBar receives the status; these
+// tests assume an `updateStatus` prop (status object or null/undefined).
+// ---------------------------------------------------------------------------
+describe('StatusBar — update progress item (U1)', () => {
+    const status = (over) => ({ state: 'idle', version: null, percent: null, error: null, ...over });
+
+    it('shows "Downloading update 42%" with role=status and class statusUpdate while downloading', () => {
+        render(<StatusBar stats={stats} updateStatus={status({ state: 'downloading', version: '2.0.0', percent: 42 })} />);
+        const el = screen.getByRole('status');
+        expect(el).toHaveTextContent('Downloading update 42%');
+        expect(el.className).toMatch(/statusUpdate/);
+    });
+
+    it('shows 0% at the start of a download', () => {
+        render(<StatusBar stats={stats} updateStatus={status({ state: 'downloading', percent: 0 })} />);
+        expect(screen.getByRole('status')).toHaveTextContent('Downloading update 0%');
+    });
+
+    it.each(['idle', 'checking', 'available', 'not-available', 'downloaded', 'error', 'unsupported'])(
+        'renders nothing update-related in state %s', (state) => {
+            render(<StatusBar stats={stats} updateStatus={status({ state, version: '2.0.0', percent: state === 'downloaded' ? 100 : null, error: state === 'error' ? 'boom' : null })} />);
+            expect(screen.queryByRole('status')).toBeNull();
+            expect(screen.queryByText(/Downloading update/)).toBeNull();
+        });
+
+    it('renders nothing when updateStatus is null or omitted', () => {
+        const { rerender } = render(<StatusBar stats={stats} updateStatus={null} />);
+        expect(screen.queryByRole('status')).toBeNull();
+        rerender(<StatusBar stats={stats} />);
+        expect(screen.queryByRole('status')).toBeNull();
+    });
+
+    it('updates live as the percent changes and disappears when done', () => {
+        const { rerender } = render(<StatusBar stats={stats} updateStatus={status({ state: 'downloading', percent: 5 })} />);
+        expect(screen.getByRole('status')).toHaveTextContent('Downloading update 5%');
+        rerender(<StatusBar stats={stats} updateStatus={status({ state: 'downloading', percent: 6 })} />);
+        expect(screen.getByRole('status')).toHaveTextContent('Downloading update 6%');
+        rerender(<StatusBar stats={stats} updateStatus={status({ state: 'downloaded', percent: 100 })} />);
+        expect(screen.queryByRole('status')).toBeNull();
+    });
+});

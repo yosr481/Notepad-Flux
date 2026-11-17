@@ -19,6 +19,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
         return () => ipcRenderer.removeListener('main-process-message', subscription);
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    // Update status (see Docs/internal/update-spec.md); main pushes 'update-status' on change.
+    updates: {
+        getStatus: () => ipcRenderer.invoke('update-get-status'),
+        check: () => ipcRenderer.invoke('update-check'),
+        download: () => ipcRenderer.invoke('update-download'),
+        install: () => ipcRenderer.invoke('update-install'),
+        onStatus: (callback) => {
+            const subscription = (event, status) => callback(status);
+            ipcRenderer.on('update-status', subscription);
+            return () => ipcRenderer.removeListener('update-status', subscription);
+        },
+    },
     closeWindow: () => ipcRenderer.send('close-window'),
     // File > Exit: main closes every app window, each through its own close guard.
     quitApp: () => ipcRenderer.send('quit-app'),
