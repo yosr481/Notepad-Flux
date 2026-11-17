@@ -35,6 +35,28 @@ export const SUB_SUP_CASES = [
     ['~~a~~ and ~b~', true, false],
     ['~~a~', false, false],            // unclosed strikethrough run: the 2nd tilde must not open a subscript
     ['x ~~ ~b~', true, false],         // a text-run of tildes must not swallow a following subscript
+    // intra-word `~~` + punctuation-first content: marked's flanking rules refuse <del>, lezer sees Strikethrough
+    // (no Subscript). The single-tilde rule must not open mid-run.
+    ['a~~(y)~~', false, false],
+    ['a~~:x~~', false, false],
+    ['a~~:smile:~~', false, false],
+    ['a~~.b~~', false, false],
+    ['a~~"q"~~', false, false],
+    ['a~~[z]~~', false, false],
+    ['a~~-k~~', false, false],
+    ['a~~!~~', false, false],
+    ['a~~*e*~~', false, false],
+    ['1~~(y)~~', false, false],
+    ['a~~(y)~~b', false, false],
+    // `^^` is different: lezer DOES open a Superscript at the 2nd caret (`a^^(y)^^` -> `^`, sup 2..7, `^`).
+    ['a^^(y)^^', false, true],
+    ['a^^:x^^', false, true],
+    ['a^^.b^^', false, true],
+    // adjacent / tilde-run neighbours (lezer: 2, 2 and exactly 1 Subscript nodes; the table holds only presence,
+    // counts are pinned in export.subsup.test.js for H~2~~3~)
+    ['a~1~~2~', true, false],
+    ['~a~~b~', true, false],
+    ['a~b~~~c~', true, false],
     // footnotes keep winning over superscript
     ['^[note]', false, false],
     // never inside code or math

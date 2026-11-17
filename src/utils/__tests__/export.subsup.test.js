@@ -35,6 +35,10 @@ describe('renderMarkdownHtml: subscript', () => {
         const d = await render('a~b~c');
         expect(d.querySelector('p').innerHTML).toBe('a<sub>b</sub>c');
     }, T);
+    it('adjacent subscripts H~2~~3~: both open (lezer does), the closer of the first is not a barrier', async () => {
+        const d = await render('H~2~~3~');
+        expect([...d.querySelectorAll('sub')].map((x) => x.textContent)).toEqual(['2', '3']);
+    }, T);
     it('single ~a~ is no longer <del>', async () => {
         const d = await render('~a~');
         expect(d.querySelectorAll('del')).toHaveLength(0);
@@ -85,6 +89,30 @@ describe('renderMarkdownHtml: subscript', () => {
         const d = await render('~*a*~');
         expect(d.querySelector('sub').textContent).toBe('*a*');
         expect(d.querySelectorAll('em')).toHaveLength(0);
+    }, T);
+});
+
+describe('renderMarkdownHtml: intra-word ~~ with punctuation-first content equals the pre-F6 export', () => {
+    // Pre-F6 (marked, flanking refuses <del> after a letter): literal text. F6 must not add <sub> or <del> there.
+    // Expected strings are the old output (checked against plain marked.parseInline + sanitizer).
+    it.each([
+        ['a~~(y)~~', 'a~~(y)~~'],
+        ['a~~:x~~', 'a~~:x~~'],
+        ['a~~:smile:~~', 'a~~😄~~'],     // T2 emoji converts inside; still no <sub>
+        ['a~~.b~~', 'a~~.b~~'],
+        ['a~~"q"~~', 'a~~"q"~~'],
+        ['a~~[z]~~', 'a~~[z]~~'],
+        ['a~~-k~~', 'a~~-k~~'],
+        ['a~~!~~', 'a~~!~~'],
+        ['a~~*e*~~', 'a~~<em>e</em>~~'],
+        ['1~~(y)~~', '1~~(y)~~'],
+        ['a~~(y)~~b', 'a~~(y)~~b'],
+        ['x ~~(y)~~', 'x <del>(y)</del>'],   // flanking allows this one: still <del>
+        ['a~~b~~', 'a<del>b</del>'],
+    ])('%j -> %j', async (md, expected) => {
+        const d = await render(md);
+        expect(d.querySelectorAll('sub')).toHaveLength(0);
+        expect(d.querySelector('p').innerHTML).toBe(expected);
     }, T);
 });
 

@@ -2,8 +2,6 @@
 // editor uses. `~`/`^` opens unless doubled; the closer is the next unescaped same marker with no whitespace
 // before it. Content is not re-parsed.
 const escapeHtml = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-// marked's GFM strikethrough rule, for `~~` only.
-const DEL = /^~~(?=[^\s~])(?:\\.|[^\\])*?(?:\\.|[^\s~\\])~~(?=[^~]|$)/;
 const TAGS = { '~': 'sub', '^': 'sup' };
 
 // text[0] is the marker: returns { end, content } (end = index after the closer) or null.
@@ -26,13 +24,13 @@ export const subSupExtension = {
         name: 'subSup',
         level: 'inline',
         start: (src) => { const i = src.search(/[~^]/); return i < 0 ? undefined : i; },
-        tokenizer(src) {
-            // lezer never opens a subscript inside a run of 2+ tildes (strikethrough delimiters own it). Unless
-            // strikethrough matches here, take the whole run as text so marked doesn't re-start mid-run.
-            const run = /^~{2,}/.exec(src);
-            if (run) return DEL.test(src) ? undefined : { type: 'text', raw: run[0], text: run[0] };
-            const hit = scanSubSup(src);
-            return hit && { type: 'subSup', raw: src.slice(0, hit.end), tag: TAGS[src[0]], text: unescape(hit.content) };
+        // marked passes the tokens emitted so far; the previous source char is the end of the last one's raw.
+        // lezer's Strikethrough owns `~~` runs, so a `~` right after a swallowed text `~` never opens a subscript
+        // (`^` does; a finished sub/sup token never blocks, so `H~2~~3~` is two subscripts).
+        tokenizer(src, tokens) {
+            const hit = scanSubSup(src); // first: reading the last token's raw on every call is O(n^2)
+            if (!hit || (src[0] === '~' && tokens.at(-1)?.type === 'text' && tokens.at(-1).raw.endsWith('~'))) return undefined;
+            return { type: 'subSup', raw: src.slice(0, hit.end), tag: TAGS[src[0]], text: unescape(hit.content) };
         },
         renderer: (t) => `<${t.tag}>${escapeHtml(t.text)}</${t.tag}>`,
     }],
