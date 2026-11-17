@@ -8,6 +8,8 @@ import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
 import { mathSyntax } from '../extensions/mathSyntax';
 import { mathPreview } from '../extensions/mathPreview';
+import { footnoteSyntax } from '../extensions/footnoteSyntax';
+import { footnotePreview } from '../extensions/footnotes';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -268,9 +270,10 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // editor were LTR, which garbles caret movement and highlighting on
         // Hebrew/Arabic lines.
         EditorView.perLineTextDirection.of(true),
-        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax] }),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax] }),
         livePreview,
         mathPreview,
+        footnotePreview,
         imagePreview,
         linkPreview,
         linkHandler,

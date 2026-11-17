@@ -52,6 +52,8 @@ export const linkTooltip = hoverTooltip((view, pos, side) => {
 export const linkClickHandler = EditorView.domEventHandlers({
     click: (event, view) => {
         if (!event.ctrlKey && !event.metaKey) return;
+        // Footnote widgets handle their own ctrl-click (mousedown); don't open a surrounding link
+        if (event.target instanceof Element && event.target.closest(".cm-footnote-ref, .cm-footnote-def")) return;
 
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
         if (pos === null) return;
