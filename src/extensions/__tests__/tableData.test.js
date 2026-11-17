@@ -289,6 +289,27 @@ describe('table data: escaped pipe in a cell', () => {
     });
 });
 
+describe('table data: row width follows the header (GFM, as export)', () => {
+    it('cells past the header count are dropped: | 1 | 2 | 3 | under one column is exactly one td', () => {
+        const doc = T('| h |', '| --- |', '| 1 | 2 | 3 |');
+        expect(dataOf(doc).body).toEqual([[['1']]]);
+        const t = domOf(doc);
+        expect(t.querySelectorAll('tbody td').length).toBe(1);
+        expect(t.querySelector('tbody td').textContent).toBe('1');
+        expect(t.textContent).not.toContain('2');
+    });
+
+    it('a row with extra cells among normal rows is cut to the header width, others untouched', () => {
+        const t = domOf(T('| a | b |', '| - | - |', '| 1 | 2 | 3 | 4 |', '| 5 | 6 |'));
+        expect([...t.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent))).toEqual([['1', '2'], ['5', '6']]);
+    });
+
+    it('short rows are padded with empty cells to the header width', () => {
+        const t = domOf(T('| a | b | c |', '| - | - | - |', '| 1 |', '| | y |'));
+        expect([...t.querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => c.textContent))).toEqual([['1', '', ''], ['', 'y', '']]);
+    });
+});
+
 describe('table data: TableWidget holds data only', () => {
     it('the widget exposes .data and no HTML string path', () => {
         const [w] = widgetsIn(T('p', '', '| a |', '| - |', '| 1 |', ''));

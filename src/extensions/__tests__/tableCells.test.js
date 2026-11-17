@@ -224,12 +224,12 @@ describe('table cells: the existing set still renders', () => {
         expect(cell.textContent).not.toContain('>');
     });
 
-    it('empty cells keep their column and alignment, with and without outer pipes, in a blockquote table', () => {
+    it('empty cells keep their column and alignment, short rows are padded to the header, in a blockquote table', () => {
         const v = mkView('p\n\n> | a | b | c |\n> | :-- | :-: | --: |\n> | x | | z |\n> | | y |\n\nz', 0);
         const rows = [...widget(v).querySelectorAll('tbody tr')].map((r) => [...r.children].map((c) => [c.textContent, c.className]));
         expect(rows).toEqual([
             [['x', 'cm-align-left'], ['', 'cm-align-center'], ['z', 'cm-align-right']],
-            [['', 'cm-align-left'], ['y', 'cm-align-center']],
+            [['', 'cm-align-left'], ['y', 'cm-align-center'], ['', 'cm-align-right']],   // short row padded to the header, as GFM / export
         ]);
     });
 
@@ -441,6 +441,167 @@ describe('table cells: footnotes', () => {
     });
 });
 
+describe('table cells: links beyond [t](url) (final-review fixes)', () => {
+    const REF = '\n[r]: https://e.com\n';
+    const a = (cell, extra = REF) => td(cellView(cell, extra)).querySelector('a');
+    const isLink = (el, href, text) => {
+        expect(el).not.toBeNull();
+        expect(el.getAttribute('href')).toBe(href);
+        expect(el.getAttribute('target')).toBe('_blank');
+        expect(el.getAttribute('rel')).toBe('noopener noreferrer');
+        expect(el.textContent).toBe(text);
+    };
+
+    it('reference link [t][r] becomes a link to the definition url', () => {
+        isLink(a('[t][r]'), 'https://e.com', 't');
+        expect(td(cellView('[t][r]', REF)).textContent).toBe('t');
+    });
+
+    it('collapsed [r][] and shortcut [r] links resolve too, label text shown', () => {
+        isLink(a('[r][]'), 'https://e.com', 'r');
+        isLink(a('[r]'), 'https://e.com', 'r');
+    });
+
+    it('labels are matched case-insensitively, like outside the table', () => {
+        isLink(a('[t][R]'), 'https://e.com', 't');
+    });
+
+    it('an unsafe definition url gets no href (same rule as inline links)', () => {
+        const el = a('[t][r]', '\n[r]: javascript:alert(1)\n');
+        expect(td(cellView('[t][r]', '\n[r]: javascript:alert(1)\n')).querySelector('[href]')).toBeNull();
+        expect(el === null || !el.hasAttribute('href')).toBe(true);
+        expect(td(cellView('[t][r]', '\n[r]: javascript:alert(1)\n')).textContent).toBe('t');
+    });
+
+    it('an undefined reference stays literal: no link, source text shown', () => {
+        for (const src of ['[t][nope]', '[nope][]', '[nope]']) {
+            const cell = td(cellView(src, REF));
+            expect(cell.querySelector('a'), src).toBeNull();
+            expect(cell.textContent, src).toBe(src);
+        }
+    });
+
+    it('a reference link inside bold and with sub/sup in its label keeps both', () => {
+        const cell = td(cellView('**[H~2~O][r]**', REF));
+        expect(cell.querySelector('strong a[href="https://e.com"] .cm-subscript')).not.toBeNull();
+    });
+
+    it('angle-bracket destination [t](<https://e.com>) gives the bare url as href', () => {
+        isLink(a('[t](<https://e.com>)', ''), 'https://e.com', 't');
+    });
+
+    it('backslash escapes in the destination are removed from the href', () => {
+        isLink(a('[v](https://e.com/a\\_b)', ''), 'https://e.com/a_b', 'v');
+        expect(a('[v](https://e.com/a\\)b)', '').getAttribute('href')).toBe('https://e.com/a)b');
+    });
+
+    it('autolink <https://e.com>: a link with the url as text, no angle brackets, target and rel', () => {
+        const cell = td(cellView('see <https://e.com> now', ''));
+        isLink(cell.querySelector('a'), 'https://e.com', 'https://e.com');
+        expect(norm(cell.textContent)).toBe('see https://e.com now');
+    });
+
+    it('autolink <mailto:..> is a link; an unsafe autolink has no href but shows its text without brackets', () => {
+        isLink(a('<mailto:a@b.test>', ''), 'mailto:a@b.test', 'mailto:a@b.test');
+        const cell = td(cellView('<javascript:alert(1)>', ''));
+        expect(cell.querySelector('[href]')).toBeNull();
+        expect(cell.textContent).toBe('javascript:alert(1)');
+    });
+
+    it('a GFM bare URL is plain text in a cell, exactly as outside a table (no link)', async () => {
+        const url = 'go https://e.com/p now';
+        const cell = td(cellView(url, ''));
+        const outside = mkView(`p\n\n${url}\n\nz`, 0);
+        await flush();
+        expect(cell.querySelector('a')).toBeNull();
+        expect(outside.dom.querySelector('.cm-line:nth-child(3) a')).toBeNull();
+        expect(norm(cell.textContent)).toBe(url);
+    });
+});
+
+describe('table cells: entities (as EntityWidget outside)', () => {
+    it('&amp; &lt;b&gt; &copy; show & <b> © as text, and no element is created from <b>', () => {
+        const cell = td(cellView('&amp; &lt;b&gt; &copy;'));
+        expect(cell.textContent).toBe('& <b> ©');
+        expect(cell.querySelector('b')).toBeNull();
+        expect(cell.children.length).toBe(0);
+    });
+
+    it('numeric entities decode (&#65; &#x42;), unknown ones stay literal', () => {
+        expect(td(cellView('&#65; &#x42;')).textContent).toBe('A B');
+        expect(td(cellView('&bogus; &amp')).textContent).toBe('&bogus; &amp');
+    });
+
+    it('an entity inside inline code stays literal', () => {
+        expect(td(cellView('`&amp;`')).querySelector('code').textContent).toBe('&amp;');
+    });
+
+    it('a decoded <script> entity is text', () => {
+        const cell = td(cellView('&lt;script&gt;alert(1)&lt;/script&gt;'));
+        expect(cell.querySelector('script')).toBeNull();
+        expect(cell.textContent).toBe('<script>alert(1)</script>');
+    });
+});
+
+describe('table cells: table data is cached per document (selection-only moves do not rebuild)', () => {
+    const doc = 'top\n\n| h |\n| --- |\n| b[^y] $x$ |\n\nlast\n\n[^x]: X\n[^y]: Y\n';
+    const widgetData = (v) => {
+        let data = null;
+        v.state.field(livePreview[0]).between(0, v.state.doc.length, (f, t, val) => {
+            if (val.spec && val.spec.widget && val.spec.widget.data) data = val.spec.widget.data;
+        });
+        return data;
+    };
+
+    it('a cursor-only move keeps the very same data object', () => {
+        const v = mkView(doc, 0);
+        const before = widgetData(v);
+        expect(before).not.toBeNull();
+        v.dispatch({ selection: { anchor: doc.indexOf('last') } });
+        expect(widgetData(v)).toBe(before);
+        v.dispatch({ selection: { anchor: 2 } });
+        expect(widgetData(v)).toBe(before);
+    });
+
+    it('opening the table and leaving it again (selection only) still reuses the data', () => {
+        const v = mkView(doc, 0);
+        const before = widgetData(v);
+        v.dispatch({ selection: { anchor: doc.indexOf('b[^y]') + 1 } });
+        expect(widgetData(v)).toBeNull();                       // raw table is showing
+        v.dispatch({ selection: { anchor: 0 } });
+        expect(widgetData(v)).toBe(before);
+    });
+
+    it('a doc change rebuilds the data, and a renumbered footnote shows its new number', () => {
+        const v = mkView(doc, 0);
+        const before = widgetData(v);
+        expect(before.body[0][0]).toContainEqual({ k: 'fn', n: 1 });
+        v.dispatch({ changes: { from: 3, insert: ' see[^x]' } });
+        const after = widgetData(v);
+        expect(after).not.toBe(before);
+        expect(after.body[0][0]).toContainEqual({ k: 'fn', n: 2 });
+        expect(td(v).querySelector('.cm-footnote-ref').textContent).toBe('2');
+    });
+
+    it('editing a link definition OUTSIDE the table updates the cell link (cache is per doc, not per table text)', () => {
+        const d = 'top\n\n| h |\n| --- |\n| [t][r] |\n\nlast\n\n[r]: https://old.test\n';
+        const v = mkView(d, 0);
+        expect(td(v).querySelector('a').getAttribute('href')).toBe('https://old.test');
+        const at = d.indexOf('old.test');
+        v.dispatch({ changes: { from: at, to: at + 3, insert: 'new' } });
+        expect(td(v).querySelector('a').getAttribute('href')).toBe('https://new.test');
+        v.dispatch({ changes: { from: v.state.doc.length - 1, insert: '\n' } });
+        expect(td(v).querySelector('a').getAttribute('href')).toBe('https://new.test');
+    });
+
+    it('a doc change elsewhere that changes nothing visible in the table gives equal data (new object is fine)', () => {
+        const v = mkView(doc, 0);
+        const before = JSON.stringify(widgetData(v));
+        v.dispatch({ changes: { from: doc.indexOf('last') + 4, insert: ' more' } });
+        expect(JSON.stringify(widgetData(v))).toBe(before);
+    });
+});
+
 describe('table cells: safety', () => {
     const allEls = (root) => [root, ...root.querySelectorAll('*')];
 
@@ -574,7 +735,7 @@ describe('table cells: redraws (TableWidget.eq)', () => {
 
 describe('table cells: parity with the same text outside a table', () => {
     const FEATURES = ['cm-subscript', 'cm-superscript', 'cm-emoji', 'cm-math', 'cm-footnote-ref'];
-    const defs = '[^a]: A\n[^b]: B\n';
+    const defs = '[r]: https://e.com\n\n[^a]: A\n[^b]: B\n';
     const featureList = (root) => [...root.querySelectorAll('.' + FEATURES.join(',.'))]
         .map((el) => FEATURES.filter((c) => el.classList.contains(c)).join(' '));
 

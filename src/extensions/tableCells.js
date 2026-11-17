@@ -3,6 +3,10 @@ import { normalizeLabel } from "./linkDefs";
 import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
+import { resolveReference } from "./linkDefs";
+import { resolveFootnotes } from "./footnotes";
+import { decodeEntity } from "./entities";
+import { syntaxTree } from "@codemirror/language";
 
 // Rendered table cells, built from the editor's syntax tree so the inline rules are the editor's own.
 // Data shape (what TableWidget holds and compares):
@@ -73,11 +77,23 @@ function cellParts(state, cell, footnotes) {
                 const entry = footnotes.inline.get(n.from);
                 return entry ? [{ k: "fn", n: entry.number }] : raw(n);
             }
+            case "Entity": return [decodeEntity(text(n.from, n.to)) ?? text(n.from, n.to)];
+            case "Autolink": {
+                const url = n.node.getChild("URL");
+                return url ? [{ k: "a", href: text(url.from, url.to), c: [text(url.from, url.to)] }] : raw(n);
+            }
             case "Link": {
                 const url = n.node.getChild("URL");
                 const marks = n.node.getChildren("LinkMark");
-                if (!url || marks.length < 2) return raw(n);
-                return [{ k: "a", href: text(url.from, url.to), c: walk(n, marks[0].to, marks[1].from) }];
+                if (marks.length < 2) return raw(n);
+                let href;
+                if (url) href = text(url.from, url.to).replace(/^<(.*)>$/, "$1").replace(/\\([!-/:-@[-`{-~])/g, "$1");
+                else {
+                    const def = resolveReference(n.node, state);
+                    if (!def) return raw(n);
+                    href = def.url;
+                }
+                return [{ k: "a", href, c: walk(n, marks[0].to, marks[1].from) }];
             }
             default: return raw(n); // HTML, images, entities, autolinks...: shown as the source text
         }
@@ -110,14 +126,29 @@ function rowCells(state, row, footnotes) {
     return cells;
 }
 
+// Per doc and parse: the footnote numbering and the cells depend on nothing else, so selection-only
+// transactions reuse the data (same object, so TableWidget.eq is a cheap match).
+const cache = new WeakMap();
+
 export function buildTableData(state, table, footnotes) {
     if (table.name !== "Table") return null;
+    const tree = syntaxTree(state);
+    let entry = cache.get(state.doc);
+    if (!entry || entry.tree !== tree) cache.set(state.doc, entry = { tree, tables: new Map() });
+    if (!entry.tables.has(table.from)) entry.tables.set(table.from, computeTableData(state, table, footnotes ?? resolveFootnotes(state)));
+    return entry.tables.get(table.from);
+}
+
+function computeTableData(state, table, footnotes) {
     const head = table.getChild("TableHeader");
     const delim = table.getChild("TableDelimiter");
     if (!head || !delim) return null;
     const ds = state.doc.sliceString(delim.from, delim.to).trim().replace(/^\|/, "").replace(/\|$/, "");
-    const body = table.getChildren("TableRow").map((r) => rowCells(state, r, footnotes)).filter((r) => r.length);
-    return { align: ds.split("|").map(ALIGN), head: rowCells(state, head, footnotes), body };
+    const headCells = rowCells(state, head, footnotes);
+    // The header decides the width, as in marked: extra cells dropped, short rows padded.
+    const fit = (r) => Array.from({ length: headCells.length }, (_, i) => r[i] ?? []);
+    const body = table.getChildren("TableRow").map((r) => rowCells(state, r, footnotes)).filter((r) => r.length).map(fit);
+    return { align: ds.split("|").map(ALIGN), head: headCells, body };
 }
 
 const el = (tag, cls) => {

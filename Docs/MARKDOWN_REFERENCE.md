@@ -259,6 +259,7 @@ function greet(name) {
 | col 3 is      | right-aligned | $1600 |
 | col 2 is      | centered      |   $12 |
 | zebra stripes | are neat      |    $1 |
+| inline        | $x^2$ H~2~O   | :tada: |
 ```
 
 **Renders as:**
@@ -268,6 +269,11 @@ function greet(name) {
 | col 3 is      | right-aligned | $1600 |
 | col 2 is      | centered      |   $12 |
 | zebra stripes | are neat      |    $1 |
+| inline        | $x^2$ H~2~O   | :tada: |
+
+In the editor, table cells show inline math, subscript and superscript, emoji shortcodes, footnote numbers and `==highlight==` the same way they show outside a table. Click the table to edit its source.
+
+In the editor, only web and email links in cells are clickable, the same as outside tables.
 
 ### Simple Table
 
