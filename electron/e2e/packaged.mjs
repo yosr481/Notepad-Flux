@@ -838,6 +838,88 @@ if (want('math')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: footnotes (F2, Docs/internal/footnotes-spec.md)
+// Real hover / Ctrl+click / the export path: what jsdom cannot cover. The doc is opened from a file (typing `[^` would hit bracket auto-close).
+if (want('footnotes')) {
+    const Uf = tmp('nf-fn-u-'), Wf = tmp('nf-fn-w-'); cleanup.push(Uf, Wf)
+    const { app, win } = await L(Uf)
+    const errs0 = pageErrors.length
+    const consoleErrs = []
+    win.on('console', m => { if (m.type() === 'error') consoleErrs.push(m.text().slice(0, 300)) })
+    const f = join(Wf, 'fn.md')
+    writeFileSync(f, 'Intro[^a] and ^[inline *x*] end.\n\n[^a]: note text\n\nשלום[^a] עולם\n\nlast\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'fn.md', { what: 'tab fn.md' })
+    const lineOf = (text) => win.locator('.cm-content .cm-line', { hasText: text })
+    const activeLine = () => win.evaluate(() => (getSelection().anchorNode?.parentElement?.closest('.cm-line') ?? null)?.innerText ?? '')
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+    const refs = () => lineOf('Intro').first().locator('.cm-footnote-ref')
+
+    await check('FN-1', 'footnotes', 'ref widgets show 1 and 2, the definition marker shows "1." (raw [^a] / ^[ gone) with the caret elsewhere', async () => {
+        await caretFar()
+        await waitFor(async () => (await refs().count()) === 2, { what: 'two ref widgets' })
+        eq(await refs().allInnerTexts(), ['1', '2'])
+        await waitFor(async () => (await lineOf('note text').first().locator('.cm-footnote-def').count()) === 1, { what: 'def widget' })
+        eq((await lineOf('note text').first().locator('.cm-footnote-def').innerText()).trim(), '1.')
+        const t = await lineOf('Intro').first().innerText()
+        assert(!t.includes('[^a]') && !t.includes('^['), 'raw footnote syntax visible: ' + JSON.stringify(t))
+    })
+    await check('FN-2', 'footnotes', 'real mouse hover over the first ref widget shows .cm-footnote-tooltip with the note text', async () => {
+        await caretFar()
+        const box = await refs().first().boundingBox(); assert(box, 'no ref widget box')
+        await win.mouse.move(2, 2)
+        await win.mouse.move(box.x + box.width / 2, box.y + box.height / 2, { steps: 5 })
+        await waitFor(() => win.evaluate(() => /note text/.test(document.querySelector('.cm-footnote-tooltip')?.textContent ?? '')), { timeout: 8000, what: 'footnote tooltip with note text' })
+        await win.mouse.move(2, 2)
+    })
+    await check('FN-3', 'footnotes', 'Ctrl+click ref moves the caret to the definition text; Ctrl+click the def marker goes back to the ref line', async () => {
+        await caretFar()
+        await refs().first().click({ modifiers: ['Control'] })
+        await waitFor(async () => (await activeLine()).includes('note text'), { what: 'caret on the definition line' })
+        const sel = await win.evaluate(() => { const s = getSelection(); return s.anchorNode?.textContent ?? '' })
+        assert(sel.includes('note text') || sel.includes('[^a]'), 'selection not in the definition: ' + JSON.stringify(sel))
+        await waitFor(async () => (await lineOf('note text').first().locator('.cm-footnote-def').count()) === 1, { what: 'def widget back after caret moved' })
+        await lineOf('note text').first().locator('.cm-footnote-def').click({ modifiers: ['Control'] })
+        await waitFor(async () => (await activeLine()).includes('Intro'), { what: 'caret back on the ref line' })
+    })
+    await check('FN-4', 'footnotes', 'plain click on the inline widget opens ^[inline x] raw, with the inner *x* still live-previewed (italic, stars hidden)', async () => {
+        await caretFar()
+        await refs().nth(1).click()
+        await waitFor(async () => (await lineOf('Intro').first().innerText()).includes('^[inline'), { what: 'raw ^[inline after click' })
+        const r = await win.evaluate(() => {
+            const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /Intro/.test(x.innerText))
+            const em = [...l.querySelectorAll('*')].find(e => e.children.length === 0 && e.textContent === 'x' && getComputedStyle(e).fontStyle === 'italic')
+            return { text: l.innerText, em: !!em, widgets: l.querySelectorAll('.cm-footnote-ref').length }
+        })
+        assert(r.text.includes('^[inline') && !r.text.includes('*x*'), 'inner emphasis not previewed: ' + JSON.stringify(r.text))
+        assert(r.em, 'no italic element holding x: ' + JSON.stringify(r))
+        eq(r.widgets, 1, 'only the [^a] widget should remain on the line')
+    })
+    await check('FN-5', 'footnotes', 'File > Export to HTML has sup refs to #fn-1/#fn-2 and <section class="footnotes"> with two li', async () => {
+        const dst = join(Wf, 'fn-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8')
+        assert(h.includes('<section class="footnotes">'), 'no footnotes section')
+        const sec = h.slice(h.indexOf('<section class="footnotes">'), h.indexOf('</section>', h.indexOf('<section class="footnotes">')))
+        eq((sec.match(/<li\b/g) || []).length, 2, 'li count in section')
+        assert(/<sup><a href="#fn-1"/.test(h) && /<sup><a href="#fn-2"/.test(h), 'sup refs to #fn-1/#fn-2 missing')
+        assert(sec.includes('id="fn-1"') && sec.includes('id="fn-2"'), 'li ids missing')
+        assert(!h.includes('[^a]') && !h.includes('^[inline'), 'raw footnote source leaked into the export')
+    })
+    await check('FN-6', 'footnotes', 'Hebrew line "שלום[^a] עולם" keeps its widget and word order; no console errors or page errors during the scenario', async () => {
+        await caretFar()
+        await waitFor(async () => (await lineOf('שלום').first().locator('.cm-footnote-ref').count()) === 1, { what: 'Hebrew-line widget' })
+        const r = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); return { dir: l.querySelector('.cm-footnote-ref').getAttribute('dir'), text: l.innerText } })
+        eq(r.dir, 'ltr', 'widget dir')
+        assert(r.text.indexOf('שלום') >= 0 && r.text.indexOf('שלום') < r.text.indexOf('עולם'), 'Hebrew text lost/reordered: ' + JSON.stringify(r.text))
+        assert(!r.text.includes('[^a]'), 'raw ref visible with caret outside')
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        assert(consoleErrs.length === 0, 'console errors: ' + JSON.stringify(consoleErrs.slice(0, 3)))
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)

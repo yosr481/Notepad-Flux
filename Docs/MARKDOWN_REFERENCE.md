@@ -23,6 +23,7 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 10. [Task Lists](#task-lists)
 11. [Highlights](#highlights)
 12. [Math](#math)
+13. [Footnotes](#footnotes)
 
 ---
 
@@ -425,6 +426,38 @@ Rules:
 - Math inside code spans and code blocks is never rendered.
 - Supported packages: AMS math, `\newcommand` (inside one formula), `\boldsymbol`, `\color`, `\cancel`, `\ce` (chemistry, mhchem) and `\bra`/`\ket` (braket). Links and raw HTML in TeX (`\href`, `\style`) are not supported.
 - HTML export, PDF export and Print render math too.
+
+---
+
+## Footnotes
+
+A labelled reference points to a note defined elsewhere in the document. Inline footnotes put the note text right where it is used.
+
+```markdown
+The sky is blue.[^sky]
+
+Water is wet.^[Its own note, with *emphasis* and `code` allowed.]
+
+[^sky]: Rayleigh scattering of sunlight.
+
+    A second paragraph of the same note, indented 4 spaces.
+```
+
+Rules:
+
+- `[^label]` is a reference only when a `[^label]: text` definition with the same label exists. Otherwise it stays as typed. Labels are not case-sensitive and cannot contain spaces.
+- Notes are numbered 1, 2, 3… in the order they are first referenced, labelled and inline notes together. A note referenced twice keeps its number.
+- A definition that nothing references is not shown in HTML export, PDF export or Print. It stays visible in the editor.
+- Inline `^[…]` needs no definition. Its text can hold emphasis, code, links and math, but not block content. Brackets inside it must be balanced, and an empty `^[]` is not a note.
+- Footnotes inside code spans, code blocks and math are not rendered.
+- GitHub shows inline `^[…]` as plain text. Use `[^label]` for files that will be shown on GitHub.
+
+In the editor:
+
+- A reference shows as a small superscript number. Hover over it to read the note. Ctrl+click moves the cursor to the note text. Ctrl+click the `[^label]:` marker of a note to jump back to its first reference.
+- Put the cursor on a reference, or click it, to see and edit the raw `[^label]`.
+- An inline note shows as one superscript number. Hover shows its text. Click it to edit the raw `^[…]`.
+- Limit: a reference inside a table cell stays as raw text. Ctrl+click jumps only from the rendered number, not from raw text.
 
 ---
 
