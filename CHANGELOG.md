@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Update progress: after you choose Download Now, the status bar shows "Downloading update 42%" and the taskbar icon fills as the update downloads.
+- Settings › About has an update button: Check for updates, Update to vX, Downloading… N%, Restart to update, or Up to date. Checking from Settings shows the offer on the button instead of a pop-up.
+
+### Fixed
+
+- Restart to update now closes every window through the usual save step first, so unsaved tabs are saved before the installer runs. Choosing Keep editing on a window with unsaved changes cancels the restart.
+
 ## [1.6.0] — 2026-11-16
 
 ### Added
