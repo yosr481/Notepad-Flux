@@ -32,12 +32,25 @@ export function scanFrontMatter(text) {
     return null;
 }
 
+// Head text from offset 0 up to the closer, read in doubling chunks so a long doc is not copied per reparse.
+// Chunks are cut after a newline so scanFrontMatter never sees a partial line.
+function scanHead(input) {
+    for (let size = 1024; ; size *= 2) {
+        const n = Math.min(size, input.length);
+        let text = input.read(0, n);
+        if (n < input.length) text = text.slice(0, text.lastIndexOf('\n') + 1);
+        const fm = scanFrontMatter(text);
+        if (fm) return { text, fm };
+        if (n === input.length) return null;
+    }
+}
+
 function frontMatter(cx, line) {
     if (cx.lineStart !== 0 || line.pos !== 0 || (line.next !== DASH && line.next !== BOM)) return false;
     if (!FENCE.test(line.text.replace(/\r$/, ""))) return false;
-    const text = cx.input.read(0, cx.input.length);
-    const fm = scanFrontMatter(text);
-    if (!fm) return false;
+    const head = scanHead(cx.input);
+    if (!head) return false;
+    const { text, fm } = head;
     const openEnd = lineAt(text, fm.from).end;
     const closeFrom = text.lastIndexOf('\n', fm.to - 1) + 1;
     const children = [cx.elt('FrontMatterMark', fm.from, openEnd)];

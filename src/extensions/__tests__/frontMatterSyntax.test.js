@@ -590,3 +590,25 @@ describe('frontMatterSyntax: composes with the other extensions', () => {
         expect(shape(doc, alt)).toEqual(shape(doc, parser));
     });
 });
+
+describe('frontMatterSyntax: parser agrees with scanFrontMatter at read-chunk edges', () => {
+    it('closer straddling 1 KB / 2 KB edges, CRLF, a line longer than a chunk, BOM, and unclosed', () => {
+        const check = (doc) => {
+            const fm = scanFrontMatter(doc);
+            const got = spans(doc, 'FrontMatter');
+            expect(got).toEqual(fm ? [[fm.from, fm.to]] : []);
+        };
+        for (const eol of ['\n', '\r\n']) {
+            for (const edge of [1024, 2048]) {
+                for (let pad = edge - 12; pad <= edge + 2; pad++) {
+                    const head = '---' + eol + 'k: ' + 'x'.repeat(pad) + eol;
+                    check(head + '---' + eol + 'body');
+                    check(head + '...' + eol);
+                    check('\uFEFF' + head + '---');
+                }
+            }
+            check('---' + eol + 'k: ' + 'y'.repeat(5000) + eol + '---' + eol + 'body'); // one line > several chunks
+            check('---' + eol + ('a: b' + eol).repeat(1000)); // unclosed, ~5 KB
+        }
+    });
+});

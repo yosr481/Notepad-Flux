@@ -5,6 +5,7 @@ import { createMath } from './exportMath';
 import { createFootnotes } from './exportFootnotes';
 import { createCallouts } from './exportCallouts';
 import { createMermaid } from './exportMermaid';
+import { scanFrontMatter } from '../extensions/frontMatterSyntax';
 import calloutCss from '../styles/calloutExport.css?raw';
 
 const escapeHtml = (s) => {
@@ -23,6 +24,8 @@ export const markdownToHtml = (markdown) => {
 
 // Markdown -> sanitized HTML with math rendered and footnote ids set. Used by HTML export, PDF export and Print.
 export const renderMarkdownHtml = async (markdown, options = {}) => {
+    const fm = scanFrontMatter(markdown);
+    const body = fm ? markdown.slice(fm.to).replace(/^\r?\n/, '') : markdown;
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
     const idMark = `nf${nonce}-`; // footnote ids ride as classes with this prefix: sanitizing drops every id
     const math = createMath(nonce);
@@ -30,7 +33,7 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
     const m = new Marked(math.extension, footnotes.extension, callouts.extension, mermaid.extension);
-    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(markdown))));
+    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 
     await Promise.all([math.prepare(), mermaid.prepare()]);
