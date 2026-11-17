@@ -8,10 +8,12 @@ import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
 import { mathSyntax } from '../extensions/mathSyntax';
 import { mathPreview } from '../extensions/mathPreview';
+import { Subscript, Superscript } from '@lezer/markdown';
 import { footnoteSyntax } from '../extensions/footnoteSyntax';
 import { footnotePreview } from '../extensions/footnotes';
 import { calloutPreview } from '../extensions/callouts';
 import { mermaidPreview } from '../extensions/mermaidPreview';
+import { subSupPreview } from '../extensions/subSupPreview';
 import { frontMatterPreview } from '../extensions/frontMatterPreview';
 import { frontMatterSyntax } from '../extensions/frontMatterSyntax';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
@@ -274,8 +276,9 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // editor were LTR, which garbles caret movement and highlighting on
         // Hebrew/Arabic lines.
         EditorView.perLineTextDirection.of(true),
-        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax] }),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax, Subscript, Superscript] }),
         livePreview,
+        subSupPreview,
         mathPreview,
         footnotePreview,
         calloutPreview,

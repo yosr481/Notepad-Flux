@@ -442,3 +442,17 @@
 .cm-frontmatter-line {
     font-family: var(--font-monospace, monospace);
 }
+
+/* ============================================
+   SUBSCRIPT / SUPERSCRIPT
+   ============================================ */
+
+.cm-subscript {
+    vertical-align: sub;
+    font-size: 0.8em;
+}
+
+.cm-superscript {
+    vertical-align: super;
+    font-size: 0.8em;
+}
