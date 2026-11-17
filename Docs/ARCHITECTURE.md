@@ -84,9 +84,10 @@ src/
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
-├── styles/                 - Global styles and CSS variables
+├── styles/                 - Global styles and CSS variables (`calloutExport.css`: callout rules shared by HTML export and Print/PDF)
 ├── utils/                  - Utility functions
 │   ├── fileSystem.js       - Abstraction for File System Access API
+│   ├── exportCallouts.js   - marked extension: callout blockquotes to callout markup (icon marker swapped for svg in export.js)
 │   └── lucideSvg.js        - Builds lucide `<svg>` DOM from icon data (callout icons, chevron); null for an unknown name
 ├── App.jsx                 - Main application layout and event wiring
 └── main.jsx                - Entry point

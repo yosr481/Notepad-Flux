@@ -267,7 +267,7 @@ export const useCommands = (showToast, editorRef) => {
         // Before the container exists, so a failure here leaves nothing mounted.
         let html;
         try {
-            html = await renderMarkdownHtml(activeTab.content);
+            html = await renderMarkdownHtml(activeTab.content, { expandFolds: true });
         } catch (error) {
             console.error('PDF export failed:', error);
             showToast('Could not export to PDF.');
@@ -362,7 +362,7 @@ export const useCommands = (showToast, editorRef) => {
 
         let html;
         try {
-            html = await renderMarkdownHtml(activeTab.content);
+            html = await renderMarkdownHtml(activeTab.content, { expandFolds: true });
         } catch (error) {
             console.error('Print failed:', error);
             showToast('Could not prepare the document for printing.');

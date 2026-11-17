@@ -3,6 +3,10 @@ import { fileSystem } from './fileSystem';
 import { sanitizeHTML } from './sanitize';
 import { renderTex } from './math';
 import { createFootnotes } from './exportFootnotes';
+import { calloutExtension } from './exportCallouts';
+import calloutCss from '../styles/calloutExport.css?raw';
+import { lucideSvg } from './lucideSvg';
+import { CALLOUT_TYPES } from '../extensions/calloutSyntax';
 import { scanInlineMath, findClose, INLINE_MATH_MAX } from '../extensions/mathSyntax';
 
 const escapeHtml = (s) => {
@@ -56,13 +60,13 @@ const mathExtension = (formulas, token) => ({
 });
 
 // Markdown -> sanitized HTML with math rendered and footnote ids set. Used by HTML export, PDF export and Print.
-export const renderMarkdownHtml = async (markdown) => {
+export const renderMarkdownHtml = async (markdown, options = {}) => {
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
     const token = (i) => `NFMATH${nonce}I${i}E`;
     const formulas = [];
     const idMark = `nf${nonce}-`; // footnote ids ride as classes with this prefix: sanitizing drops every id
     const footnotes = createFootnotes(idMark);
-    const m = new Marked(mathExtension(formulas, token), footnotes.extension);
+    const m = new Marked(mathExtension(formulas, token), footnotes.extension, calloutExtension(idMark, options.expandFolds === true));
     const html = sanitizeHTML(footnotes.finish(m, m.parser(m.lexer(markdown))));
     if (!formulas.length && !html.includes(idMark)) return html;
 
@@ -73,6 +77,11 @@ export const renderMarkdownHtml = async (markdown) => {
     const re = new RegExp(`${marker}(\\d+)E`, 'g');
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
+    // Icons: only a marker span carrying this render's nonce becomes an svg, so user HTML can't forge one.
+    for (const el of tpl.content.querySelectorAll(`span[class^="${idMark}icon-"]`)) {
+        const svg = lucideSvg(CALLOUT_TYPES[el.className.slice(`${idMark}icon-`.length)]?.icon, 'callout-icon');
+        if (svg) el.replaceWith(svg); else el.remove();
+    }
     // Footnote ids are set here, after sanitizing, so raw HTML in the document can never produce an id.
     for (const el of tpl.content.querySelectorAll(`[class*="${idMark}"]`)) {
         const cls = [...el.classList].find((c) => c.startsWith(idMark));
@@ -122,6 +131,7 @@ export const exportToHtml = async (title, markdown) => {
                 blockquote { border-left: 4px solid #ddd; padding-left: 1rem; color: #666; }
                 .math-block, .math-display { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
                 .footnotes { font-size: 0.875rem; color: #444; border-top: 1px solid #ccc; margin-top: 2rem; padding-top: 0.5rem; }
+                ${calloutCss}
                 .math svg { vertical-align: middle; }
             </style>
         </head>

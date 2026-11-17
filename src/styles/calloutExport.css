@@ -1,0 +1,18 @@
+/* Shared by HTML export (inlined via ?raw) and PDF/Print (PrintDocument). Plain global classes. */
+.callout { margin: 1em 0; border-radius: 4px; border-left: 4px solid var(--c); background: var(--bg); color: #1f2328; print-color-adjust: exact; -webkit-print-color-adjust: exact; break-inside: avoid; --c: #0969da; --bg: #ddf4ff; }
+.callout-title { display: flex; align-items: center; gap: 0.5em; padding: 0.5em 0.75em; font-weight: 600; color: var(--c); cursor: default; }
+summary.callout-title { cursor: pointer; }
+.callout-icon { flex: none; width: 1.1em; height: 1.1em; }
+.callout-content { padding: 0 0.75em 0.5em; }
+.callout-content > :first-child { margin-top: 0; }
+.callout-content > :last-child { margin-bottom: 0; }
+.callout-note { --c: #0550ae; --bg: #ddf4ff; }
+.callout-abstract, .callout-info { --c: #0a5c6e; --bg: #d9f5f9; }
+.callout-todo { --c: #0550ae; --bg: #e3eeff; }
+.callout-tip { --c: #0a6a5a; --bg: #d8f6ef; }
+.callout-important { --c: #6a2fb8; --bg: #efe6fb; }
+.callout-success { --c: #1a6b2e; --bg: #ddf6e3; }
+.callout-question, .callout-warning { --c: #8a4b00; --bg: #fff1d6; }
+.callout-caution, .callout-failure, .callout-danger, .callout-bug { --c: #b3261e; --bg: #ffe3e0; }
+.callout-example { --c: #5b3fa8; --bg: #ede9fb; }
+.callout-quote { --c: #4a4f55; --bg: #eceef0; }

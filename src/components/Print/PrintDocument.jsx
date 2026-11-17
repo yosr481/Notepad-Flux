@@ -1,5 +1,6 @@
 import React from 'react';
 import styles from './Print.module.css';
+import '../../styles/calloutExport.css';
 
 // `html` is already sanitized, with math rendered (renderMarkdownHtml).
 const PrintDocument = ({ title, html }) => {
