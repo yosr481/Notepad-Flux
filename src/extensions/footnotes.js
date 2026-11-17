@@ -1,9 +1,9 @@
-import { StateField } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { normalizeLabel } from "./linkDefs";
 import { isCursorTouching } from "./selection";
 import { scanFootnoteDef, numberFootnotes, defText } from "./footnoteSyntax";
+import { decorationField } from "./decorationField";
 
 const cache = new WeakMap();
 
@@ -169,16 +169,7 @@ function buildFootnotes(state) {
 }
 
 // A StateField like mathField: rebuilt on doc, selection and tree changes (the parse is time-sliced).
-const footnoteField = StateField.define({
-    create: buildFootnotes,
-    update(decorations, tr) {
-        if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-            return buildFootnotes(tr.state);
-        }
-        return decorations;
-    },
-    provide: (field) => EditorView.decorations.from(field),
-});
+const footnoteField = decorationField(buildFootnotes);
 
 const footnoteTooltip = hoverTooltip((view, pos) => {
     const text = footnoteTooltipText(view.state, pos);

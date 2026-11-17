@@ -1,8 +1,8 @@
-import { StateField } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { isClosedBlock, mathSource } from "./mathSyntax";
 import { renderTex } from "../utils/math";
+import { decorationField } from "./decorationField";
 
 // kind: "inline" | "display" ($$..$$ inside a line) | "block" | "preview" (under a block being edited)
 class MathWidget extends WidgetType {
@@ -88,16 +88,7 @@ function buildMath(state) {
 
 // A StateField, not a ViewPlugin: block math replaces line breaks, which only a field may do.
 // Rebuilt on the same triggers as livePreview (the parse is time-sliced, so tree changes count).
-const mathField = StateField.define({
-    create: buildMath,
-    update(decorations, tr) {
-        if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-            return buildMath(tr.state);
-        }
-        return decorations;
-    },
-    provide: (field) => EditorView.decorations.from(field),
-});
+const mathField = decorationField(buildMath);
 
 const mathTheme = EditorView.baseTheme({
     ".cm-math": { unicodeBidi: "isolate" },
