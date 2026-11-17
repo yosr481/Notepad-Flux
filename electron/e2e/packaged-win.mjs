@@ -1092,6 +1092,129 @@ if (want('callouts')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: mermaid (F4, Docs/internal/mermaid-spec.md)
+// Real Mermaid layout + CSS under the app CSP (script-src 'self'), the lazy chunk, theme re-render, the export path: what jsdom cannot cover.
+if (want('mermaid')) {
+    const Um = tmp('nf-mm-u-'), Wm = tmp('nf-mm-w-'); cleanup.push(Um, Wm)
+    const { app, win } = await L(Um)
+    const consoleMsgs = []
+    win.on('console', m => consoleMsgs.push(`[${m.type()}] ${m.text()}`.slice(0, 300)))
+    const errs0 = pageErrors.length
+    await win.evaluate(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI)) })
+    const f = join(Wm, 'mm.md')
+    writeFileSync(f, 'Intro line\n\n```mermaid\nflowchart TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n  B -->|no| A\n```\n\nMiddle line\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello Bob\n  Bob-->>Alice: Hi Alice\n```\n\n```mermaid\nthis is not ((a diagram\n```\n\nlast\n')
+    // performance.getEntriesByType('resource') does not list file:// module scripts, so ask the debugger (enable replays scriptParsed for every loaded script)
+    const chunkNames = async () => {
+        const s = await win.context().newCDPSession(win); const u = []
+        s.on('Debugger.scriptParsed', e => u.push(e.url))
+        await s.send('Debugger.enable'); await sleep(300); await s.send('Debugger.disable'); await s.detach()
+        return u.filter(n => /mermaid|flowchart|sequenceDiagram/i.test(n)).map(n => n.split('/').pop())
+    }
+    // MM-1 runs BEFORE the fixture is opened: a fresh profile has no mermaid block
+    await check('MM-1', 'mermaid', 'startup: before any mermaid block is open no mermaid chunk was fetched', async () => {
+        const n = await chunkNames(); eq(n.length, 0, 'mermaid chunk loaded at startup: ' + JSON.stringify(n))
+    })
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'mm.md', { what: 'tab mm.md' })
+    await ui.focusEditor(win); await win.keyboard.press('Control+End')
+    const ok = win.locator('.cm-mermaid:not(.cm-mermaid-error)')
+    const err = win.locator('div.cm-mermaid-error')
+    const svgInfo = (i) => win.evaluate((i) => {
+        const w = document.querySelectorAll('.cm-mermaid:not(.cm-mermaid-error)')[i]; const s = w?.querySelector('svg'); if (!s) return null
+        const r = s.getBoundingClientRect(); const shape = s.querySelector('.node rect, .node polygon, .node path'); const cs = shape && getComputedStyle(shape)
+        return { w: r.width, h: r.height, labels: [...s.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean), tspans: s.querySelectorAll('tspan').length, style: s.querySelectorAll('style').length,
+            fill: cs?.fill, stroke: cs?.stroke, html: s.outerHTML.length, foreign: s.querySelectorAll('foreignObject').length }
+    }, i)
+    await check('MM-2', 'mermaid', 'flowchart fence, caret outside: div.cm-mermaid svg with <text> labels, non-zero size, Mermaid <style> applied (node fill/stroke not default), no cm-mermaid-error on it, no CSP violation, no page error', async () => {
+        await waitFor(async () => (await svgInfo(0)) !== null, { timeout: 60000, what: 'first mermaid svg (chunk load + render)' })
+        const r = await svgInfo(0)
+        assert(r.w > 20 && r.h > 20, 'svg has no size: ' + JSON.stringify(r))
+        for (const l of ['Start', 'Ok?', 'Done']) assert(r.labels.some(t => t.includes(l)), `label "${l}" missing: ` + JSON.stringify(r.labels))
+        assert(r.style >= 1, 'no <style> in svg')
+        assert(r.fill !== 'rgb(0, 0, 0)' && r.fill !== 'none' && r.stroke !== 'none', `node shape unstyled (fill ${r.fill}, stroke ${r.stroke})`)
+        eq(r.foreign, 0, 'foreignObject in svg')
+        eq(await win.locator('.cm-mermaid-error').first().evaluate(e => e.querySelector('svg') !== null).catch(() => false), false, 'error widget contains an svg')
+        const csp = await win.evaluate(() => window.__csp); eq(csp.length, 0, 'CSP violations: ' + JSON.stringify(csp))
+        const bad = consoleMsgs.filter(m => /Content Security Policy|Refused to/i.test(m)); eq(bad.length, 0, 'CSP console: ' + JSON.stringify(bad.slice(0, 3)))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        const n = await chunkNames(); assert(n.length > 0, 'no mermaid chunk among loaded scripts after rendering')
+        await win.screenshot({ path: join(shots, `${target}-mermaid.png`) }).catch(() => {})
+    })
+    await check('MM-3', 'mermaid', 'sequence diagram renders: svg with <text> for Alice, Bob and the messages, non-zero size', async () => {
+        await waitFor(async () => (await svgInfo(1)) !== null, { timeout: 60000, what: 'second mermaid svg' })
+        const r = await svgInfo(1)
+        assert(r.w > 20 && r.h > 20, 'svg has no size: ' + JSON.stringify(r))
+        for (const l of ['Alice', 'Bob', 'Hello Bob', 'Hi Alice']) assert(r.labels.some(t => t.includes(l)), `label "${l}" missing: ` + JSON.stringify(r.labels))
+        eq((await win.evaluate(() => window.__csp)).length, 0, 'CSP violations')
+    })
+    await check('MM-4', 'mermaid', 'invalid syntax: div.cm-mermaid-error with message text, no svg, no page error, the other two diagrams still render', async () => {
+        await waitFor(async () => (await err.count()) === 1, { timeout: 30000, what: 'error box' })
+        const t = (await err.first().innerText()).trim(); assert(t.length > 0, 'empty error box')
+        eq(await err.first().locator('svg').count(), 0, 'svg inside the error box')
+        eq(await ok.count(), 2, 'good diagrams')
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return 'error text: ' + t.replace(/\s+/g, ' ').slice(0, 80)
+    })
+    await check('MM-5', 'mermaid', 'click the flowchart: raw source appears (that widget gone, ```mermaid fence + "flowchart TD" visible); caret away brings the diagram back', async () => {
+        await ok.first().click()
+        await waitFor(async () => (await ok.count()) === 1, { what: 'flowchart widget gone after click' })
+        await waitFor(async () => { const t = await ui.editorText(win); return t.includes('flowchart TD') && t.includes('A[Start]') }, { what: 'raw source visible' })
+        assert((await win.locator('.cm-content').innerText()).includes('flowchart TD'), 'raw source not visible in the DOM')
+        await win.keyboard.press('Control+End')
+        await waitFor(async () => (await ok.count()) === 2, { timeout: 30000, what: 'diagram back after caret left' })
+        assert(!(await win.locator('.cm-content').innerText()).includes('flowchart TD'), 'raw source still visible with caret outside')
+    })
+    const setTheme = async (t) => {
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const look = () => win.evaluate(() => {
+        const s = document.querySelector('.cm-mermaid:not(.cm-mermaid-error) svg'); if (!s) return null
+        const n = s.querySelector('.node rect, .node polygon, .node path'); const t = s.querySelector('text')
+        return { theme: document.body.getAttribute('data-theme'), fill: n && getComputedStyle(n).fill, text: t && getComputedStyle(t).fill, css: [...s.querySelectorAll('style')].map(x => x.textContent).join('').length, html: s.innerHTML.length }
+    })
+    await check('MM-6', 'mermaid', 'Settings > App theme dark: the visible diagram re-renders (node fill and/or label colour differ); back to light restores it', async () => {
+        try {
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => (await look()) !== null, { what: 'light svg' })
+            const light = await look()
+            await setTheme('dark')
+            await waitFor(() => win.evaluate(() => document.body.getAttribute('data-theme') === 'dark'), { what: 'data-theme=dark' })
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => { const d = await look(); return d && d.theme === 'dark' && (d.fill !== light.fill || d.text !== light.text) }, { timeout: 30000, what: 'diagram re-rendered in dark (light was ' + JSON.stringify(light) + ')' })
+            const dark = await look()
+            await setTheme('light')
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => { const d = await look(); return d && d.theme === 'light' && d.fill === light.fill && d.text === light.text }, { timeout: 30000, what: 'diagram back to light colours' })
+            return `light ${light.fill}/${light.text}, dark ${dark.fill}/${dark.text}`
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('MM-7', 'mermaid', 'File > Export to HTML: two div.mermaid-diagram with svg, a pre.mermaid-error, no <script>', async () => {
+        await ui.focusEditor(win); await win.keyboard.press('Control+End')
+        const dst = join(Wm, 'mm-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8')
+        const d = h.match(/<div class="mermaid-diagram"[^>]*>\s*<svg/g) || []
+        eq(d.length, 2, 'div.mermaid-diagram with svg')
+        assert(/<pre class="mermaid-error"/.test(h), 'no pre.mermaid-error')
+        assert(!/<script/i.test(h), '<script in export')
+        assert(!/<foreignObject/i.test(h), 'foreignObject in export')
+        assert(h.includes('Start') && h.includes('Alice'), 'diagram labels missing from export')
+        assert(!/<code class="language-mermaid"/.test(h), 'raw mermaid code block left in export')
+    })
+    await check('MM-8', 'mermaid', 'diagrams fit the editor: each svg width <= .cm-content width, scroller has no horizontal overflow', async () => {
+        await ui.focusEditor(win); await win.keyboard.press('Control+End')
+        await waitFor(async () => (await ok.count()) === 2, { what: 'both diagrams' })
+        const r = await win.evaluate(() => { const c = document.querySelector('.cm-content').getBoundingClientRect(), sc = document.querySelector('.cm-scroller')
+            return { content: c.width, svgs: [...document.querySelectorAll('.cm-mermaid svg')].map(s => s.getBoundingClientRect().width), sw: sc.scrollWidth, cw: sc.clientWidth } })
+        assert(r.svgs.length >= 2 && r.svgs.every(w => w > 0 && w <= r.content + 1), 'svg wider than content: ' + JSON.stringify(r))
+        assert(r.sw <= r.cw + 1, 'horizontal overflow on the scroller: ' + JSON.stringify(r))
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)

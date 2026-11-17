@@ -80,6 +80,7 @@ src/
 │   ├── mathSyntax.js / mathPreview.js     - Math: Lezer parser + shared scanners / widgets
 │   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
 │   ├── calloutSyntax.js / callouts.js     - Callouts (`> [!type]`): shared scanner + type table / header widgets, fold, tint classes
+│   ├── mermaidPreview.js   - Mermaid: fenced diagram widget outside the cursor, raw source inside
 │   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes; callouts use their own field)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
@@ -88,6 +89,8 @@ src/
 ├── utils/                  - Utility functions
 │   ├── fileSystem.js       - Abstraction for File System Access API
 │   ├── exportCallouts.js   - marked extension: callout blockquotes to callout markup (factory returns `{ extension, finish }`; `finish(root)` swaps the icon marker for the svg)
+│   ├── exportMermaid.js    - marked extension: mermaid fences to nonce placeholders (factory returns `{ extension, prepare, finish, has }`; `finish(root)` swaps each for the sanitized svg)
+│   ├── mermaid.js          - Mermaid loader: lazy `import()`, serial renders, SVG and CSS sanitizer
 │   └── lucideSvg.js        - Builds lucide `<svg>` DOM from icon data (callout icons, chevron); null for an unknown name
 ├── App.jsx                 - Main application layout and event wiring
 └── main.jsx                - Entry point
@@ -329,7 +332,10 @@ The editor's functionality is built through composable CodeMirror extensions:
    - `callouts.js`: one StateField (header widget, tint line classes, folded-body block replace). Fold state (`flipped`) is view-only: kept in the field, mapped through edits, pruned when its header goes or its fold char changes, never persisted to the document or session. Selection-only transactions keep the previous decorations unless a cursor entered/left a header line or an unfold flipped a callout. `unfoldOnJump` (transaction filter) rewrites a one-line arrow-key step across a folded body to land inside it, which unfolds it.
    - `decorationField.js`: shared helper for fields that provide decorations (math, footnotes)
 
-Export: one module per feature in `src/utils/` exports a marked extension factory (+ optional `finish`); `export.js` `renderMarkdownHtml` composes them, sanitizes, then a DOM pass swaps math placeholders, sets footnote ids and swaps callout icons (per-module `finish`). `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`.
+10. **`mermaidPreview.js`**: Mermaid (`` `mermaid` `` fences)
+   - Block widget with the rendered diagram outside the fence; raw source inside it. Uses `utils/mermaid.js` for rendering.
+
+Export: one module per feature in `src/utils/` exports a marked extension factory and a post-sanitize DOM pass. `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each pass: math `finish` (after `prepare`), footnotes `finishDom` (ids), callouts `finish` (icons) and mermaid `finish` (SVG). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`.
 
 ---
 

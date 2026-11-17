@@ -1,7 +1,7 @@
 # Markdown Reference Guide
 
 **Project:** Notepad Flux  
-**Last Updated:** 2025-12-11
+**Last Updated:** 2026-11-17
 
 ---
 
@@ -25,6 +25,7 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 12. [Math](#math)
 13. [Footnotes](#footnotes)
 14. [Callouts](#callouts)
+15. [Diagrams (Mermaid)](#diagrams-mermaid)
 
 ---
 
@@ -527,6 +528,38 @@ Export:
 
 - HTML export keeps the callout's folds. A `-` callout is closed in the file, and the reader can open it.
 - PDF export and Print open every foldable callout, because a page can't be clicked.
+
+---
+
+## Diagrams (Mermaid)
+
+A fenced code block whose language is `mermaid` draws a diagram, with Mermaid. Flowcharts, sequence diagrams and the other Mermaid diagram types work.
+
+````markdown
+```mermaid
+flowchart LR
+    A[Write] --> B{Cursor inside?}
+    B -- yes --> C[Edit the source]
+    B -- no --> D[Show the diagram]
+```
+
+```mermaid
+sequenceDiagram
+    Alice->>Bob: Hello Bob, how are you?
+    Bob-->>Alice: Fine, thanks.
+```
+````
+
+Rules:
+
+- The fence can be backticks or tildes, of any length. The language word is not case-sensitive.
+- With the cursor outside the block, the diagram replaces the whole block. Click the diagram to edit its source. The cursor goes to the first line of the source.
+- With the cursor inside the block, you see only the source. There is no preview while you edit. The diagram comes back when the cursor leaves the block.
+- The diagram follows the app's light or dark theme. HTML export, PDF export and Print always use the light theme.
+- A syntax error shows Mermaid's message in a box, in place of the diagram.
+- Works offline. Mermaid is bundled with the app. It loads the first time a diagram appears, so a document without diagrams never loads it.
+- For safety, links you click in a diagram are off, and HTML labels are off. A `%%{init}%%` line in the document can't change the theme or the styles.
+- Syntax reference: [mermaid.js.org syntax docs](https://mermaid.js.org/intro/syntax-reference.html).
 
 ---
 
