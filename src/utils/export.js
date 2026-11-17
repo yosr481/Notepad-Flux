@@ -30,14 +30,14 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
     const m = new Marked(math.extension, footnotes.extension, callouts.extension, mermaid.extension);
-    const html = sanitizeHTML(footnotes.finish(m, m.parser(m.lexer(markdown))));
-    if (!math.hasFormulas() && !mermaid.has() && !html.includes(idMark)) return html;
+    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(markdown))));
+    if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 
     await Promise.all([math.prepare(), mermaid.prepare()]);
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
     callouts.finish(tpl.content);
-    footnotes.finishDom(tpl.content);
+    footnotes.finish(tpl.content);
     math.finish(tpl.content);
     mermaid.finish(tpl.content);
     return tpl.innerHTML;

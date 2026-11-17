@@ -1172,6 +1172,47 @@ if (want('mermaid')) {
         assert(r.svgs.length >= 2 && r.svgs.every(w => w > 0 && w <= r.content + 1), 'svg wider than content: ' + JSON.stringify(r))
         assert(r.sw <= r.cw + 1, 'horizontal overflow on the scroller: ' + JSON.stringify(r))
     })
+    await check('MM-9', 'mermaid', 'repro: classDef mask-image:url(http://e.test/..) a flowchart image-shape node, a sequence participant icon and a $$ label with <img>, and the YAML-alias and explicit-key forms of img with a scheme-only host (http:e.test/x.png) cause zero network requests to e.test while rendering in the editor and during HTML export (CSS must not reach the live DOM unsanitized)', async () => {
+        const f2 = join(Wm, 'mm-net.md')
+        writeFileSync(f2, 'net\n\n```mermaid\nstateDiagram-v2\nA --> B\nclassDef x mask-image:url(http://e.test/1.png)\nclass A x\n```\n\n```mermaid\nflowchart TD\nA@{ img: "http://e.test/img.png", label: "x", pos: "t", w: 60, h: 60 }\n```\n\n```mermaid\nsequenceDiagram\nparticipant A@{ \"icon\": \"https://e.test/p.png\" }\nA->>A: hi\n```\n\n```mermaid\nsequenceDiagram\nA->>B: $$x$$ <img src=\"https://e.test/q.png\">\n```\n\n```mermaid\nflowchart TD\nA@{ label: &k img, *k : \"http:e.test/a.png\", w: 60, h: 60 }\n```\n\n```mermaid\nflowchart TD\nA@{\n  ? img # c\n  : \"http:e.test/b.png\"\n}\n```\n\nlast\n')
+        const cdp = await win.context().newCDPSession(win); const reqs = new Map() // requestId -> { url, failed, blockedReason, ok }
+        cdp.on('Network.requestWillBeSent', e => reqs.set(e.requestId, { url: e.request.url }))
+        cdp.on('Network.loadingFailed', e => { const r = reqs.get(e.requestId); if (r) { r.failed = true; r.blockedReason = e.blockedReason; r.err = e.errorText } })
+        cdp.on('Network.responseReceived', e => { const r = reqs.get(e.requestId); if (r) r.ok = true })
+        await cdp.send('Network.enable')
+        try {
+            // Main document must never hold the host in an attribute, even transiently (Mermaid must run in the sandboxed frame, not here)
+            await win.evaluate(() => { window.__attrHits = []; const scan = (n) => { if (n.nodeType !== 1) return; for (const el of [n, ...n.querySelectorAll('*')]) for (const a of el.attributes) if (/e\.test/i.test(a.value)) window.__attrHits.push(el.localName + '[' + a.name + ']') }; new MutationObserver(ms => { for (const m of ms) { if (m.type === 'attributes' && /e\.test/i.test(m.target.getAttribute(m.attributeName) || '')) window.__attrHits.push(m.target.localName + '[' + m.attributeName + ']'); m.addedNodes.forEach(scan) } }).observe(document.documentElement, { subtree: true, childList: true, attributes: true }) })
+            await ui.openViaDialog(app, win, f2)
+            await waitFor(async () => (await ui.activeTitle(win)) === 'mm-net.md', { what: 'tab mm-net.md' })
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => (await ok.count()) >= 1, { timeout: 60000, what: 'repro diagram rendered (or errored) in the editor' }).catch(() => {})
+            await sleep(1500)
+            const dst = join(Wm, 'mm-net-out.html'); await ui.stubSave(app, dst)
+            await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+            await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+            await sleep(1500)
+            // requestWillBeSent also fires for requests the frame's CSP then blocks, so judge the outcome: every request to e.test must end in
+            // loadingFailed with blockedReason 'csp' (a DNS failure or a response means it left the machine). The count must be > 0 (frame requests
+            // are visible to this session; a vacuous pass would hide a broken probe).
+            const att = [...reqs.values()].filter(r => /e\.test/i.test(r.url))
+            const bad = att.filter(r => !(r.failed && r.blockedReason === 'csp') || r.ok)
+            assert(att.length > 0, 'no attempted request to e.test seen at all: the probe cannot see the frame, or Mermaid no longer tries')
+            eq(bad.length, 0, 'e.test requests not blocked by CSP: ' + JSON.stringify(bad.slice(0, 3)))
+            const attrHits = await win.evaluate(() => { const l = [...(window.__attrHits || [])]; for (const el of document.querySelectorAll('*')) for (const a of el.attributes) if (/e\.test/i.test(a.value)) l.push(el.localName + '[' + a.name + ']'); return l })
+            eq(attrHits.length, 0, 'main document attributes containing e.test: ' + JSON.stringify(attrHits.slice(0, 5)))
+            // The preload must not reach the sandboxed frame: no electronAPI / ipcRenderer / require inside mermaid-frame.html
+            const fr = win.frames().find(f => /mermaid-frame\.html/.test(f.url()))
+            assert(fr, 'mermaid frame not found among ' + JSON.stringify(win.frames().map(f => f.url())))
+            const leak = await fr.evaluate(() => ({ api: typeof window.electronAPI, ipc: typeof window.ipcRenderer, req: typeof window.require }))
+            eq(JSON.stringify(leak), JSON.stringify({ api: 'undefined', ipc: 'undefined', req: 'undefined' }), 'frame sees Electron bridges')
+            // A URL in a label is plain text now (the error box echoes the source), but it must not be live: no attribute, <style> text or url() may hold it.
+            const exp = readFileSync(dst, 'utf8')
+            const live = [...(exp.match(/<[^<>]*e\.test[^<>]*>/gi) || []), ...(exp.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).filter(t => /e\.test/i.test(t)), ...(exp.match(/url\([^)]*e\.test[^)]*\)/gi) || [])]
+            eq(live.length, 0, 'e.test in an attribute, <style> or url() of the exported html: ' + JSON.stringify(live.slice(0, 2)).slice(0, 300))
+            return `${reqs.size} requests seen, ${att.length} to e.test all blocked by CSP`
+        } finally { await cdp.send('Network.disable').catch(() => {}); await cdp.detach().catch(() => {}) }
+    })
     await app.close().catch(() => {})
 }
 

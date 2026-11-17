@@ -1,9 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 
 // Spec: Docs/internal/mermaid-spec.md ("Library", "Rendering contract", "Security").
-// jsdom can't lay out SVG, so the engine is mocked; render's result/rejection is driven per test.
+// Mermaid no longer runs in this document: renderMermaid talks to a sandboxed frame through `createMermaidFrame()`
+// (src/utils/mermaidBridge.js, tested in its own file). Here the bridge is mocked and `engine` is the fake frame:
+// `engine.render(id, source, theme)` resolves the raw { svg } | { error } the frame would send back.
 
-vi.mock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn() } }));
+vi.mock('../mermaidBridge', () => ({ createMermaidFrame: vi.fn() }));
 
 const FLOW_SVG = (extra = '') =>
     '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" id="m1">' +
@@ -13,16 +15,15 @@ const FLOW_SVG = (extra = '') =>
     '<path d="M41,10 L90,10" marker-end="url(#m1_arrow)"/>' +
     extra + '</svg>';
 
-// Fresh module state; `engine` is the (reset) mocked mermaid default the module will import.
+// Fresh module state. `engine` is the fake frame returned by the (reset) mocked createMermaidFrame; `create` is that mock.
 const fresh = async () => {
     vi.resetModules();
     const mod = await import('../mermaid');
-    const engine = (await import('mermaid')).default;
-    // The mock fns survive resetModules; clear calls and queued once-values so tests don't leak.
-    engine.initialize.mockReset();
-    engine.render.mockReset();
-    engine.render.mockResolvedValue({ svg: FLOW_SVG() });
-    return { ...mod, engine };
+    const { createMermaidFrame: create } = await import('../mermaidBridge');
+    create.mockReset();
+    const engine = { render: vi.fn().mockResolvedValue({ svg: FLOW_SVG() }) };
+    create.mockReturnValue(engine);
+    return { ...mod, engine, create };
 };
 
 const parse = (markup) => {
@@ -32,94 +33,71 @@ const parse = (markup) => {
 };
 const allAttrs = (root) => [...root.querySelectorAll('*')].flatMap((el) => [...el.attributes]);
 
-describe('MERMAID_CONFIG', () => {
-    it('pins the fixed, document-proof settings', async () => {
-        const { MERMAID_CONFIG: c } = await fresh();
-        expect(c.startOnLoad).toBe(false);
-        expect(c.securityLevel).toBe('strict');
-        expect(c.htmlLabels).toBe(false);
-        expect(c.flowchart.htmlLabels).toBe(false);
-    });
-
-    it('secure list covers every key a %%{init}%% directive must not change', async () => {
-        const { MERMAID_CONFIG: c } = await fresh();
-        for (const k of ['secure', 'securityLevel', 'startOnLoad', 'maxTextSize', 'themeCSS',
-            'themeVariables', 'fontFamily', 'htmlLabels', 'flowchart']) {
-            expect(c.secure).toContain(k);
-        }
+describe('mermaid.js re-exports MERMAID_CONFIG from mermaidConfig.js (existing imports keep working)', () => {
+    it('same object', async () => {
+        const { MERMAID_CONFIG } = await fresh();
+        const cfg = await import('../mermaidConfig');
+        expect(MERMAID_CONFIG).toBe(cfg.MERMAID_CONFIG);
     });
 });
 
-describe('renderMermaid: engine loading', () => {
-    it('isMermaidLoaded is false before the first call and true after it', async () => {
+describe('renderMermaid: frame bridge', () => {
+    it('creates no frame at import and one on the first render, reused for every later render (also concurrent)', async () => {
+        const { renderMermaid, create } = await fresh();
+        expect(create).not.toHaveBeenCalled();
+        await Promise.all([renderMermaid('graph A'), renderMermaid('graph B'), renderMermaid('graph C')]);
+        await renderMermaid('graph D', { theme: 'dark' });
+        expect(create).toHaveBeenCalledTimes(1);
+    });
+
+    it('isMermaidLoaded is false before the first call and true after a render that returned an svg', async () => {
         const { renderMermaid, isMermaidLoaded } = await fresh();
         expect(isMermaidLoaded()).toBe(false);
         await renderMermaid('graph TD; A-->B');
         expect(isMermaidLoaded()).toBe(true);
     });
 
-    it('loads the engine once for concurrent first calls', async () => {
+    it('calls frame.render(id, source, theme); theme defaults to "default"', async () => {
         const { renderMermaid, engine } = await fresh();
-        // Count initialize calls: one load + same theme => exactly one initialize.
-        await Promise.all([renderMermaid('graph A'), renderMermaid('graph B'), renderMermaid('graph C')]);
-        expect(engine.initialize).toHaveBeenCalledTimes(1);
-        expect(engine.render).toHaveBeenCalledTimes(3);
-    });
-
-    it('a failed import resolves { error }, is forgotten, and the next call retries', async () => {
-        vi.resetModules();
-        vi.doMock('mermaid', () => { throw new Error('chunk load failed'); });
-        const { renderMermaid, isMermaidLoaded } = await import('../mermaid');
-        const bad = await renderMermaid('graph TD; A-->B');
-        expect(typeof bad.error).toBe('string');
-        expect(bad.svg).toBeUndefined();
-        expect(isMermaidLoaded()).toBe(false);
-
-        const render = vi.fn().mockResolvedValue({ svg: FLOW_SVG() });
-        vi.doMock('mermaid', () => ({ default: { initialize: vi.fn(), render } }));
-        const good = await renderMermaid('graph TD; A-->B');
-        expect(good.error).toBeUndefined();
-        expect(good.svg).toContain('<svg');
-        expect(render).toHaveBeenCalledTimes(1);
-        expect(isMermaidLoaded()).toBe(true);
-        vi.doMock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn() } }));
-    });
-
-    it('a failed load is not cached: same source renders after the engine recovers', async () => {
-        vi.resetModules();
-        vi.doMock('mermaid', () => { throw new Error('offline'); });
-        const { renderMermaid } = await import('../mermaid');
-        expect((await renderMermaid('graph X')).error).toBeTypeOf('string');
-        const render = vi.fn().mockResolvedValue({ svg: FLOW_SVG() });
-        vi.doMock('mermaid', () => ({ default: { initialize: vi.fn(), render } }));
-        expect((await renderMermaid('graph X')).svg).toContain('<svg');
-        vi.doMock('mermaid', () => ({ default: { initialize: vi.fn(), render: vi.fn() } }));
-    });
-});
-
-describe('renderMermaid: initialize / theme', () => {
-    it('initializes with MERMAID_CONFIG spread plus theme (default theme = "default")', async () => {
-        const { renderMermaid, MERMAID_CONFIG, engine } = await fresh();
         await renderMermaid('graph A');
-        expect(engine.initialize).toHaveBeenCalledWith({ ...MERMAID_CONFIG, theme: 'default' });
+        await renderMermaid('graph B', { theme: 'dark' });
+        expect(engine.render.mock.calls[0]).toEqual([expect.stringMatching(/^nf-mermaid-\d+$/), 'graph A', 'default']);
+        expect(engine.render.mock.calls[1]).toEqual([expect.stringMatching(/^nf-mermaid-\d+$/), 'graph B', 'dark']);
     });
 
-    it('does not re-initialize while the theme stays the same', async () => {
+    it('there is NO source pre-check: URLs, img keys and url( in a source are passed to the frame untouched', async () => {
         const { renderMermaid, engine } = await fresh();
-        await renderMermaid('graph A', { theme: 'dark' });
-        await renderMermaid('graph B', { theme: 'dark' });
-        expect(engine.initialize).toHaveBeenCalledTimes(1);
-        expect(engine.initialize.mock.calls[0][0].theme).toBe('dark');
+        const src = 'flowchart TD\nA["see https://x.org"]-->B\nB@{ img: "http://e.test/a.png" }\nstyle A background:url(x.png)';
+        const out = await renderMermaid(src);
+        expect(out.error).toBeUndefined();
+        expect(out.svg).toContain('<svg');
+        expect(engine.render.mock.calls[0][1]).toBe(src);
     });
 
-    it('re-initializes when the theme changes, before that render', async () => {
+    it('a { error } from the frame is returned as is, not cached', async () => {
         const { renderMermaid, engine } = await fresh();
-        await renderMermaid('graph A', { theme: 'default' });
-        await renderMermaid('graph B', { theme: 'dark' });
-        expect(engine.initialize).toHaveBeenCalledTimes(2);
-        expect(engine.initialize.mock.calls[1][0].theme).toBe('dark');
-        expect(engine.initialize.mock.invocationCallOrder[1])
-            .toBeLessThan(engine.render.mock.invocationCallOrder[1]);
+        engine.render.mockResolvedValueOnce({ error: 'frame says no' });
+        expect(await renderMermaid('graph A')).toEqual({ error: 'frame says no' });
+        expect((await renderMermaid('graph A')).svg).toContain('<svg');
+        expect(engine.render).toHaveBeenCalledTimes(2);
+    });
+
+    it('a bridge that rejects or throws still resolves { error } (never rejects) and does not block the queue', async () => {
+        const { renderMermaid, engine } = await fresh();
+        engine.render.mockRejectedValueOnce(new Error('bridge down'));
+        engine.render.mockImplementationOnce(() => { throw new Error('sync boom'); });
+        const [a, b, c] = await Promise.all([renderMermaid('s1'), renderMermaid('s2'), renderMermaid('s3')]);
+        expect(a).toEqual({ error: 'bridge down' });
+        expect(b).toEqual({ error: 'sync boom' });
+        expect(c.svg).toContain('<svg');
+    });
+
+    it('createMermaidFrame throwing resolves { error }, and the next call tries to create again', async () => {
+        const { renderMermaid, engine, create } = await fresh();
+        create.mockImplementationOnce(() => { throw new Error('no frame'); });
+        expect(await renderMermaid('graph A')).toEqual({ error: 'no frame' });
+        create.mockReturnValue(engine);
+        expect((await renderMermaid('graph A')).svg).toContain('<svg');
     });
 });
 
@@ -206,7 +184,8 @@ describe('renderMermaid: cache', () => {
         const { renderMermaid, engine } = await fresh();
         const a = await renderMermaid('graph A');
         const b = await renderMermaid('graph A');
-        expect(b).toEqual(a);
+        expect(b.svg).toBeTruthy(); // ids differ per result now (see "fresh root id" below), so no toEqual
+        expect(a.svg).toBeTruthy();
         expect(engine.render).toHaveBeenCalledTimes(1);
     });
 
@@ -470,5 +449,79 @@ describe('sanitizeMermaidSvg: unterminated url(', () => {
         expect(t).not.toContain('evil.test');
         const a = sanitizeMermaidSvg('<svg xmlns="http://www.w3.org/2000/svg"><rect style="fill:#f9f;background:url(http://evil.test/a.png"/></svg>');
         expect(a).not.toContain('evil.test');
+    });
+});
+
+// ---- F4 final-review round ----
+
+// Mock engine that behaves like Mermaid: the root id and every id-scoped token comes from the id passed to render().
+const svgWithId = (id) =>
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 50" id="${id}">` +
+    `<style>#${id} .node rect{fill:#ececff}#${id} .label{font-family:sans-serif}</style>` +
+    `<defs><marker id="${id}_arrow" markerWidth="8" markerHeight="8"><path d="M0,0 L8,4 L0,8 z"/></marker></defs>` +
+    `<path d="M41,10 L90,10" marker-end="url(#${id}_arrow)"/><g class="node"><rect width="9" height="9"/></g></svg>`;
+const idTokens = (markup) => new Set(markup.match(/nf-mermaid-\d+/g) ?? []);
+const rootId = (markup) => parse(markup).querySelector('svg').id;
+
+describe('renderMermaid: fresh root id on every result (cache hits too)', () => {
+    const setup = async () => {
+        const ctx = await fresh();
+        ctx.engine.render.mockImplementation(async (id) => ({ svg: svgWithId(id) }));
+        return ctx;
+    };
+
+    it('same source + theme twice: different root ids, no shared nf-mermaid-N token', async () => {
+        const { renderMermaid } = await setup();
+        const a = await renderMermaid('graph A');
+        const b = await renderMermaid('graph A');
+        expect(rootId(a.svg)).toMatch(/^nf-mermaid-\d+$/);
+        expect(rootId(b.svg)).toMatch(/^nf-mermaid-\d+$/);
+        expect(rootId(b.svg)).not.toBe(rootId(a.svg));
+        const ta = idTokens(a.svg), tb = idTokens(b.svg);
+        expect(ta.size).toBe(1);
+        expect(tb.size).toBe(1);
+        expect([...tb].some((t) => ta.has(t))).toBe(false);
+    });
+
+    it('the second result is self-consistent: url(#..) refs, marker id and <style> selectors use its own id', async () => {
+        const { renderMermaid } = await setup();
+        const a = await renderMermaid('graph A');
+        const b = await renderMermaid('graph A');
+        const idA = rootId(a.svg), idB = rootId(b.svg);
+        const root = parse(b.svg);
+        expect(root.querySelector('marker').id).toBe(`${idB}_arrow`);
+        expect(root.querySelector('path[marker-end]').getAttribute('marker-end')).toBe(`url(#${idB}_arrow)`);
+        const css = root.querySelector('style').textContent;
+        expect(css).toContain(`#${idB} .node rect`);
+        expect(css).toContain(`#${idB} .label`);
+        expect(css).not.toContain(idA);
+        expect(b.svg).not.toContain(idA);
+    });
+
+    it('a third hit is unique again; ids never repeat across the page, and the cache still saves the render', async () => {
+        const { renderMermaid, engine } = await setup();
+        const r = [await renderMermaid('graph A'), await renderMermaid('graph A'), await renderMermaid('graph A')];
+        expect(new Set(r.map((x) => rootId(x.svg))).size).toBe(3);
+        expect(engine.render).toHaveBeenCalledTimes(1);
+    });
+
+    it('also unique against a different source rendered in between, and per theme', async () => {
+        const { renderMermaid } = await setup();
+        const ids = [
+            rootId((await renderMermaid('graph A')).svg),
+            rootId((await renderMermaid('graph B')).svg),
+            rootId((await renderMermaid('graph A')).svg),
+            rootId((await renderMermaid('graph A', { theme: 'dark' })).svg),
+            rootId((await renderMermaid('graph A', { theme: 'dark' })).svg),
+        ];
+        expect(new Set(ids).size).toBe(5);
+    });
+
+    it('later ids do not collide with an id a prior hit received (counter shared)', async () => {
+        const { renderMermaid } = await setup();
+        const first = rootId((await renderMermaid('graph A')).svg);
+        const hit = rootId((await renderMermaid('graph A')).svg);
+        const next = rootId((await renderMermaid('graph NEW')).svg);
+        expect(new Set([first, hit, next]).size).toBe(3);
     });
 });

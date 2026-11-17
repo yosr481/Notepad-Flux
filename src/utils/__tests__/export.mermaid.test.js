@@ -12,7 +12,7 @@ import { createMermaid } from '../exportMermaid';
 
 // Spec: Docs/internal/mermaid-spec.md ("Export (HTML, PDF, Print)", "Security"). Loader/sanitizer are covered in mermaid.test.js.
 // Pinned choices (spec silent or only implied):
-//  - createMermaid(nonce) -> { extension, prepare(), finish(root), has() } (same shape as createMath, but has() not hasFormulas()).
+//  - createMermaid(nonce) -> { extension, prepare(), finish(root), has() } (same shape as createMath).
 //  - `extension` is a marked extension usable as `new Marked(ext)`; it overrides only the `code` renderer for mermaid fences
 //    and lets every other fence render as stock marked does. It emits a nonce placeholder that survives sanitizing.
 //  - has() is false until a mermaid fence has been rendered by marked; other fences never flip it.
@@ -22,7 +22,7 @@ import { createMermaid } from '../exportMermaid';
 //  - renderMermaid is always called with exactly (source, { theme: 'default' }), whatever document.body.dataset.theme is.
 //  - Success: div.mermaid-diagram[dir=ltr] whose innerHTML is exactly the returned svg string.
 //  - Error: pre.mermaid-error whose textContent contains the source and the message; both as text only.
-//  - Identical sources MAY share one renderMermaid call (1 or 2 calls); distinct sources get one call each.
+//  - One renderMermaid call per fence occurrence (identical sources are NOT merged here: every result gets its own root id, see the 'same block twice' test).
 //  - Only the nonce placeholder is replaced. Look-alike text, forged placeholders, raw <div class="mermaid-diagram"> are inert.
 //  - Fast path: no mermaid fence -> renderMermaid is never called.
 const T = 60000;
@@ -237,12 +237,20 @@ describe('renderMarkdownHtml mermaid: multiple diagrams', () => {
         expect(renderMermaid.mock.calls.map((c) => c[0])).toEqual(['graph A', 'graph B', 'graph C']);
     }, T);
 
-    it('identical sources: both appear; a shared render is allowed (1 or 2 calls)', async () => {
+    it('identical sources: both appear, one renderMermaid call each (results carry per-call ids)', async () => {
         const d = await render(fence('graph A') + '\n\n' + fence('graph A'));
         expect(diagrams(d)).toHaveLength(2);
         expect(diagrams(d).every((e) => e.innerHTML === svgFor('graph A'))).toBe(true);
-        expect(renderMermaid.mock.calls.length).toBeGreaterThanOrEqual(1);
-        expect(renderMermaid.mock.calls.length).toBeLessThanOrEqual(2);
+        expect(renderMermaid).toHaveBeenCalledTimes(2);
+    }, T);
+
+    it('same block twice: two distinct svg root ids (a shared id would break the second copy\'s markers/styles)', async () => {
+        let n = 0;
+        renderMermaid.mockImplementation(async () => ({ svg: `<svg id="nf-mermaid-${++n}"><g><text>ok</text></g></svg>` }));
+        const d = await render(fence('graph A') + '\n\n' + fence('graph A'));
+        const ids = diagrams(d).map((e) => e.querySelector('svg').id);
+        expect(ids).toHaveLength(2);
+        expect(new Set(ids).size).toBe(2);
     }, T);
 
     it('exactly once per diagram per export, not twice', async () => {

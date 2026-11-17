@@ -75,5 +75,5 @@ export const createMath = (nonce) => {
         }
     };
 
-    return { extension, prepare, finish, hasFormulas: () => formulas.length > 0 };
+    return { extension, prepare, finish, has: () => formulas.length > 0 };
 };

@@ -558,7 +558,7 @@ Rules:
 - The diagram follows the app's light or dark theme. HTML export, PDF export and Print always use the light theme.
 - A syntax error shows Mermaid's message in a box, in place of the diagram.
 - Works offline. Mermaid is bundled with the app. It loads the first time a diagram appears, so a document without diagrams never loads it.
-- For safety, links you click in a diagram are off, and HTML labels are off. A `%%{init}%%` line in the document can't change the theme or the styles.
+- For safety, links you click in a diagram are off, and HTML labels are off. Diagrams are drawn in an isolated hidden page that can't load anything from the network or disk, so a diagram can't contact the network. A web address in a label is just text. A `%%{init}%%` line or front matter config in the document can't change the theme, the look or the styles.
 - Syntax reference: [mermaid.js.org syntax docs](https://mermaid.js.org/intro/syntax-reference.html).
 
 ---
