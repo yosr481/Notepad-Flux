@@ -24,6 +24,7 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 11. [Highlights](#highlights)
 12. [Math](#math)
 13. [Footnotes](#footnotes)
+14. [Callouts](#callouts)
 
 ---
 
@@ -460,6 +461,72 @@ In the editor:
 - Put the cursor on a reference, or click it, to see and edit the raw `[^label]`.
 - An inline note shows as one superscript number. Hover shows its text. Click it to edit the raw `^[…]`.
 - Limit: a reference inside a table cell stays as raw text. Ctrl+click jumps only from the rendered number, not from raw text.
+
+---
+
+## Callouts
+
+A callout is a blockquote whose first line names a type in square brackets, such as `[!note]`. It draws a coloured box with an icon and a title. GitHub's alerts (`[!NOTE]`, `[!TIP]`, `[!IMPORTANT]`, `[!WARNING]`, `[!CAUTION]`) render the same way.
+
+```markdown
+> [!note]
+> The title is the type name, "Note".
+
+> [!warning] Back up first
+> The body can hold *Markdown*, links and lists.
+
+> [!tip]- Hidden until clicked
+> A `-` after the type starts the callout folded.
+
+> [!faq]+ Open by default
+> A `+` starts it open, and it can still be folded.
+
+> [!info] Outer callout
+> > [!bug] Nested callout
+> > Callouts nest like blockquotes.
+```
+
+Rules:
+
+- The type must be the first thing after the `>`. The type is letters, digits, `-` or `_` (up to 50 characters), and is not case-sensitive.
+- The title is the rest of the first line, after one space. It can hold inline Markdown. With no title, the title is the type as written, with its first letter capitalised: `[!faq]` shows "Faq", `[!WARNING]` shows "Warning".
+- A callout can be just the header line, with no body.
+- Callouts work inside list items, like blockquotes do.
+- These are not callouts: `[!type]` anywhere but the first line, `> text [!note]`, `\[!note]`, and anything inside a code span or code block.
+
+Types. The canonical name sets the colour and icon. Aliases are other names for the same type:
+
+| Type | Aliases |
+|---|---|
+| `note` | |
+| `abstract` | `summary`, `tldr` |
+| `info` | |
+| `todo` | |
+| `tip` | `hint` |
+| `important` | |
+| `success` | `check`, `done` |
+| `question` | `help`, `faq` |
+| `warning` | `attention` |
+| `caution` | |
+| `failure` | `fail`, `missing` |
+| `danger` | `error` |
+| `bug` | |
+| `example` | |
+| `quote` | `cite` |
+
+An unknown type, such as `[!idea]`, shows the note colour and icon, with its name as the title.
+
+In the editor:
+
+- The callout has a tinted background and a coloured left border. Its body stays editable as normal text, with the usual live preview.
+- When the cursor is off the header line, the `[!type]` marker is replaced by the callout's icon and title. Put the cursor on the header to see and edit the raw `[!type]`.
+- A foldable callout (`-` or `+`) shows a chevron on its header. Click the chevron to fold or unfold it.
+- Folding is view-only. It never changes the document and is not kept between sessions. Moving the cursor into a folded body (with search, Go to line or the arrow keys) unfolds it.
+
+Export:
+
+- HTML export keeps the callout's folds. A `-` callout is closed in the file, and the reader can open it.
+- PDF export and Print open every foldable callout, because a page can't be clicked.
 
 ---
 

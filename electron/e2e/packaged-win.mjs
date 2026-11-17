@@ -960,6 +960,138 @@ if (want('footnotes')) {
     await app.close().catch(() => {})
 }
 
+// ---------------------------------------------------------------- scenario: callouts (F3, Docs/internal/callouts-spec.md)
+// Real typing / mouse / keyboard / computed colours / the export path: what jsdom cannot cover. The fixture is opened from a file; CO-1 types its own callout at the end.
+if (want('callouts')) {
+    const Uc = tmp('nf-co-u-'), Wc = tmp('nf-co-w-'); cleanup.push(Uc, Wc)
+    const { app, win } = await L(Uc)
+    const f = join(Wc, 'co.md')
+    // line numbers: 6 = "[!note]- Folded T" header, 7 = its hidden body, 9 = Hebrew tip header
+    writeFileSync(f, 'Intro line\n\n> [!warning] Plain\n> body warn\n\n> [!note]- Folded T\n> hidden body\n\n> [!tip] טיפ חשוב\n> גוף\n\n> [!info] Outer\n> > [!danger] Inner\n> > inner body\n\nlast\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'co.md', { what: 'tab co.md' })
+    const lineOf = (text) => win.locator('.cm-content .cm-line', { hasText: text })
+    const activeLine = () => win.evaluate(() => (getSelection().anchorNode?.parentElement?.closest('.cm-line') ?? null)?.innerText ?? '')
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+    const goToLine = async (n) => {
+        await ui.focusEditor(win); await win.keyboard.press('Control+g')
+        await win.locator('input[type=number]').fill(String(n)); await win.keyboard.press('Enter')
+        await waitFor(async () => (await win.locator('input[type=number]').count()) === 0, { what: 'Go to Line dialog closed' })
+    }
+    const chevron = () => lineOf('Folded T').first().locator('.cm-callout-fold')
+    const bodyShown = async () => (await lineOf('hidden body').count()) > 0
+    const dirty = async () => (await ui.tabsInfo(win)).find(t => t.active)?.dirty
+    // CO-1 types into this doc, so fold checks compare against the dirty flag they started with, not against false
+
+    await check('CO-1', 'callouts', 'typing "> [!warning] Careful" + body: header widget (visible icon svg, title) with the caret off the line; caret back on it shows raw [!warning]', async () => {
+        await caretFar()
+        await win.keyboard.press('Enter'); await win.keyboard.press('Enter')
+        await win.keyboard.type('> [!warning] Careful'); await win.keyboard.press('Enter'); await win.keyboard.type('typed body')
+        const hdr = lineOf('Careful').first()
+        await waitFor(async () => (await hdr.locator('.cm-callout-header').count()) === 1, { what: 'header widget on typed callout' })
+        const box = await hdr.locator('svg.cm-callout-icon').boundingBox(); assert(box && box.width > 0 && box.height > 0, 'icon svg has no size: ' + JSON.stringify(box))
+        assert(await hdr.locator('svg.cm-callout-icon').isVisible(), 'icon not visible')
+        eq((await hdr.locator('.cm-callout-title').innerText()).trim(), 'Careful', 'title text')
+        const t = await hdr.innerText(); assert(!t.includes('[!warning]'), 'raw marker visible with caret off the line: ' + JSON.stringify(t))
+        await win.keyboard.press('ArrowUp')
+        await waitFor(async () => (await lineOf('Careful').first().innerText()).includes('[!warning]'), { what: 'raw [!warning] with caret on the header' })
+        eq(await lineOf('Careful').first().locator('.cm-callout-header').count(), 0, 'widget still there on the caret line')
+    })
+    await check('CO-2', 'callouts', 'real mouse click on the .cm-callout-fold chevron of "> [!note]- T" shows then hides the body line; the doc stays unmodified', async () => {
+        await caretFar()
+        const dirty0 = await dirty()
+        await waitFor(async () => (await chevron().count()) === 1, { what: 'chevron on the folded callout' })
+        assert(!(await bodyShown()), 'body visible while folded by default')
+        await chevron().click()
+        await waitFor(bodyShown, { what: 'body shown after chevron click' })
+        await chevron().click()
+        await waitFor(async () => !(await bodyShown()), { what: 'body hidden after second click' })
+        await chevron().click()
+        await waitFor(bodyShown, { what: 'body shown after third click' })
+        await chevron().click()
+        await waitFor(async () => !(await bodyShown()), { what: 'body hidden after fourth click' })
+        eq(await dirty(), dirty0, 'dirty flag after fold clicks')
+        assert(!(await ui.editorText(win)).includes('Folded T\n> hidden'), 'fold changed the visible text')
+    })
+    await check('CO-3', 'callouts', 'ArrowDown from the raw header of a folded callout unfolds the body', async () => {
+        await caretFar()
+        assert(!(await bodyShown()), 'precondition: body folded')
+        await goToLine(6)   // header: caret on it, raw
+        await waitFor(async () => (await activeLine()).includes('[!note]-'), { what: 'caret on the raw header' })
+        assert(!(await bodyShown()), 'fold opened by landing on the header itself')
+        await win.keyboard.press('ArrowDown')
+        await waitFor(bodyShown, { what: 'body unfolded after ArrowDown from the header (caret: ' + (await activeLine()).slice(0, 30) + ')' })
+    })
+    await check('CO-3b', 'callouts', 'Ctrl+G (Go to Line) to a line inside a folded body unfolds it', async () => {
+        await caretFar()
+        await waitFor(async () => (await chevron().count()) === 1, { what: 'chevron' })
+        if (await bodyShown()) { await chevron().click(); await waitFor(async () => !(await bodyShown()), { what: 'refolded' }) }
+        await goToLine(7)
+        await waitFor(bodyShown, { what: 'body unfolded after Go to line 7' })
+    })
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    // nativeTheme.themeSource does not flip prefers-color-scheme under Xephyr, so use Settings > App theme (the real user path)
+    const setTheme = async (t) => {
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const paint = (theme) => win.evaluate(() => {
+        const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+        const over = (top, base) => ({ rgb: top.rgb.map((c, i) => c * top.a + base.rgb[i] * (1 - top.a)), a: 1 })
+        const bgOf = (el) => { const chain = []; for (let e = el; e; e = e.parentElement) { const p = parse(getComputedStyle(e).backgroundColor); if (p.a > 0) { chain.push(p); if (p.a === 1) break } } let acc = { rgb: [255, 255, 255], a: 1 }; for (const p of chain.reverse()) acc = over(p, acc); return acc }
+        const one = (text) => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => x.innerText.includes(text)); const cs = getComputedStyle(l); return { cls: l.className, color: parse(cs.color).rgb, bg: bgOf(l).rgb, bar: cs.backgroundImage, theme: document.body.getAttribute('data-theme') } }
+        return { warn: one('body warn'), note: one('Folded T') }
+    })
+    await check('CO-4', 'callouts', 'callout line text vs its tint is >= 4.5:1 in light and dark; the left-bar colour differs between note and warning', async () => {
+        try {
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await caretFar(); await sleep(300)
+                const p = await paint(theme)
+                for (const k of ['warn', 'note']) {
+                    assert(/cm-callout/.test(p[k].cls), `${theme}/${k}: not a callout line: ${p[k].cls}`)
+                    const r = ratio(p[k].color, p[k].bg); assert(r >= 4.5, `${theme}/${k}: contrast ${r.toFixed(2)} (text ${p[k].color} on ${p[k].bg.map(Math.round)})`)
+                }
+                assert(p.warn.bar !== p.note.bar, `${theme}: bar identical for note and warning: ${p.warn.bar}`)
+            }
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('CO-5', 'callouts', 'Hebrew title "> [!tip] טיפ חשוב": the title resolves right-to-left and the icon is still there', async () => {
+        await caretFar()
+        const hdr = lineOf('טיפ חשוב').first()
+        await waitFor(async () => (await hdr.locator('svg.cm-callout-icon').count()) === 1, { what: 'icon on the Hebrew header' })
+        const r = await win.evaluate(() => {
+            const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => x.innerText.includes('טיפ חשוב'))
+            const titles = [...l.querySelectorAll('.cm-callout-title')]
+            return { n: titles.length, rtl: titles.map(t => ({ dir: t.getAttribute('dir'), computed: getComputedStyle(t).direction, matchesRtl: t.matches(':dir(rtl)') })), text: l.innerText }
+        })
+        assert(r.n >= 1, 'no .cm-callout-title: ' + JSON.stringify(r))
+        assert(r.rtl.every(t => t.computed === 'rtl' || t.matchesRtl), 'title not rtl: ' + JSON.stringify(r.rtl))
+        assert(!r.text.includes('[!tip]'), 'raw marker visible: ' + JSON.stringify(r.text))
+    })
+    await check('CO-6', 'callouts', 'File > Export to HTML: div.callout.callout-warning, closed details.callout, a nested .callout, an svg in every title, the .callout CSS', async () => {
+        await caretFar()
+        const dst = join(Wc, 'co-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8')
+        assert(/<div class="callout callout-warning"/.test(h), 'no div.callout.callout-warning')
+        assert(/<details class="callout callout-note"(?![^>]*\bopen)[^>]*>/.test(h), 'no closed details.callout for [!note]-')
+        const b = h.slice(h.indexOf('<body')), i = b.indexOf('callout-info'), j = b.indexOf('callout-danger')
+        assert(i >= 0 && j > i && b.slice(i, j).includes('callout-content'), 'danger callout not nested in the info content: ' + b.slice(Math.max(i, 0), Math.max(i, 0) + 700).replace(/\s+/g, ' '))
+        const titles = h.match(/<(?:div|summary) class="callout-title">/g) || []
+        const withSvg = h.match(/<(?:div|summary) class="callout-title">\s*<svg/g) || []
+        assert(titles.length >= 5, 'expected >= 5 callout titles, got ' + titles.length)
+        eq(withSvg.length, titles.length, 'titles with an svg')
+        assert(/\.callout\s*\{/.test(h) && /\.callout-warning\b/.test(h), 'callout CSS rules missing')
+        assert(!h.includes('[!warning]') && !h.includes('[!note]'), 'raw callout marker leaked into the export')
+    })
+    await app.close().catch(() => {})
+}
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)

@@ -330,6 +330,30 @@ describe('calloutPreview: folding', () => {
         expect(v.dom.textContent).toContain('more body');
     });
 
+    it('arrow-style jump over a folded body lands on its first body line and unfolds; a far jump (Ctrl+End / Select All) is not hijacked', () => {
+        const doc = `top\n\n${FOLD('-')}`;
+        const v = mkView(doc, doc.indexOf('Title') + 5);
+        // ArrowDown from the header end: CM steps one line, onto the line right after the hidden body.
+        const lastBody = v.state.doc.lineAt(doc.indexOf('more body'));
+        const after = v.state.doc.line(lastBody.number + 1).from;
+        v.dispatch({ selection: { anchor: doc.indexOf('Title') + 5, head: after }, userEvent: 'select' });
+        const line = v.state.doc.lineAt(v.state.selection.main.head);
+        expect(line.text).toBe('> body line');
+        expect(v.dom.textContent).toContain('body line');
+        // ArrowUp from the line right after the body: one-line step onto the header lands on the last body line.
+        const u = mkView(doc, after);
+        expect(u.dom.textContent).not.toContain('body line');
+        u.dispatch({ selection: { anchor: after, head: doc.indexOf('Title') + 5 }, userEvent: 'select' });
+        expect(u.state.doc.lineAt(u.state.selection.main.head).text).toBe('> more body');
+        expect(u.dom.textContent).toContain('more body');
+        // Jump from the doc start across the fold: head must stay where CM put it, anchor too.
+        const w = mkView(doc, 0);
+        w.dispatch({ selection: { anchor: 0, head: doc.length }, userEvent: 'select' });
+        expect(w.state.selection.main.head).toBe(doc.length);
+        w.dispatch({ selection: { anchor: doc.length }, userEvent: 'select' });
+        expect(w.state.selection.main.head).toBe(doc.length);
+    });
+
     it('selection on the header line shows raw text but does not unfold', () => {
         const doc = FOLD('-');
         const v = mkView(doc, doc.indexOf('Title'));

@@ -1,5 +1,5 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
-import { StateEffect, StateField } from "@codemirror/state";
+import { EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { isCursorOnLine } from "./selection";
 import { scanCallout, calloutTitle, CALLOUT_TYPES } from "./calloutSyntax";
@@ -87,7 +87,7 @@ function build(state, flipped, callouts) {
         }
         const ws = /^[ \t]*/.exec(line.text.slice(c.from - line.from + scan.markEnd))[0].length;
         const titleFrom = c.from + scan.markEnd + ws;
-        if (scan.title) out.push(Decoration.mark({ class: "cm-callout-title" }).range(titleFrom, line.to - (line.text.length - line.text.trimEnd().length)));
+        if (scan.title) out.push(Decoration.mark({ class: "cm-callout-title", attributes: { dir: "auto" } }).range(titleFrom, line.to - (line.text.length - line.text.trimEnd().length)));
         const folded = isFolded(c, flipped);
         if (!isCursorOnLine(selection, doc, c.from)) {
             const widget = new CalloutHeaderWidget(scan.canonical, scan.title ? null : calloutTitle(scan), scan.fold !== "", folded);
@@ -134,8 +134,33 @@ const calloutField = StateField.define({
     provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
 });
 
+// Arrow keys move over the block replace in one step, so the caret lands past the hidden body and inBody never
+// fires. Rewrite such a jump (not mouse clicks) to land inside the body, which then unfolds it.
+const unfoldOnJump = EditorState.transactionFilter.of((tr) => {
+    if (tr.docChanged || !tr.selection || !tr.isUserEvent("select") || tr.isUserEvent("select.pointer")) return tr;
+    const { doc, selection } = tr.startState;
+    if (selection.ranges.length > 1 || tr.newSelection.ranges.length > 1) return tr;
+    const { flipped, callouts } = tr.startState.field(calloutField);
+    const oldHead = selection.main.head;
+    const { anchor, head } = tr.newSelection.main;
+    const oldLine = doc.lineAt(oldHead).number;
+    const newLine = doc.lineAt(head).number;
+    for (const c of callouts) {
+        if (!isFolded(c, flipped) || c.lastLine.to === c.line.to) continue;
+        // Only a one-line step across the fold; far jumps (Ctrl+End, Select All, find-next) pass through.
+        const down = oldLine === c.line.number && newLine === c.lastLine.number + 1;
+        const up = oldLine === c.lastLine.number + 1 && newLine === c.line.number;
+        if (!down && !up) continue;
+        const target = doc.line(down ? c.line.number + 1 : c.lastLine.number);
+        const col = oldHead - doc.lineAt(oldHead).from;
+        return [tr, { selection: EditorSelection.single(anchor, Math.min(target.from + col, target.to)) }];
+    }
+    return tr;
+});
+
 const calloutTheme = EditorView.baseTheme({
     ".cm-callout-header": { unicodeBidi: "isolate", display: "inline-flex", alignItems: "center", gap: "0.4em", fontWeight: "600" },
+    ".cm-callout-title": { unicodeBidi: "isolate" },
     ".cm-callout-icon": { flex: "none", color: "var(--callout-color)" },
     ".cm-callout-fold": { cursor: "pointer", display: "inline-flex", marginInlineStart: "0.3em" },
     ".cm-callout-chevron": { transition: "transform 0.15s" },
@@ -158,4 +183,4 @@ const calloutClick = EditorView.domEventHandlers({
     },
 });
 
-export const calloutPreview = [calloutField, calloutTheme, calloutClick];
+export const calloutPreview = [calloutField, unfoldOnJump, calloutTheme, calloutClick];
