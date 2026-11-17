@@ -1,12 +1,13 @@
-import { scanCallout, calloutTitle } from '../extensions/calloutSyntax';
+import { scanCallout, calloutTitle, CALLOUT_TYPES } from '../extensions/calloutSyntax';
+import { lucideSvg } from './lucideSvg';
 
 // Callouts for marked: same header rules as the editor (calloutSyntax). A blockquote whose first line scans as a
 // callout gets `callout` on its token; the renderer then emits the callout markup instead of <blockquote>.
-// The icon is a marker span `${mark}icon-<canonical>` that export.js swaps for the svg after sanitizing.
+// The icon is a marker span `${mark}icon-<canonical>` that finish() swaps for the svg after sanitizing.
 // ponytail: leans on two marked internals: `lexer.inlineQueue` entries matched by `tokens` identity, and
 // `this.constructor.prototype.blockquote` (skips any other blockquote tokenizer override). The nested-blockquote
 // and list tests in export.callouts.test.js guard a marked upgrade.
-export const calloutExtension = (mark, expandFolds) => ({
+const calloutExtension = (mark, expandFolds) => ({
     tokenizer: {
         blockquote(src) {
             const bq = this.constructor.prototype.blockquote.call(this, src);
@@ -47,5 +48,17 @@ export const calloutExtension = (mark, expandFolds) => ({
             const content = hasBody ? `<div class="callout-content">${this.parser.parse(token.bodyTokens)}</div>` : '';
             return `<${tag} class="callout callout-${scan.canonical}"${open}><${titleTag} class="callout-title"><span class="${mark}icon-${scan.canonical}"></span><span class="callout-title-text">${titleHtml}</span></${titleTag}>${content}</${tag}>\n`;
         },
+    },
+});
+
+// finish(root) runs on the parsed DOM after sanitizing: only a marker span carrying this render's nonce becomes
+// an svg, so user HTML can't forge one.
+export const createCallouts = (mark, expandFolds) => ({
+    extension: calloutExtension(mark, expandFolds),
+    finish(root) {
+        for (const el of root.querySelectorAll(`span[class^="${mark}icon-"]`)) {
+            const svg = lucideSvg(CALLOUT_TYPES[el.className.slice(`${mark}icon-`.length)]?.icon, 'callout-icon');
+            if (svg) el.replaceWith(svg); else el.remove();
+        }
     },
 });

@@ -493,6 +493,7 @@ describe('renderMarkdownHtml callouts: editor/export parity', () => {
         'nested callouts and plain nested quote': '> [!note] o\n> body\n>\n> > [!tip] i\n> > ib\n>\n> > plain\n\n> [!warning]\n> > [!bug] deep',
         'callouts in list items': '- a\n\n  > [!info] x\n  > y\n- > [!danger] z\n  > w\n\n1. one\n\n   > [!quote] q',
         'look-alikes that are not callouts': '> first\n> [!note] second\n\n> text [!note]\n\n> \\[!note] esc\n\n```\n> [!note] code\n```\n\n[!note] bare\n\n> [! note] space',
+        'tab after the quote marker': '>\t[!warning]\n>\tbody\n\n>\t[!tip]- t\n>\tb',
         'two callouts plus plain quote': '> [!example] a\n\n> plain\n\n> [!success] b\n> c',
         'header-only, hebrew, upper, long type': `> [!faq]\n\n> [!note] כותרת\n> גוף\n\n> [!CAUTION]-\n\n> [!${'a'.repeat(51)}] too long\n\n> [!${'b'.repeat(50)}] ok`,
     };

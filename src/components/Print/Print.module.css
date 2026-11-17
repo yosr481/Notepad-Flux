@@ -108,3 +108,4 @@
 /* Folds are expanded for paper; the disclosure marker is noise. */
 .content summary { list-style: none; }
 .content summary::-webkit-details-marker { display: none; }
+.content summary::after { content: none; }

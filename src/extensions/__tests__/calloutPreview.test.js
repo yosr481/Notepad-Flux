@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { EditorState } from '@codemirror/state';
+import { EditorState, EditorSelection, StateEffect } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { ensureSyntaxTree } from '@codemirror/language';
@@ -395,6 +395,51 @@ describe('calloutPreview: folding', () => {
         expect(q(v, '.cm-callout-folded')).toBeNull();
     });
 
+    // Pinned: changing/removing the fold char resets that callout to the new char's default; a stale flip must not survive.
+    it('deleting the fold char after an auto-unfold: no chevron and body stays visible', () => {
+        const doc = '> [!note]-\n> body\n\ntail';
+        const v = mkView(doc);
+        v.dispatch({ selection: { anchor: doc.indexOf('body') + 1 } }); // auto-unfold flips the header
+        v.dispatch({ selection: { anchor: doc.length } });
+        const dash = doc.indexOf(']-') + 1;
+        v.dispatch({ changes: { from: dash, to: dash + 1 } });
+        expect(qa(v, '.cm-callout-fold').length).toBe(0);
+        expect(v.dom.textContent).toContain('body');
+    });
+
+    it('changing "-" to "+" after an auto-unfold resets to open (body visible, chevron not folded)', () => {
+        const doc = '> [!note]-\n> body\n\ntail';
+        const v = mkView(doc);
+        v.dispatch({ selection: { anchor: doc.indexOf('body') + 1 } });
+        v.dispatch({ selection: { anchor: doc.length } });
+        const dash = doc.indexOf(']-') + 1;
+        v.dispatch({ changes: { from: dash, to: dash + 1, insert: '+' } });
+        expect(qa(v, '.cm-callout-fold').length).toBe(1);
+        expect(q(v, '.cm-callout-folded')).toBeNull();
+        expect(v.dom.textContent).toContain('body');
+    });
+
+    it('a callout whose marker is ">" + tab is a callout (parity with export)', () => {
+        const v = mkView('>\t[!warning]\n>\tbodyt\n\ntail');
+        expect(calloutClasses(v, 'bodyt')).toContain('cm-callout-warning');
+    });
+
+    it('selection-only fast path: header-to-header move and multi-cursor keep widgets in sync', () => {
+        const doc = '> [!note] AAA\n> a\n\n> [!tip] BBB\n> b\n\ntail';
+        const v = mkView(doc);
+        const a = doc.indexOf('AAA'), b = doc.indexOf('BBB');
+        const raw = (t) => lineEl(v, t).textContent.includes('[!');
+        v.dispatch({ selection: { anchor: a } });
+        expect([raw('AAA'), raw('BBB')]).toEqual([true, false]);
+        v.dispatch({ selection: { anchor: b } });
+        expect([raw('AAA'), raw('BBB')]).toEqual([false, true]);
+        v.dispatch({ effects: StateEffect.appendConfig.of(EditorState.allowMultipleSelections.of(true)) });
+        v.dispatch({ selection: EditorSelection.create([EditorSelection.cursor(a), EditorSelection.cursor(b)]) });
+        expect([raw('AAA'), raw('BBB')]).toEqual([true, true]);
+        v.dispatch({ selection: { anchor: doc.length } });
+        expect([raw('AAA'), raw('BBB')]).toEqual([false, false]);
+    });
+
     it('folded callout keeps its classes on the header line', () => {
         const v = mkView(FOLD('-'));
         expect(calloutClasses(v, 'Title')).toEqual(expect.arrayContaining(['cm-callout', 'cm-callout-note']));
@@ -418,5 +463,37 @@ describe('Editor.jsx wiring (source guard)', () => {
     it('calloutPreview is in the extensions array, after footnotePreview', () => {
         expect(src).toMatch(/^\s*calloutPreview,/m);
         expect(src.indexOf('calloutPreview,')).toBeGreaterThan(src.indexOf('footnotePreview,'));
+    });
+});
+
+describe('calloutPreview: selection-only fast path', () => {
+    // Identity, not timing: a select move that touches no callout header and unfolds nothing keeps the same decoration set.
+    // Per-move cost is still linear in callouts (~6 ms at 7000 callouts, ~17 ms before the fix), accepted; whole-view cost is backlog B11.
+    const calloutSet = (v) => {
+        const found = v.state.facet(EditorView.decorations).filter((d) => {
+            if (typeof d === 'function') return false;
+            let hit = false;
+            d.between(0, v.state.doc.length, (_f, _t, val) => {
+                if (val.spec.class && String(val.spec.class).includes('cm-callout')) { hit = true; return false; }
+            });
+            return hit;
+        });
+        expect(found.length).toBe(1);
+        return found[0];
+    };
+
+    it('a select move off every header and body keeps the same set; moving onto a header gives a new one', () => {
+        let doc = '';
+        for (let i = 0; i < 300; i++) doc += `> [!note]${i % 2 ? '-' : '+'} Title ${i}\n> body ${i}\n\nplain ${i}\n\n`;
+        const v = mkView(doc, 0);
+        const plain = (n) => doc.indexOf(`plain ${n}`) + 2;
+        v.dispatch({ selection: { anchor: plain(5) }, userEvent: 'select' });
+        const before = calloutSet(v);
+        v.dispatch({ selection: { anchor: plain(6) }, userEvent: 'select' });
+        expect(calloutSet(v)).toBe(before);
+        v.dispatch({ selection: { anchor: plain(200) }, userEvent: 'select' });
+        expect(calloutSet(v)).toBe(before);
+        v.dispatch({ selection: { anchor: doc.indexOf('Title 7') }, userEvent: 'select' });
+        expect(calloutSet(v)).not.toBe(before);
     });
 });

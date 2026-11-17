@@ -1,7 +1,7 @@
 # Architecture Design Document
 
 **Project:** Notepad Flux  
-**Last Updated:** 2025-12-18
+**Last Updated:** 2026-11-17
 
 ---
 
@@ -21,7 +21,7 @@ The application is a Single Page Application (SPA) built with **React** and **Vi
 - **Build Tool**: Vite
 - **Editor Engine**: CodeMirror 6 (@codemirror/view, @codemirror/state, @codemirror/language)
 - **Styling**: CSS Modules + Global CSS Variables
-- **Icons**: Phosphor Icons
+- **Icons**: lucide (`lucideSvg.js`)
 
 ### Desktop Packaging (Electron)
 
@@ -80,14 +80,14 @@ src/
 │   ├── mathSyntax.js / mathPreview.js     - Math: Lezer parser + shared scanners / widgets
 │   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
 │   ├── calloutSyntax.js / callouts.js     - Callouts (`> [!type]`): shared scanner + type table / header widgets, fold, tint classes
-│   ├── decorationField.js - Shared StateField helper for block-level decorations
+│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes; callouts use their own field)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
 ├── styles/                 - Global styles and CSS variables (`calloutExport.css`: callout rules shared by HTML export and Print/PDF)
 ├── utils/                  - Utility functions
 │   ├── fileSystem.js       - Abstraction for File System Access API
-│   ├── exportCallouts.js   - marked extension: callout blockquotes to callout markup (icon marker swapped for svg in export.js)
+│   ├── exportCallouts.js   - marked extension: callout blockquotes to callout markup (factory returns `{ extension, finish }`; `finish(root)` swaps the icon marker for the svg)
 │   └── lucideSvg.js        - Builds lucide `<svg>` DOM from icon data (callout icons, chevron); null for an unknown name
 ├── App.jsx                 - Main application layout and event wiring
 └── main.jsx                - Entry point
@@ -326,10 +326,10 @@ The editor's functionality is built through composable CodeMirror extensions:
 
 9. **`calloutSyntax.js`** / **`callouts.js`**: Callouts (`> [!type] Title`, `-`/`+` fold)
    - `calloutSyntax.js`: `scanCallout`, `CALLOUT_TYPES` (canonical types, aliases, icons), `calloutTitle`
-   - `callouts.js`: one StateField (header widget, tint line classes, folded-body block replace). Fold state (`flipped`) is view-only: kept in the field, mapped through edits, pruned when its header goes, never persisted to the document or session.
-   - `decorationField.js`: shared helper for fields that provide decorations
+   - `callouts.js`: one StateField (header widget, tint line classes, folded-body block replace). Fold state (`flipped`) is view-only: kept in the field, mapped through edits, pruned when its header goes or its fold char changes, never persisted to the document or session. Selection-only transactions keep the previous decorations unless a cursor entered/left a header line or an unfold flipped a callout. `unfoldOnJump` (transaction filter) rewrites a one-line arrow-key step across a folded body to land inside it, which unfolds it.
+   - `decorationField.js`: shared helper for fields that provide decorations (math, footnotes)
 
-Export: one module per feature in `src/utils/` exports a marked extension factory (+ optional `finish`); `export.js` `renderMarkdownHtml` composes them, sanitizes, then a DOM pass swaps math placeholders and sets footnote ids. Rules are shared with the editor via `src/extensions/*Syntax.js`.
+Export: one module per feature in `src/utils/` exports a marked extension factory (+ optional `finish`); `export.js` `renderMarkdownHtml` composes them, sanitizes, then a DOM pass swaps math placeholders, sets footnote ids and swaps callout icons (per-module `finish`). `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`.
 
 ---
 

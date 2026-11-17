@@ -222,7 +222,7 @@
 .cm-callout-info { --callout-rgb: 0,115,160; }
 .cm-callout-todo { --callout-rgb: 8,100,220; }
 .cm-callout-tip { --callout-rgb: 0,125,110; }
-.cm-callout-important { --callout-rgb: 0,125,110; }
+.cm-callout-important { --callout-rgb: 106,47,184; }
 .cm-callout-success { --callout-rgb: 20,130,55; }
 .cm-callout-question { --callout-rgb: 180,95,0; }
 .cm-callout-warning { --callout-rgb: 180,95,0; }
@@ -239,7 +239,7 @@
     .cm-callout-info { --callout-rgb: 50,185,235; }
     .cm-callout-todo { --callout-rgb: 90,170,255; }
     .cm-callout-tip { --callout-rgb: 30,210,185; }
-    .cm-callout-important { --callout-rgb: 30,210,185; }
+    .cm-callout-important { --callout-rgb: 196,150,255; }
     .cm-callout-success { --callout-rgb: 70,200,110; }
     .cm-callout-question { --callout-rgb: 250,170,60; }
     .cm-callout-warning { --callout-rgb: 250,170,60; }

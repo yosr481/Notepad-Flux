@@ -6,7 +6,7 @@ import { scanCallout, calloutTitle, CALLOUT_TYPES } from "./calloutSyntax";
 import { lucideSvg } from "../utils/lucideSvg";
 
 // Callouts, Docs/internal/callouts-spec.md ("Editor behaviour"). Fold state is view state: `flipped` holds
-// header positions (the "[" of "[!type]") whose fold differs from the `-`/`+` default.
+// header positions (the "[" of "[!type]") -> the fold char they were flipped under; a flip whose char changed is dropped.
 const toggleFold = StateEffect.define();
 
 // Every callout, outer before inner: the "[" position, scan, blockquote range and header line.
@@ -19,7 +19,7 @@ function findCallouts(state) {
             const line = doc.lineAt(node.from);
             const text = line.text.slice(node.from - line.from);
             if (text[0] !== ">") return;
-            const from = node.from + (text[1] === " " ? 2 : 1);
+            const from = node.from + (text[1] === " " || text[1] === "\t" ? 2 : 1);
             const scan = scanCallout(line.text.slice(from - line.from));
             if (scan) found.push({ from, scan, line, quoteFrom: node.from, lastLine: doc.lineAt(node.to - 1) });
         },
@@ -27,7 +27,11 @@ function findCallouts(state) {
     return found;
 }
 
-const isFolded = (c, flipped) => (c.scan.fold === "-") !== flipped.has(c.from);
+const isFolded = (c, flipped) => c.scan.fold !== "" && (c.scan.fold === "-") !== flipped.has(c.from);
+
+// Indices of the callouts whose header line holds a cursor: the only selection input to the decorations besides `flipped`.
+const cursorKey = (callouts, selection) =>
+    callouts.reduce((k, c, i) => (selection.ranges.some((r) => r.from <= c.line.to && r.to >= c.line.from) ? k + i + "," : k), "");
 const inBody = (c, selection) => selection.ranges.some((r) => r.to > c.line.to && r.from <= c.lastLine.to);
 
 class CalloutHeaderWidget extends WidgetType {
@@ -104,32 +108,40 @@ function build(state, flipped, callouts) {
 
 const calloutField = StateField.define({
     create(state) {
-        const flipped = new Set();
+        const flipped = new Map();
         const callouts = findCallouts(state);
-        return { flipped, callouts, decos: build(state, flipped, callouts) };
+        return { flipped, callouts, key: cursorKey(callouts, state.selection), decos: build(state, flipped, callouts) };
     },
     update(value, tr) {
         let { flipped, callouts } = value;
         const toggles = tr.effects.filter((e) => e.is(toggleFold));
         const treeChanged = syntaxTree(tr.startState) !== syntaxTree(tr.state);
         if (!tr.docChanged && !tr.selection && !toggles.length && !treeChanged) return value;
+        let flipsChanged = toggles.length > 0;
         if (tr.docChanged) {
             // A deleted "[" is gone, but mapPos(p) at a deletion start lands on the next header's "[", so check the deleted ranges.
             const deleted = [];
             tr.changes.iterChanges((fromA, toA) => deleted.push([fromA, toA]));
-            flipped = new Set([...flipped].filter((p) => !deleted.some(([f, t]) => p >= f && p < t)).map((p) => tr.changes.mapPos(p, 1)));
-        } else flipped = new Set(flipped);
+            flipped = new Map([...flipped].filter(([p]) => !deleted.some(([f, t]) => p >= f && p < t)).map(([p, ch]) => [tr.changes.mapPos(p, 1), ch]));
+        } else flipped = new Map(flipped);
         if (tr.docChanged || treeChanged) {
             callouts = findCallouts(tr.state);
-            const headers = new Set(callouts.map((c) => c.from));
-            for (const p of flipped) if (!headers.has(p)) flipped.delete(p);
+            const folds = new Map(callouts.map((c) => [c.from, c.scan.fold]));
+            for (const [p, ch] of flipped) if (folds.get(p) !== ch) flipped.delete(p);
         }
-        const flip = (p) => (flipped.delete(p) ? 0 : flipped.add(p));
-        for (const e of toggles) flip(e.value);
+        const flip = (c) => (flipped.delete(c.from) ? 0 : flipped.set(c.from, c.scan.fold));
+        for (const e of toggles) {
+            const c = callouts.find((k) => k.from === e.value);
+            if (c && c.scan.fold !== "") flip(c);
+        }
         if (tr.selection) {
-            for (const c of callouts) if (isFolded(c, flipped) && inBody(c, tr.state.selection)) flip(c.from);
+            for (const c of callouts) {
+                if (isFolded(c, flipped) && inBody(c, tr.state.selection)) { flip(c); flipsChanged = true; }
+            }
         }
-        return { flipped, callouts, decos: build(tr.state, flipped, callouts) };
+        const key = cursorKey(callouts, tr.state.selection);
+        if (!tr.docChanged && !treeChanged && !flipsChanged && key === value.key) return value;
+        return { flipped, callouts, key, decos: build(tr.state, flipped, callouts) };
     },
     provide: (f) => EditorView.decorations.from(f, (v) => v.decos),
 });
