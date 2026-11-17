@@ -2,6 +2,7 @@
 // Rules in Docs/internal/frontmatter-spec.md ("Syntax"). scanFrontMatter is the one copy of the rule,
 // shared by this block parser and (later) the export renderer.
 const DASH = 45, BOM = 0xFEFF;
+const FENCE = /^\uFEFF?---[ \t]*$/;
 const OPEN = /^---[ \t]*$/, CLOSE = /^(?:---|\.\.\.)[ \t]*$/;
 
 // Line text at `pos` without its newline or a CR before it: { text, end (offset after text), next (start of next line, or -1) }.
@@ -33,6 +34,7 @@ export function scanFrontMatter(text) {
 
 function frontMatter(cx, line) {
     if (cx.lineStart !== 0 || line.pos !== 0 || (line.next !== DASH && line.next !== BOM)) return false;
+    if (!FENCE.test(line.text.replace(/\r$/, ""))) return false;
     const text = cx.input.read(0, cx.input.length);
     const fm = scanFrontMatter(text);
     if (!fm) return false;

@@ -12,6 +12,8 @@ import { footnoteSyntax } from '../extensions/footnoteSyntax';
 import { footnotePreview } from '../extensions/footnotes';
 import { calloutPreview } from '../extensions/callouts';
 import { mermaidPreview } from '../extensions/mermaidPreview';
+import { frontMatterPreview } from '../extensions/frontMatterPreview';
+import { frontMatterSyntax } from '../extensions/frontMatterSyntax';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -272,12 +274,13 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // editor were LTR, which garbles caret movement and highlighting on
         // Hebrew/Arabic lines.
         EditorView.perLineTextDirection.of(true),
-        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax] }),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax] }),
         livePreview,
         mathPreview,
         footnotePreview,
         calloutPreview,
         mermaidPreview,
+        frontMatterPreview,
         imagePreview,
         linkPreview,
         linkHandler,
