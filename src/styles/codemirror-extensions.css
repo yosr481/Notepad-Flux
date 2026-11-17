@@ -189,6 +189,68 @@
     background-repeat: no-repeat;
 }
 
+/* Callouts: tint + left bar per canonical type. --callout-rgb tints the background (12% over the editor
+   background) and colours the bar and icon solid; the values are picked so the icon is >= 3:1 against the
+   tint (WCAG non-text contrast) in light and dark. Body/title text stays --text-normal. At depth 2-3 the
+   callout's bar is the innermost one and the outer bars keep the accent colour. */
+.cm-line.cm-callout.cm-blockquote-line {
+    --callout-color: rgb(var(--callout-rgb));
+    color: var(--text-normal);
+    background-color: rgba(var(--callout-rgb), 0.12);
+    background-image: linear-gradient(var(--callout-color), var(--callout-color));
+    background-size: 0.2em 100%;
+    background-position: 0 0;
+    background-repeat: no-repeat;
+}
+
+.cm-line.cm-callout.cm-blockquote-depth-2 {
+    background-image: linear-gradient(var(--text-accent), var(--text-accent)), linear-gradient(var(--callout-color), var(--callout-color));
+    background-size: 0.15em 100%, 0.2em 100%;
+    background-position: 0 0, 0.7em 0;
+}
+
+.cm-line.cm-callout.cm-blockquote-depth-3 {
+    background-image: linear-gradient(var(--text-accent), var(--text-accent)), linear-gradient(var(--text-accent), var(--text-accent)), linear-gradient(var(--callout-color), var(--callout-color));
+    background-size: 0.15em 100%, 0.15em 100%, 0.2em 100%;
+    background-position: 0 0, 0.7em 0, 1.4em 0;
+}
+
+.cm-callout-title { font-weight: 600; }
+
+.cm-callout-note { --callout-rgb: 8,100,220; }
+.cm-callout-abstract { --callout-rgb: 0,120,150; }
+.cm-callout-info { --callout-rgb: 0,115,160; }
+.cm-callout-todo { --callout-rgb: 8,100,220; }
+.cm-callout-tip { --callout-rgb: 0,125,110; }
+.cm-callout-important { --callout-rgb: 0,125,110; }
+.cm-callout-success { --callout-rgb: 20,130,55; }
+.cm-callout-question { --callout-rgb: 180,95,0; }
+.cm-callout-warning { --callout-rgb: 180,95,0; }
+.cm-callout-caution { --callout-rgb: 200,50,30; }
+.cm-callout-failure { --callout-rgb: 200,40,50; }
+.cm-callout-danger { --callout-rgb: 200,40,50; }
+.cm-callout-bug { --callout-rgb: 200,40,50; }
+.cm-callout-example { --callout-rgb: 124,58,237; }
+.cm-callout-quote { --callout-rgb: 95,105,125; }
+
+[data-theme="dark"] {
+    .cm-callout-note { --callout-rgb: 90,170,255; }
+    .cm-callout-abstract { --callout-rgb: 40,200,225; }
+    .cm-callout-info { --callout-rgb: 50,185,235; }
+    .cm-callout-todo { --callout-rgb: 90,170,255; }
+    .cm-callout-tip { --callout-rgb: 30,210,185; }
+    .cm-callout-important { --callout-rgb: 30,210,185; }
+    .cm-callout-success { --callout-rgb: 70,200,110; }
+    .cm-callout-question { --callout-rgb: 250,170,60; }
+    .cm-callout-warning { --callout-rgb: 250,170,60; }
+    .cm-callout-caution { --callout-rgb: 255,120,100; }
+    .cm-callout-failure { --callout-rgb: 255,110,120; }
+    .cm-callout-danger { --callout-rgb: 255,110,120; }
+    .cm-callout-bug { --callout-rgb: 255,110,120; }
+    .cm-callout-example { --callout-rgb: 170,130,255; }
+    .cm-callout-quote { --callout-rgb: 160,170,190; }
+}
+
 /* ============================================
    ORDERED MARKER WIDGET STYLES
    ============================================ */
