@@ -2,6 +2,7 @@ import { marked, Marked } from 'marked';
 import { fileSystem } from './fileSystem';
 import { sanitizeHTML } from './sanitize';
 import { renderTex } from './math';
+import { createFootnotes } from './exportFootnotes';
 import { scanInlineMath, findClose, INLINE_MATH_MAX } from '../extensions/mathSyntax';
 
 const escapeHtml = (s) => {
@@ -59,7 +60,9 @@ export const renderMarkdownHtml = async (markdown) => {
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
     const token = (i) => `NFMATH${nonce}I${i}E`;
     const formulas = [];
-    const html = sanitizeHTML(new Marked(mathExtension(formulas, token)).parse(markdown));
+    const footnotes = createFootnotes();
+    const m = new Marked(mathExtension(formulas, token), footnotes.extension);
+    const html = sanitizeHTML(footnotes.finish(m, m.parser(m.lexer(markdown))));
     if (!formulas.length) return html;
 
     const rendered = await Promise.all(formulas.map((f) => renderTex(f.tex, { display: f.display })));
@@ -110,6 +113,7 @@ export const exportToHtml = async (title, markdown) => {
                 pre { background-color: #f4f4f4; padding: 1rem; border-radius: 4px; overflow-x: auto; }
                 blockquote { border-left: 4px solid #ddd; padding-left: 1rem; color: #666; }
                 .math-block, .math-display { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
+                .footnotes { font-size: 0.875rem; color: #444; border-top: 1px solid #ccc; margin-top: 2rem; padding-top: 0.5rem; }
                 .math svg { vertical-align: middle; }
             </style>
         </head>

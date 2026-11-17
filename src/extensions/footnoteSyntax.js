@@ -7,6 +7,9 @@ const LABEL_MAX = 999;
 // Longest inline note content looked for; bounds the scan per `^[` (as INLINE_MATH_MAX does).
 // ponytail: each unclosed `^[` scans up to 2000 chars; linear, ~1.2 s on 600 KB of `^[`. Lower the cap if it bites.
 export const INLINE_FOOTNOTE_MAX = 2000;
+// A definition continues over blank lines and over lines indented this much. The one copy of the rule:
+// the lezer composite below and footnoteDefEnd both read it.
+const DEF_CONTINUATION_INDENT = 4;
 
 // "[^label]" at text[0]: returns { label, end } (end = index after "]") or null.
 export function scanFootnoteRef(text) {
@@ -49,6 +52,55 @@ export function scanFootnoteDef(line) {
     const ref = scanFootnoteRef(line.slice(indent));
     if (!ref || line.charCodeAt(indent + ref.end) !== COLON) return null;
     return { label: ref.label, markEnd: indent + ref.end + 1 };
+}
+
+const indentOf = (line) => {
+    let col = 0;
+    for (const ch of line) {
+        if (ch === ' ') col++;
+        else if (ch === '\t') col += 4 - (col % 4);
+        else break;
+    }
+    return col;
+};
+// Lines that interrupt a paragraph, so they cannot be a lazy continuation of a note.
+const HTML_BREAK = '<(?:(?:script|pre|style)(?:\\s|>|$)|!--|\\?|![A-Z]|!\\[CDATA\\[|\\/?(?:address|article|aside|base|basefont|blockquote|body|caption|center|col|colgroup|dd|details|dialog|dir|div|dl|dt|fieldset|figcaption|figure|footer|form|frame|frameset|h1|h2|h3|h4|h5|h6|head|header|hr|html|iframe|legend|li|link|main|menu|menuitem|nav|noframes|ol|optgroup|option|p|param|section|source|summary|table|tbody|td|tfoot|th|thead|title|tr|track|ul)(?:\\s|\\/?>|$))';
+const BLOCK_START = new RegExp(`^ {0,3}(?:#{1,6}(?:[ \\t]|$)|>|[-+*][ \\t]+\\S|1[.)][ \\t]+\\S|\x60{3}|~{3}|\\$\\$|(?:-{3,}|\\*{3,}|_{3,})[ \\t]*$|${HTML_BREAK})`, 'i');
+
+// Length of the definition block at src[0] (src starts at the definition's line start, indent included):
+// index of the end of its last non-blank line, so no trailing newline or blank lines. Parity with the lezer
+// FootnoteDefinition node. ponytail: a lazy line is judged by BLOCK_START, not a full block parse, and any
+// non-blank line before it counts as an open paragraph; still unshared: tables, setext underlines, and
+// whether a `$$` opener has a closing `$$` (lezer only breaks then).
+export function footnoteDefEnd(src) {
+    const nl = src.indexOf('\n');
+    const first = nl < 0 ? src : src.slice(0, nl);
+    const mark = scanFootnoteDef(first);
+    let end = first.length, para = !mark || !blankLineAt(first, mark.markEnd);
+    for (let i = nl < 0 ? src.length : nl + 1; i < src.length;) {
+        const eol = src.indexOf('\n', i);
+        const line = src.slice(i, eol < 0 ? src.length : eol);
+        if (blankLineAt(line, 0)) para = false;
+        else if (indentOf(line) >= DEF_CONTINUATION_INDENT) { end = i + line.length; para = true; }
+        else if (para && !BLOCK_START.test(line) && !scanFootnoteDef(line)) end = i + line.length;
+        else break;
+        if (eol < 0) break;
+        i = eol + 1;
+    }
+    return end;
+}
+
+// Number refs and inline notes in one sequence by first occurrence. events: { kind: 'ref', label } |
+// { kind: 'inline' }; returns a number per event, null for a ref whose label isDefined rejects.
+export function numberFootnotes(events, isDefined) {
+    const byLabel = new Map();
+    let n = 0;
+    return events.map((e) => {
+        if (e.kind === 'inline') return ++n;
+        if (!isDefined(e.label)) return null;
+        if (!byLabel.has(e.label)) byLabel.set(e.label, ++n);
+        return byLabel.get(e.label);
+    });
 }
 
 function footnoteReference(cx, next, start) {
@@ -103,8 +155,8 @@ export const footnoteSyntax = {
             // Blank lines stay inside; a line indented 4+ continues the note.
             composite: (_cx, line) => {
                 if (line.next < 0) return true;
-                if (line.indent < line.baseIndent + 4) return false;
-                line.moveBaseColumn(line.baseIndent + 4);
+                if (line.indent < line.baseIndent + DEF_CONTINUATION_INDENT) return false;
+                line.moveBaseColumn(line.baseIndent + DEF_CONTINUATION_INDENT);
                 return true;
             },
         },

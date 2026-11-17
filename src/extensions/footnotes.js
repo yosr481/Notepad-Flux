@@ -3,7 +3,7 @@ import { EditorView, Decoration, WidgetType, hoverTooltip } from "@codemirror/vi
 import { syntaxTree } from "@codemirror/language";
 import { normalizeLabel } from "./linkDefs";
 import { isCursorTouching } from "./selection";
-import { scanFootnoteDef } from "./footnoteSyntax";
+import { scanFootnoteDef, numberFootnotes } from "./footnoteSyntax";
 
 const cache = new WeakMap();
 
@@ -33,26 +33,24 @@ export function resolveFootnotes(state) {
                 defs.set(key, { defFrom: node.from, defTo: node.to - (raw.length - raw.trimEnd().length), text });
             } else if (node.name === 'FootnoteReference') {
                 const label = node.node.getChild('FootnoteLabel');
-                if (label) events.push({ key: normalizeLabel(doc.sliceString(label.from, label.to)), from: node.from });
+                if (label) events.push({ kind: 'ref', label: normalizeLabel(doc.sliceString(label.from, label.to)), from: node.from });
             } else if (node.name === 'InlineFootnote') {
-                events.push({ inlineFrom: node.from, text: doc.sliceString(node.from + 2, node.to - 1) });
+                events.push({ kind: 'inline', from: node.from, text: doc.sliceString(node.from + 2, node.to - 1) });
             }
         },
     });
 
     const labelled = new Map(), inline = new Map();
-    let n = 0;
-    for (const e of events) {
-        if (e.inlineFrom !== undefined) {
-            inline.set(e.inlineFrom, { number: ++n, text: e.text });
-            continue;
+    const numbers = numberFootnotes(events, (label) => defs.has(label));
+    events.forEach((e, i) => {
+        const number = numbers[i];
+        if (e.kind === 'inline') inline.set(e.from, { number, text: e.text });
+        else if (number !== null) {
+            const entry = labelled.get(e.label);
+            if (entry) entry.refs.push(e.from);
+            else labelled.set(e.label, { number, ...defs.get(e.label), refs: [e.from] });
         }
-        const def = defs.get(e.key);
-        if (!def) continue;
-        const entry = labelled.get(e.key);
-        if (entry) entry.refs.push(e.from);
-        else labelled.set(e.key, { number: ++n, ...def, refs: [e.from] });
-    }
+    });
 
     const result = { labelled, inline };
     cache.set(state, result);

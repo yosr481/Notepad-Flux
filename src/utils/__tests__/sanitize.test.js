@@ -125,3 +125,50 @@ describe('sanitizeHTML', () => {
         expect(output).not.toContain('<input');
     });
 });
+
+// F2 footnotes (Docs/internal/footnotes-spec.md "Security"): sup + section allowed, `id` only as fn-N / fnref-N[-M].
+describe('sanitizeHTML: footnotes', () => {
+    it('keeps sup and section', () => {
+        const input = '<p>a<sup>1</sup></p><section class="footnotes"><ol><li>n</li></ol></section>';
+        expect(sanitizeHTML(input)).toBe(input);
+    });
+
+    it('keeps the footnote ref and back-link shape intact', () => {
+        const ref = '<sup><a href="#fn-1" id="fnref-1" class="footnote-ref">1</a></sup>';
+        const back = '<ol><li id="fn-1"><p>n <a href="#fnref-1" class="footnote-backref">↩</a></p></li></ol>';
+        expect(sanitizeHTML(ref)).toBe(ref);
+        expect(sanitizeHTML(back)).toBe(back);
+    });
+
+    it.each(['fn-1', 'fn-12', 'fnref-1', 'fnref-1-2', 'fn-1-2', 'fnref-10-20'])('keeps id="%s"', (id) => {
+        expect(sanitizeHTML(`<li id="${id}">x</li>`)).toBe(`<li id="${id}">x</li>`);
+    });
+
+    it.each(['x', 'fn-1x', 'location', 'fn-abc', 'fn-', 'fnref-', 'fn1', 'fn-1-', 'fn-1-2-3', 'FN-1', 'xfn-1', ' fn-1', 'fn-1 ', 'fn--1', 'fn-1&#10;', 'fn-1&#10;x'])(
+        'removes id="%s" but keeps the element and its text',
+        (id) => {
+            const out = sanitizeHTML(`<p id="${id}">keep</p>`);
+            expect(out).toBe('<p>keep</p>');
+        },
+    );
+
+    it('removes a clobbering id on any allowed tag, keeps other attributes', () => {
+        const out = sanitizeHTML('<a id="location" href="https://e.com" class="c">t</a><img id="cookie" src="a.png" alt="x">');
+        expect(out).not.toContain('id=');
+        expect(out).toContain('href="https://e.com"');
+        expect(out).toContain('class="c"');
+        expect(out).toContain('src="a.png"');
+    });
+
+    it('still drops style, data-* and name attributes', () => {
+        const out = sanitizeHTML('<sup style="color:red" data-x="1" name="n">1</sup><section style="x" data-y="2">s</section>');
+        expect(out).toBe('<sup>1</sup><section>s</section>');
+    });
+
+    it('does not widen other rules: div still stripped, javascript: href still removed', () => {
+        const out = sanitizeHTML('<div id="fn-1">d</div><a id="fn-2" href="javascript:alert(1)">l</a>');
+        expect(out).not.toContain('<div');
+        expect(out).not.toContain('javascript:');
+        expect(out).toContain('id="fn-2"');
+    });
+});
