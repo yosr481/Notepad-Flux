@@ -11,6 +11,7 @@ import { mathPreview } from '../extensions/mathPreview';
 import { footnoteSyntax } from '../extensions/footnoteSyntax';
 import { footnotePreview } from '../extensions/footnotes';
 import { calloutPreview } from '../extensions/callouts';
+import { mermaidPreview } from '../extensions/mermaidPreview';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -276,6 +277,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         mathPreview,
         footnotePreview,
         calloutPreview,
+        mermaidPreview,
         imagePreview,
         linkPreview,
         linkHandler,

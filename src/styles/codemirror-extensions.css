@@ -251,6 +251,24 @@
     .cm-callout-quote { --callout-rgb: 160,170,190; }
 }
 
+/* Mermaid error box: #5c1111 on #fde8e8 is ~9:1; dark #ffd6d6 on #4a1a1a is ~9:1. */
+.cm-mermaid-error {
+    text-align: start;
+    white-space: pre-wrap;
+    font-family: var(--font-monospace, monospace);
+    padding: 0.5em 0.75em;
+    border: 1px solid #c33;
+    border-radius: 4px;
+    color: #5c1111;
+    background-color: #fde8e8;
+}
+
+[data-theme="dark"] .cm-mermaid-error {
+    color: #ffd6d6;
+    background-color: #4a1a1a;
+    border-color: #e66;
+}
+
 /* ============================================
    ORDERED MARKER WIDGET STYLES
    ============================================ */
