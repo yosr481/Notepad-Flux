@@ -1,5 +1,5 @@
 import { WidgetType } from "@codemirror/view";
-import { sanitizeHTML } from '../utils/sanitize';
+import { tableDOM } from './tableCells';
 
 export class BulletWidget extends WidgetType {
     toDOM() {
@@ -74,19 +74,21 @@ export class HRWidget extends WidgetType {
 }
 
 export class TableWidget extends WidgetType {
-    constructor(htmlContent) {
+    // data: see tableCells.js
+    constructor(data) {
         super();
-        this.htmlContent = sanitizeHTML(htmlContent);
+        this.data = data;
+        this.key = JSON.stringify(data);
     }
 
     toDOM(view) {
         const div = document.createElement("div");
         div.className = "cm-table-widget";
-        div.innerHTML = this.htmlContent;
+        div.append(tableDOM(this.data, view));
 
         div.addEventListener("mousedown", (e) => {
             // Allow clicking links inside the table
-            if (e.target.tagName === 'A') return;
+            if (e.target.closest('a')) return;
 
             e.preventDefault();
             const pos = view.posAtDOM(div);
@@ -101,7 +103,7 @@ export class TableWidget extends WidgetType {
         return div;
     }
 
-    eq(other) { return other.htmlContent === this.htmlContent; }
+    eq(other) { return other.key === this.key; }
 
     ignoreEvent() { return true; }
 }

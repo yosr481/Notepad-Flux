@@ -4,6 +4,8 @@ import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, EntityWidget, OrderedMarkerWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 import { isUnresolvedReference } from "./linkDefs";
+import { buildTableData } from "./tableCells";
+import { resolveFootnotes } from "./footnotes";
 
 const namedEntities = {
     'amp': '&',
@@ -396,11 +398,10 @@ export const buildDecorations = (state, range) => {
             // 11. Tables
             if (name === "Table") {
                 if (!isCursorTouching(selection, nodeFrom, nodeTo)) {
-                    const tableText = doc.sliceString(nodeFrom, nodeTo);
-                    const html = convertTableToHTML(tableText);
+                    const data = buildTableData(state, node.node, resolveFootnotes(state));
                     decorations.push({
                         from: nodeFrom, to: nodeTo, value: Decoration.replace({
-                            widget: new TableWidget(html)
+                            widget: new TableWidget(data)
                         })
                     });
                     return false; // SKIP CHILDREN
@@ -447,102 +448,6 @@ const livePreviewField = StateField.define({
     },
     provide: field => EditorView.decorations.from(field)
 });
-
-// Split a table row on unescaped `|`, unescaping `\|` -> `|` in each cell.
-// `\\` is consumed as a pair so `\\|` is a backslash followed by a real separator.
-function splitCells(row) {
-    const cells = [""];
-    for (let i = 0; i < row.length; i++) {
-        const c = row[i], n = row[i + 1];
-        if (c === "\\" && n === "|") { cells[cells.length - 1] += "|"; i++; }
-        else if (c === "\\" && n === "\\") { cells[cells.length - 1] += "\\\\"; i++; }
-        else if (c === "|") cells.push("");
-        else cells[cells.length - 1] += c;
-    }
-    return cells;
-}
-
-export function convertTableToHTML(text) {
-    let rows = text.trim().split('\n');
-    // Strip blockquote prefix (any nesting depth) from each row (audit #6)
-    rows = rows.map(r => r.replace(/^(?:\s*>)+\s?/, ''));
-    if (rows.length < 2) return "<div class='cm-table-empty'>Empty Table</div>";
-
-    let alignments = [];
-
-    // Check for delimiter row at index 1
-    const potentialDelimiter = rows[1].trim();
-    // Matches | :---: | --- | formatting
-    // Must contain - or : and only valid delimiter chars
-    const isValidDelimiter = /^\|?[\s\-:|]+\|?$/.test(potentialDelimiter) && potentialDelimiter.includes('-');
-    if (isValidDelimiter) {
-        const cleanDelimiter = potentialDelimiter.replace(/^\|/, '').replace(/\|$/, '');
-        alignments = splitCells(cleanDelimiter).map(s => {
-            s = s.trim();
-            if (s.startsWith(':') && s.endsWith(':')) return 'center';
-            if (s.endsWith(':')) return 'right';
-            if (s.startsWith(':')) return 'left';
-            return null;
-        });
-    }
-
-    // If no valid delimiter row, return empty table
-    if (!isValidDelimiter) {
-        return "<div class='cm-table-empty'>Empty Table</div>";
-    }
-
-    let headerContent = "";
-    let bodyContent = "";
-
-    for (let i = 0; i < rows.length; i++) {
-        // Skip delimiter row
-        if (i === 1) continue;
-
-        const row = rows[i];
-        const cleanRow = row.trim().replace(/^\|/, '').replace(/\|$/, '');
-        if (!cleanRow.trim()) continue; // Skip empty rows
-
-        const isHeader = i === 0;
-        const cellTag = isHeader ? "th" : "td";
-
-        let rowHtml = "<tr>";
-        const cells = splitCells(cleanRow);
-        for (let j = 0; j < cells.length; j++) {
-            let content = cells[j].trim();
-            const parsed = parseCellContent(content);
-            let alignAttr = "";
-            if (alignments[j]) {
-                alignAttr = ` class="cm-align-${alignments[j]}"`;
-            }
-            rowHtml += `<${cellTag}${alignAttr}>${parsed}</${cellTag}>`;
-        }
-        rowHtml += "</tr>";
-
-        if (isHeader) {
-            headerContent += rowHtml;
-        } else {
-            bodyContent += rowHtml;
-        }
-    }
-
-    // Return empty table div if no header rows
-    if (!headerContent) {
-        return "<div class='cm-table-empty'>Empty Table</div>";
-    }
-
-    let html = "<table>" +
-              "<thead>" +
-              headerContent +
-              "</thead>";
-    if (bodyContent) {
-        html += "<tbody>" +
-                bodyContent +
-                "</tbody>";
-    }
-    html += "</table>";
-
-    return html;
-}
 
 // --- Highlights (==text==) ---
 
@@ -612,29 +517,6 @@ const highlightPlugin = ViewPlugin.fromClass(class {
 }, {
     decorations: v => v.decorations
 });
-
-function parseCellContent(content) {
-    // Basic markdown parsing for table cells
-    let html = content
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;");
-
-    // Bold **text**
-    html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-    // Italic *text*
-    html = html.replace(/\*(.*?)\*/g, "<em>$1</em>");
-    // Strikethrough ~~text~~
-    html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
-    // Code `text`
-    html = html.replace(/`(.*?)`/g, "<code>$1</code>");
-    // Links [text](url) — strip an optional "title"
-    html = html.replace(/\[(.*?)\]\(([^"\s)]+)(?:\s+[^)]*)?\)/g, '<a href="$2" target="_blank">$1</a>');
-    // Highlights ==text==
-    html = html.replace(/==(.*?)==/g, "<mark>$1</mark>");
-
-    return html;
-}
 
 export const livePreview = [
     livePreviewField,

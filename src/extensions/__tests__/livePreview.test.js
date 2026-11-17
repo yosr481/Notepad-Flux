@@ -149,7 +149,8 @@ describe('Live Preview Extension — whole-document decoration build (no viewpor
         expect(widgets.length).toBe(1);
         expect(widgets[0][0]).toBe(tFrom);
         expect(widgets[0][1]).toBe(tTo);
-        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
+        expect(widgets[0][2].spec.widget.data.head).toEqual([['a'], ['b']]);
+        expect(widgets[0][2].spec.widget.data.body).toEqual([[['1'], ['2']]]);
 
         const open = buildDecorations(gfm(doc, { anchor: tFrom + 4 }), full);
         let stillWidget = false;
@@ -539,7 +540,7 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
     //
     // Pinned: the Table range [5,38] carries exactly one Decoration.replace
     // whose .spec.widget is a TableWidget, and (after the #6 fix) that widget's
-    // .htmlContent contains "<table" and NOT "cm-table-empty".
+    // .data holds the head [['a'],['b']] and body [[['1'],['2']]] (B12: the HTML string path is gone).
     const doc = 'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n';
     const tFrom = 5;
     const tTo = 38;
@@ -560,9 +561,8 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
         expect(widgets.length).toBe(1);
         expect(widgets[0][0]).toBe(tFrom);
         expect(widgets[0][1]).toBe(tTo);
-        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
-        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('cm-table-empty');
-        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('Empty Table');
+        expect(widgets[0][2].spec.widget.data.head).toEqual([['a'], ['b']]);
+        expect(widgets[0][2].spec.widget.data.body).toEqual([[['1'], ['2']]]);
     });
 });
 

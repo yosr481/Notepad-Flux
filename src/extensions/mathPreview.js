@@ -6,7 +6,7 @@ import { renderTex } from "../utils/math";
 import { decorationField } from "./decorationField";
 
 // kind: "inline" | "display" ($$..$$ inside a line) | "block" | "preview" (under a block being edited)
-class MathWidget extends WidgetType {
+export class MathWidget extends WidgetType {
     constructor(tex, kind) {
         super();
         this.tex = tex;

@@ -76,6 +76,7 @@ src/
 ├── extensions/             - CodeMirror 6 Extensions (The "Brain" of the editor)
 │   ├── livePreview.js      - Core WYSIWYG logic (syntax hiding/revealing)
 │   ├── widgets.js          - Custom DOM widgets (Checkboxes, Tables, HR)
+│   ├── tableCells.js       - Table cell data from the syntax tree + table DOM (inline features in cells)
 │   ├── imagePreview.js     - Inline image rendering
 │   ├── mathSyntax.js / mathPreview.js     - Math: Lezer parser + shared scanners / widgets
 │   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
@@ -176,7 +177,7 @@ This path is used for window/session metadata, crash dumps, and other runtime da
 
 - **Widgets**:
   - `CheckboxWidget`: Interactive checkbox that updates the underlying text `[ ]` <-> `[x]` on click.
-  - `TableWidget`: Renders a complex HTML table from markdown table syntax.
+  - `TableWidget`: Builds the table DOM from data taken from the syntax tree by `tableCells.js` (no HTML string); cells show the same inline features as text outside a table.
   - `ImageWidget`: Renders images inline.
 
 ### 5.4. File System Abstraction (`utils/fileSystem.js`)
@@ -308,7 +309,7 @@ The editor's functionality is built through composable CodeMirror extensions:
    - `BulletWidget`: Bullet point replacement
    - `CheckboxWidget`: Interactive task checkbox
    - `HRWidget`: Horizontal rule
-   - `TableWidget`: Rendered table
+   - `TableWidget`: Rendered table, built from tree data (`tableCells.js`)
 
 3. **`imagePreview.js`**: Image rendering
    - Image loading and caching
@@ -330,30 +331,33 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Tab/Shift+Tab indentation
    - Task list creation
 
-7. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
+7. **`tableCells.js`**: Rendered table cells
+   - `buildTableData` reads rows/cells/inline parts from the syntax tree (footnote numbers via `resolveFootnotes`); `tableDOM` builds the DOM with `createElement`/`textContent`, no sanitizer pass
+
+8. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
    - `mathSyntax.js`: Lezer parser plus the pure scanners shared with HTML export
    - `mathPreview.js`: rendered formula widgets
 
-8. **`footnoteSyntax.js`** / **`footnotes.js`**: Footnotes (`[^label]`, `^[inline]`, `[^label]:`)
+9. **`footnoteSyntax.js`** / **`footnotes.js`**: Footnotes (`[^label]`, `^[inline]`, `[^label]:`)
    - `footnoteSyntax.js`: Lezer parser, shared scanners and GitHub-order numbering (`numberFootnotes`)
    - `footnotes.js`: `resolveFootnotes`, number widgets, hover tooltip, jump
 
-9. **`calloutSyntax.js`** / **`callouts.js`**: Callouts (`> [!type] Title`, `-`/`+` fold)
+10. **`calloutSyntax.js`** / **`callouts.js`**: Callouts (`> [!type] Title`, `-`/`+` fold)
    - `calloutSyntax.js`: `scanCallout`, `CALLOUT_TYPES` (canonical types, aliases, icons), `calloutTitle`
    - `callouts.js`: one StateField (header widget, tint line classes, folded-body block replace). Fold state (`flipped`) is view-only: kept in the field, mapped through edits, pruned when its header goes or its fold char changes, never persisted to the document or session. Selection-only transactions keep the previous decorations unless a cursor entered/left a header line or an unfold flipped a callout. `unfoldOnJump` (transaction filter) rewrites a one-line arrow-key step across a folded body to land inside it, which unfolds it.
    - `decorationField.js`: shared helper for fields that provide decorations (math, footnotes)
 
-10. **`mermaidPreview.js`**: Mermaid (`` `mermaid` `` fences)
+11. **`mermaidPreview.js`**: Mermaid (`` `mermaid` `` fences)
    - Block widget with the rendered diagram outside the fence; raw source inside it. Click on the diagram puts the cursor in the source (click-to-edit). A theme watcher re-renders visible diagrams when the app theme changes. Uses `utils/mermaid.js` for rendering. Mermaid itself runs only in `mermaid-frame.html` (`src/mermaidFrame.js`), a hidden same-origin iframe with the CSP `default-src 'none'; script-src 'self'; style-src 'unsafe-inline'`, so nothing Mermaid builds from document text can fetch. It is a second Vite build input next to `index.html` and is created on the first render, not at startup.
 
-11. **`frontMatterSyntax.js`** / **`frontMatterPreview.js`**: YAML front matter (a `---` block at offset 0)
+12. **`frontMatterSyntax.js`** / **`frontMatterPreview.js`**: YAML front matter (a `---` block at offset 0)
    - `frontMatterSyntax.js`: `scanFrontMatter` (the one copy of the rule, shared by the editor and export) and a Lezer block node, so no HR or heading is parsed inside the block.
    - `frontMatterPreview.js`: Properties box widget (parsed with js-yaml) outside the block; raw YAML inside it. Click the box to edit.
 
-12. **`subSupPreview.js`**: Subscript and superscript (`~text~`, `^text^`)
+13. **`subSupPreview.js`**: Subscript and superscript (`~text~`, `^text^`)
    - Uses `@lezer/markdown`'s own Subscript and Superscript nodes, so no new parser. Outside the cursor the marks are hidden and the text gets `cm-subscript` / `cm-superscript`.
 
-13. **`emojiSyntax.js`** / **`emojiPreview.js`**: Emoji shortcodes (`:name:`)
+14. **`emojiSyntax.js`** / **`emojiPreview.js`**: Emoji shortcodes (`:name:`)
    - `emojiSyntax.js`: `scanEmoji` (the one copy of the rule, shared by the lezer node and the export) and the lezer node.
    - `emojiPreview.js`: `span.cm-emoji` widget showing the character outside the cursor; raw shortcode inside.
 
