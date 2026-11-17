@@ -446,7 +446,9 @@ Water is wet.^[Its own note, with *emphasis* and `code` allowed.]
 Rules:
 
 - `[^label]` is a reference only when a `[^label]: text` definition with the same label exists. Otherwise it stays as typed. Labels are not case-sensitive and cannot contain spaces.
-- Notes are numbered 1, 2, 3… in the order they are first referenced, labelled and inline notes together. A note referenced twice keeps its number.
+- Notes are numbered 1, 2, 3… like GitHub: first the references and inline notes in the body, in order; then those inside notes, taking the notes in number order. Labelled and inline notes share one sequence. A note referenced twice keeps its number.
+- A note mentioned only inside a note nothing references is not numbered or exported either.
+- Inside link text, a note exports as a plain superscript number, not a link; the note itself is still listed.
 - A definition that nothing references is not shown in HTML export, PDF export or Print. It stays visible in the editor.
 - Inline `^[…]` needs no definition. Its text can hold emphasis, code, links and math, but not block content. Brackets inside it must be balanced, and an empty `^[]` is not a note.
 - Footnotes inside code spans, code blocks and math are not rendered.

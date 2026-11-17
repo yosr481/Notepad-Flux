@@ -15,8 +15,11 @@ import { resolveFootnotes } from '../footnotes';
 //  - defFrom = the `[` of `[^label]:` (after indent); defTo = end of the last content line (no newline).
 //  - `labelled` keys are normalizeLabel(label): lowercased, whitespace-collapsed.
 //  - Entries are plain objects with exactly { number, defFrom, defTo, text, refs } / { number, text }.
-//  - A reference located inside a definition's text counts at its document position, even when the
-//    definition itself is later referenced from there.
+//  - REVISED 2026-11-17 (GitHub order): body refs and inline notes outside definitions are numbered first, by
+//    position; then refs/inline notes inside each numbered note's definition, notes taken in number order,
+//    until stable. A note reached only from an unreferenced note gets no number (absent from `labelled`);
+//    an inline note inside an unreferenced definition is absent from `inline`.
+//  - A ref only inside an IGNORED duplicate definition does not count (it is not reached): no number.
 
 const state = (doc) => {
     const s = EditorState.create({
@@ -172,11 +175,76 @@ describe('resolveFootnotes: numbering', () => {
         expect([...r.inline.values()].map((v) => v.number)).toEqual([2]);
     });
 
-    it('a ref inside a definition counts at its own document position', () => {
-        // [^2] is referenced only from inside def 1, which sits after body ref [^1]
+    it('a ref inside a definition is numbered after all body refs', () => {
+        // [^2] is referenced only from inside def 1: body refs 1 and 3 come first
         const doc = 'a[^1] b[^3]\n\n[^1]: see[^2]\n[^2]: two\n[^3]: three';
         const r = res(doc);
         expect(nums(r)).toEqual({ 1: 1, 3: 2, 2: 3 });
+    });
+
+    it('GitHub order differs from position order: a[^1] b[^2] with def 1 mentioning [^3] -> 3 is last', () => {
+        const r = res('a[^1] b[^2]\n\n[^1]: see[^3]\n[^2]: two\n[^3]: three');
+        expect(nums(r)).toEqual({ 1: 1, 2: 2, 3: 3 });
+    });
+
+    it('definition-internal refs are taken per note in number order (breadth first)', () => {
+        const doc = 'x[^a] y[^b]\n\n[^a]: A see[^c]\n[^b]: B see[^d]\n[^c]: C\n[^d]: D';
+        expect(nums(res(doc))).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+    });
+
+    it('number order, not definition order, decides which definition is read first', () => {
+        const doc = 'x[^b] y[^a]\n\n[^a]: A see[^p]\n[^b]: B see[^q]\n[^p]: P\n[^q]: Q';
+        expect(nums(res(doc))).toEqual({ b: 1, a: 2, q: 3, p: 4 });
+    });
+
+    it('chains resolve until stable', () => {
+        const doc = 'x[^a]\n\n[^d]: D\n[^c]: C see[^d]\n[^b]: B see[^c]\n[^a]: A see[^b]';
+        expect(nums(res(doc))).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+    });
+
+    it('a ref inside a definition to an already numbered note adds a ref position, no new number', () => {
+        const doc = 'x[^a] y[^b]\n\n[^a]: A\n[^b]: B see[^a]';
+        const r = res(doc);
+        expect(nums(r)).toEqual({ a: 1, b: 2 });
+        expect(r.labelled.get('a').refs).toEqual([doc.indexOf('[^a] y'), doc.indexOf('[^a]', doc.indexOf('see'))]);
+    });
+
+    it('adversarial repro: a ref inside an unreferenced definition does not number its target', () => {
+        const doc = 'x [^b]\n\n[^a]: has [^c]\n\n[^b]: B\n\n[^c]: C\n';
+        const r = res(doc);
+        expect([...r.labelled.keys()]).toEqual(['b']);
+        expect(r.labelled.get('b').number).toBe(1);
+        expect(r.labelled.get('b').refs).toEqual([doc.indexOf('[^b]')]);
+    });
+
+    it('notes reached only from an unreferenced note get no number, transitively', () => {
+        const doc = 'x[^a]\n\n[^a]: A\n[^u]: U see[^v]\n[^v]: V see[^w]\n[^w]: W';
+        const r = res(doc);
+        expect([...r.labelled.keys()]).toEqual(['a']);
+    });
+
+    it('an inline note inside an unreferenced definition is absent from inline and takes no number', () => {
+        const doc = 'x[^a] y^[body]\n\n[^a]: A\n[^u]: U with^[hidden]';
+        const r = res(doc);
+        expect([...r.inline.keys()]).toEqual([doc.indexOf('^[body]')]);
+        expect(r.inline.get(doc.indexOf('^[body]')).number).toBe(2);
+    });
+
+    it('an inline note inside a numbered definition is numbered after the body notes', () => {
+        const doc = 'x[^a] y^[body]\n\n[^a]: A with^[deep]';
+        const r = res(doc);
+        expect(r.labelled.get('a').number).toBe(1);
+        expect(r.inline.get(doc.indexOf('^[body]')).number).toBe(2);
+        expect(r.inline.get(doc.indexOf('^[deep]')).number).toBe(3);
+    });
+
+    it('a ref only inside an ignored duplicate definition is not reached', () => {
+        const doc = 'x[^a]\n\n[^a]: first\n\n[^a]: dup see[^b]\n\n[^b]: B';
+        expect([...res(doc).labelled.keys()]).toEqual(['a']);
+    });
+
+    it('a self-reference inside the only definition does not make it referenced', () => {
+        expect(res('text\n\n[^a]: me[^a]').labelled.size).toBe(0);
     });
 
     it('a ref inside an inline note counts at its document position', () => {

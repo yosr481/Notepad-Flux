@@ -11,7 +11,15 @@ import { resolveFootnotes } from '../footnotes';
 //  - footnoteDefEnd(src): src starts at the LINE START of the definition (indent included); the result is an
 //    index into src (so indent counts), = lezer FootnoteDefinition node.to - lineStart. No trailing newline,
 //    no trailing blank lines. Caller guarantees src is a definition line.
-//  - numberFootnotes: pure, does not mutate `events`; isDefined is called only for 'ref' events, with the label as given.
+//  - numberFootnotes(events, isDefined): pure, does not mutate `events`; isDefined is called only for 'ref' events, with the label as given.
+//    REVISED 2026-11-17 (GitHub order). Events are { kind:'ref', label, inDef } | { kind:'inline', inDef };
+//    inDef = normalized label of the definition the event sits inside, or null/undefined when outside any definition.
+//    Pass 1: events with no inDef, in array (document) order. Pass 2: for each numbered note in number order,
+//    the events whose inDef is that note's label, in array order; repeat until nothing new is numbered.
+//    An event that is never reached gets null (inline notes too). An inDef label that is never numbered (unreferenced
+//    note, or a label the caller uses for an ignored duplicate definition) gives null for everything inside it.
+//    Duplicate definitions: the caller must give events inside an IGNORED duplicate a never-numbered inDef;
+//    behaviour pinned via resolveFootnotes below (a ref only inside a duplicate definition gets no number).
 
 const parse = (doc) => {
     const s = EditorState.create({
@@ -147,6 +155,81 @@ describe('numberFootnotes', () => {
     });
 });
 
+describe('numberFootnotes: definition-internal events (GitHub order)', () => {
+    const ref = (label, inDef = null) => ({ kind: 'ref', label, inDef });
+    const inline = (inDef = null) => ({ kind: 'inline', inDef });
+    const all = () => true;
+
+    it('refs inside a definition come after ALL outside refs, not at their document position', () => {
+        // doc order: a (body), c (inside def a), b (body)
+        expect(numberFootnotes([ref('a'), ref('c', 'a'), ref('b')], all)).toEqual([1, 3, 2]);
+    });
+
+    it('notes are processed in number order, breadth first: a1 b2 then c3 (in a) d4 (in b)', () => {
+        const ev = [ref('a'), ref('b'), ref('c', 'a'), ref('d', 'b')];
+        expect(numberFootnotes(ev, all)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('number order beats document order of the definitions', () => {
+        // b is numbered 1, a is numbered 2; def a appears first in the doc but def b is processed first
+        const ev = [ref('b'), ref('a'), ref('x', 'a'), ref('y', 'b')];
+        expect(numberFootnotes(ev, all)).toEqual([1, 2, 4, 3]);
+    });
+
+    it('repeats until stable: a chain a -> b -> c -> d', () => {
+        const ev = [ref('a'), ref('b', 'a'), ref('c', 'b'), ref('d', 'c')];
+        expect(numberFootnotes(ev, all)).toEqual([1, 2, 3, 4]);
+    });
+
+    it('a ref inside a definition to an already numbered note reuses its number', () => {
+        const ev = [ref('a'), ref('b'), ref('a', 'b')];
+        expect(numberFootnotes(ev, all)).toEqual([1, 2, 1]);
+    });
+
+    it('a ref to itself from inside its own definition reuses the number', () => {
+        expect(numberFootnotes([ref('a'), ref('a', 'a')], all)).toEqual([1, 1]);
+    });
+
+    it('inline notes inside a numbered definition are numbered in pass 2, in order with refs there', () => {
+        const ev = [ref('a'), ref('b'), inline('a'), ref('c', 'a'), inline('b')];
+        expect(numberFootnotes(ev, all)).toEqual([1, 2, 3, 4, 5]);
+    });
+
+    it('events inside an unreferenced definition get null, including inline notes', () => {
+        const ev = [ref('a'), ref('c', 'b'), inline('b'), ref('a', 'b')];
+        expect(numberFootnotes(ev, all)).toEqual([1, null, null, null]);
+    });
+
+    it('notes reached only from an unreferenced note stay unnumbered, transitively', () => {
+        // b is unreferenced; b mentions c; c mentions d
+        const ev = [ref('a'), ref('c', 'b'), ref('d', 'c')];
+        expect(numberFootnotes(ev, all)).toEqual([1, null, null]);
+    });
+
+    it('the adversarial repro: x[^b], def a mentions c, b, c defined', () => {
+        const ev = [ref('b'), ref('c', 'a')];
+        expect(numberFootnotes(ev, all)).toEqual([1, null]);
+    });
+
+    it('an unresolved ref inside a numbered definition is null and takes no number', () => {
+        const defined = (l) => l !== 'zz';
+        expect(numberFootnotes([ref('a'), ref('zz', 'a'), ref('b', 'a')], defined)).toEqual([1, null, 2]);
+    });
+
+    it('a missing inDef is the same as null (outside any definition)', () => {
+        expect(numberFootnotes([{ kind: 'ref', label: 'a' }, { kind: 'inline' }], all)).toEqual([1, 2]);
+    });
+
+    it('does not mutate events carrying inDef; isDefined still only sees ref labels', () => {
+        const events = [ref('a'), inline('a'), ref('b', 'a')];
+        const copy = JSON.parse(JSON.stringify(events));
+        const seen = [];
+        numberFootnotes(events, (l) => { seen.push(l); return true; });
+        expect(events).toEqual(copy);
+        expect(seen.every((l) => typeof l === 'string')).toBe(true);
+    });
+});
+
 describe('resolveFootnotes stays consistent with numberFootnotes', () => {
     it('mixed inline/labelled/unresolved doc numbers like the pure helper', () => {
         const doc = 'a^[i1] b[^z] c[^q] d[^z] e^[i2] f[^w]\n\n[^z]: Z\n[^w]: W';
@@ -161,5 +244,18 @@ describe('resolveFootnotes stays consistent with numberFootnotes', () => {
         expect([...r.inline.values()].map((v) => v.number)).toEqual([1, 3]);
         function inline() { return { kind: 'inline' }; }
         function ref(label) { return { kind: 'ref', label }; }
+    });
+
+    it('doc with refs inside definitions numbers like the pure helper', () => {
+        const doc = 'x[^a] y[^b]\n\n[^a]: A see[^c]\n[^b]: B see[^d] and^[i]\n[^c]: C\n[^d]: D\n[^u]: U see[^v]\n[^v]: V';
+        const r = resolveFootnotes(parse(doc));
+        const out = numberFootnotes([
+            { kind: 'ref', label: 'a', inDef: null }, { kind: 'ref', label: 'b', inDef: null },
+            { kind: 'ref', label: 'c', inDef: 'a' }, { kind: 'ref', label: 'd', inDef: 'b' }, { kind: 'inline', inDef: 'b' },
+            { kind: 'ref', label: 'v', inDef: 'u' },
+        ], () => true);
+        expect(out).toEqual([1, 2, 3, 4, 5, null]);
+        expect(Object.fromEntries([...r.labelled].map(([k, v]) => [k, v.number]))).toEqual({ a: 1, b: 2, c: 3, d: 4 });
+        expect([...r.inline.values()].map((v) => v.number)).toEqual([5]);
     });
 });

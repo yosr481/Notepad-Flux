@@ -77,6 +77,8 @@ src/
 │   ├── livePreview.js      - Core WYSIWYG logic (syntax hiding/revealing)
 │   ├── widgets.js          - Custom DOM widgets (Checkboxes, Tables, HR)
 │   ├── imagePreview.js     - Inline image rendering
+│   ├── mathSyntax.js / mathPreview.js     - Math: Lezer parser + shared scanners / widgets
+│   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
@@ -309,6 +311,16 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Enter key handling
    - Tab/Shift+Tab indentation
    - Task list creation
+
+7. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
+   - `mathSyntax.js`: Lezer parser plus the pure scanners shared with HTML export
+   - `mathPreview.js`: rendered formula widgets
+
+8. **`footnoteSyntax.js`** / **`footnotes.js`**: Footnotes (`[^label]`, `^[inline]`, `[^label]:`)
+   - `footnoteSyntax.js`: Lezer parser, shared scanners and GitHub-order numbering (`numberFootnotes`)
+   - `footnotes.js`: `resolveFootnotes`, number widgets, hover tooltip, jump
+
+Export: one module per feature in `src/utils/` exports a marked extension factory (+ optional `finish`); `export.js` `renderMarkdownHtml` composes them, sanitizes, then a DOM pass swaps math placeholders and sets footnote ids. Rules are shared with the editor via `src/extensions/*Syntax.js`.
 
 ---
 

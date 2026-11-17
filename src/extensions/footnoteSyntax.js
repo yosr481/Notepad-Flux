@@ -5,11 +5,17 @@
 const BRACKET_OPEN = 91, BRACKET_CLOSE = 93, CARET = 94, BACKSLASH = 92, NEWLINE = 10, TAB = 9, SPACE = 32, COLON = 58;
 const LABEL_MAX = 999;
 // Longest inline note content looked for; bounds the scan per `^[` (as INLINE_MATH_MAX does).
-// ponytail: each unclosed `^[` scans up to 2000 chars; linear, ~1.2 s on 600 KB of `^[`. Lower the cap if it bites.
+// ponytail: each unclosed `^[` scans up to 2000 chars; linear, ~1.2 s in the editor and ~5 s through renderMarkdownHtml on 600 KB of `^[`. Lower the cap if it bites.
 export const INLINE_FOOTNOTE_MAX = 2000;
 // A definition continues over blank lines and over lines indented this much. The one copy of the rule:
 // the lezer composite below and footnoteDefEnd both read it.
 const DEF_CONTINUATION_INDENT = 4;
+
+// Definition text: raw source after "]:", continuation lines lose up to DEF_CONTINUATION_INDENT leading spaces.
+export function defText(raw) {
+    const [first, ...rest] = raw.split('\n');
+    return [first.replace(/^[ \t]+/, ''), ...rest.map((l) => l.replace(/^ {0,4}/, ''))].join('\n').trimEnd();
+}
 
 // "[^label]" at text[0]: returns { label, end } (end = index after "]") or null.
 export function scanFootnoteRef(text) {
@@ -90,17 +96,28 @@ export function footnoteDefEnd(src) {
     return end;
 }
 
-// Number refs and inline notes in one sequence by first occurrence. events: { kind: 'ref', label } |
-// { kind: 'inline' }; returns a number per event, null for a ref whose label isDefined rejects.
+// Number refs and inline notes in GitHub order. events: { kind: 'ref', label, inDef } | { kind: 'inline', inDef };
+// inDef = label of the definition the event sits in (null outside any). Events outside definitions come first,
+// by position; then the events of each numbered note's definition, notes in number order, until stable.
+// Returns a number per event; null for an unresolved ref (isDefined rejects its label) or one never reached.
 export function numberFootnotes(events, isDefined) {
-    const byLabel = new Map();
-    let n = 0;
-    return events.map((e) => {
-        if (e.kind === 'inline') return ++n;
-        if (!isDefined(e.label)) return null;
-        if (!byLabel.has(e.label)) byLabel.set(e.label, ++n);
-        return byLabel.get(e.label);
+    const numbers = events.map(() => null);
+    const byLabel = new Map(), inDef = new Map(), order = []; // order: label per number (null: inline note)
+    events.forEach((e, i) => {
+        if (e.inDef == null) return;
+        if (!inDef.has(e.inDef)) inDef.set(e.inDef, []);
+        inDef.get(e.inDef).push(i);
     });
+    const number = (i) => {
+        const e = events[i];
+        if (e.kind === 'inline') { order.push(null); numbers[i] = order.length; return; }
+        if (!isDefined(e.label)) return;
+        if (!byLabel.has(e.label)) { order.push(e.label); byLabel.set(e.label, order.length); }
+        numbers[i] = byLabel.get(e.label);
+    };
+    events.forEach((e, i) => { if (e.inDef == null) number(i); });
+    for (let k = 0; k < order.length; k++) inDef.get(order[k])?.forEach(number);
+    return numbers;
 }
 
 function footnoteReference(cx, next, start) {

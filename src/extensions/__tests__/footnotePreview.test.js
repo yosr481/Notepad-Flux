@@ -191,6 +191,22 @@ describe('footnotePreview: definitions', () => {
     });
 });
 
+describe('footnotePreview: refs inside definitions (GitHub order)', () => {
+    it('a ref inside an unreferenced definition stays raw: no widget for it, none for its target definition', () => {
+        const doc = 'x [^b]\n\n[^a]: has [^c]\n\n[^b]: B\n\n[^c]: C\n';
+        const v = mkView(doc, 0);
+        expect(qa(v, 'sup.cm-footnote-ref').map((e) => e.textContent)).toEqual(['1']);
+        expect(qa(v, 'span.cm-footnote-def').map((e) => e.textContent)).toEqual(['1.']);
+        expect(v.dom.textContent).toContain('[^c]');
+        expect(v.dom.textContent).toContain('[^a]:');
+    });
+
+    it('a ref inside a referenced definition gets a widget numbered after the body refs', () => {
+        const v = mkView('a[^1] b[^3]\n\n[^1]: see[^2]\n[^2]: two\n[^3]: three', 0);
+        expect(qa(v, 'sup.cm-footnote-ref').map((e) => e.textContent)).toEqual(['1', '2', '3']);
+    });
+});
+
 describe('footnotePreview: edits and RTL', () => {
     it('inserting an earlier reference shifts the numbers', () => {
         const d = 'a[^x] b[^y]\n\n[^x]: X\n[^y]: Y\n\ntail';

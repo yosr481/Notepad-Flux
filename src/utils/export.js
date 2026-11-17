@@ -55,15 +55,16 @@ const mathExtension = (formulas, token) => ({
     ],
 });
 
-// Markdown -> sanitized HTML with math rendered. Used by HTML export, PDF export and Print.
+// Markdown -> sanitized HTML with math rendered and footnote ids set. Used by HTML export, PDF export and Print.
 export const renderMarkdownHtml = async (markdown) => {
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
     const token = (i) => `NFMATH${nonce}I${i}E`;
     const formulas = [];
-    const footnotes = createFootnotes();
+    const idMark = `nf${nonce}-`; // footnote ids ride as classes with this prefix: sanitizing drops every id
+    const footnotes = createFootnotes(idMark);
     const m = new Marked(mathExtension(formulas, token), footnotes.extension);
     const html = sanitizeHTML(footnotes.finish(m, m.parser(m.lexer(markdown))));
-    if (!formulas.length) return html;
+    if (!formulas.length && !html.includes(idMark)) return html;
 
     const rendered = await Promise.all(formulas.map((f) => renderTex(f.tex, { display: f.display })));
     // Swap on the parsed DOM, not the string: a formula can land in an attribute (an image's
@@ -72,6 +73,13 @@ export const renderMarkdownHtml = async (markdown) => {
     const re = new RegExp(`${marker}(\\d+)E`, 'g');
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
+    // Footnote ids are set here, after sanitizing, so raw HTML in the document can never produce an id.
+    for (const el of tpl.content.querySelectorAll(`[class*="${idMark}"]`)) {
+        const cls = [...el.classList].find((c) => c.startsWith(idMark));
+        el.classList.remove(cls);
+        el.id = cls.slice(idMark.length);
+        if (!el.classList.length) el.removeAttribute('class');
+    }
     for (const el of tpl.content.querySelectorAll('*')) {
         for (const attr of el.attributes) {
             if (attr.value.includes(marker)) attr.value = attr.value.replace(re, (w, i) => formulas[Number(i)]?.raw ?? w);
