@@ -4,6 +4,7 @@ import { sanitizeHTML } from './sanitize';
 import { createMath } from './exportMath';
 import { createFootnotes } from './exportFootnotes';
 import { createCallouts } from './exportCallouts';
+import { createMermaid } from './exportMermaid';
 import calloutCss from '../styles/calloutExport.css?raw';
 
 const escapeHtml = (s) => {
@@ -27,16 +28,18 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const math = createMath(nonce);
     const footnotes = createFootnotes(idMark);
     const callouts = createCallouts(idMark, options.expandFolds === true);
-    const m = new Marked(math.extension, footnotes.extension, callouts.extension);
+    const mermaid = createMermaid(nonce);
+    const m = new Marked(math.extension, footnotes.extension, callouts.extension, mermaid.extension);
     const html = sanitizeHTML(footnotes.finish(m, m.parser(m.lexer(markdown))));
-    if (!math.hasFormulas() && !html.includes(idMark)) return html;
+    if (!math.hasFormulas() && !mermaid.has() && !html.includes(idMark)) return html;
 
-    await math.prepare();
+    await Promise.all([math.prepare(), mermaid.prepare()]);
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
     callouts.finish(tpl.content);
     footnotes.finishDom(tpl.content);
     math.finish(tpl.content);
+    mermaid.finish(tpl.content);
     return tpl.innerHTML;
 };
 

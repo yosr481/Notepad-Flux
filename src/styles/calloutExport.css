@@ -19,3 +19,6 @@ summary.callout-title { cursor: pointer; }
 .callout-caution, .callout-failure, .callout-danger, .callout-bug { --c: #b3261e; --bg: #ffe3e0; }
 .callout-example { --c: #5b3fa8; --bg: #ede9fb; }
 .callout-quote { --c: #4a4f55; --bg: #eceef0; }
+.mermaid-diagram { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
+.mermaid-diagram svg { max-width: 100%; height: auto; }
+.mermaid-error { color: #7a1a14; background: #ffe3e0; font-family: monospace; white-space: pre-wrap; overflow-wrap: anywhere; padding: 0.75em 1em; border-radius: 4px; }
