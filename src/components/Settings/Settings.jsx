@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
 import { dialogs } from '../../utils/dialogs';
 import { useSettings, useSessionActions } from '../../context/SessionContext';
 import { useUpdateStatus } from '../../hooks/useUpdateStatus';
+import { formatBytes } from '../../utils/formatBytes';
 
 // Label, action and disabled flag of the update button per update state (update-spec.md).
 const updateButton = (status) => {
@@ -26,6 +27,33 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
     const { clearSessionData } = useSessionActions();
     const updateStatus = useUpdateStatus();
     const update = updateStatus && updateButton(updateStatus);
+
+    const [dataPath, setDataPath] = useState(null);
+    const [dataSize, setDataSize] = useState('Calculating…');
+    const [webUsage, setWebUsage] = useState('');
+    const isDesktop = !!window.electronAPI;
+
+    // Refetch each time Settings opens; cleanup drops stale responses and anything after unmount.
+    useEffect(() => {
+        if (!isOpen) return undefined;
+        let live = true;
+        if (window.electronAPI) {
+            Promise.resolve().then(() => {
+                if (live) setDataSize('Calculating…');
+                return window.electronAPI.getDataInfo();
+            }).then((info) => {
+                if (!live) return;
+                if (typeof info?.path === 'string') setDataPath(info.path);
+                const size = formatBytes(info?.bytes);
+                setDataSize(size ? (info.truncated === true ? `at least ${size}` : size) : 'Size unavailable');
+            }).catch(() => { if (live) setDataSize('Size unavailable'); });
+        } else {
+            Promise.resolve().then(() => navigator.storage.estimate()).then((est) => {
+                if (live) setWebUsage(formatBytes(est?.usage));
+            }).catch(() => { if (live) setWebUsage(''); });
+        }
+        return () => { live = false; };
+    }, [isOpen]);
 
     if (!isOpen) return null;
 
@@ -116,6 +144,25 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
                 {/* Clear Session */}
                 <div className={styles.section}>
                     <h3 className={styles.sectionTitle}>Data Management</h3>
+                    {(isDesktop || webUsage) && (
+                        <div className={styles.row}>
+                            <div className={styles.dataInfo}>
+                                <div className={styles.label}>Session data</div>
+                                {isDesktop && dataPath && <div className={styles.dataPath} dir="ltr">{dataPath}</div>}
+                                <div className={styles.description}>
+                                    {isDesktop ? dataSize : `about ${webUsage} used by this site`}
+                                </div>
+                            </div>
+                            {isDesktop && (
+                                <button
+                                    className={styles.button}
+                                    onClick={() => { Promise.resolve().then(() => window.electronAPI.openDataFolder()).catch(() => {}); }}
+                                >
+                                    Open folder
+                                </button>
+                            )}
+                        </div>
+                    )}
                     <div className={styles.row}>
                         <div>
                             <div className={styles.label}>Clear saved session</div>

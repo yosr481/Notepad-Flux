@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Subscript and superscript: `H~2~O` and `x^2^` show as subscript and superscript. Put the cursor on one to see the raw marks. HTML export, PDF export and Print show them too. Use `\ ` for a space inside.
 - Safe HTML tags: `<kbd>`, `<mark>`, `<u>`, `<ins>`, `<small>`, `<abbr title="…">`, `<sub>`, `<sup>` and `<span>` render in the editor, and `<details>`, `<summary>`, `<div>`, `<br>` and those tags survive HTML export, PDF export and Print. Export strips attributes such as `style`, `id` and `on…`; the editor applies none except the `abbr` title. `<details>` stays as source in the editor.
 - Emoji shortcodes: `:smile:`, `:+1:` and `:tada:` show as emoji when the cursor is outside them, and HTML export, PDF export and Print write the emoji character. GitHub's names are supported, about 1,900 including aliases. Unknown names stay as typed.
+- Settings › Data Management shows where your saved tabs are stored and how much space they take, with an Open folder button (desktop app). The web version shows the storage the browser reports for the site.
 
 ### Changed
 

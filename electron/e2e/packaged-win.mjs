@@ -1,7 +1,7 @@
 // E2E against the INSTALLED Windows build (generated from packaged.mjs, then Windows-adapted; see electron/e2e/README-win in the report).
 //   node electron\e2e\packaged-win.mjs "C:\...\Notepad Flux.exe" [--target=installed] [--only=...]   (run in the interactive desktop session)
 // Never touches real app data: every launch uses NOTEPAD_FLUX_USER_DATA=<temp dir>.
-import { realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, existsSync, rmSync, readdirSync, statSync, renameSync, cpSync } from 'node:fs'
+import { realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, existsSync, rmSync, readdirSync, lstatSync, linkSync, statSync, renameSync, cpSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -2449,6 +2449,150 @@ try {
     })
 } finally { await app.close().catch(() => {}) }
 } catch (e) { await scenarioCrashed('updates', e) }
+
+// ---------------------------------------------------------------- scenario: session data path + size + Open folder (S1, Docs/internal/data-path-spec.md)
+if (want('datainfo')) try {
+    const Ud = tmp('nf-di-u-'), Xd = tmp('nf-di-x-'); cleanup.push(Ud, Xd)
+    const { app, win } = await L(Ud)
+    const errs0 = pageErrors.length
+    // du-style: sum of regular-file sizes (lstat, symlinks not followed, unreadable skipped) under the folder
+    const du = (d) => { let n = 0; const go = (p) => { let es; try { es = readdirSync(p, { withFileTypes: true }) } catch { return } for (const e of es) { const f = join(p, e.name); try { if (e.isDirectory()) go(f); else { const s = lstatSync(f); if (s.isFile()) n += s.size } } catch { /* vanished */ } } }; go(d); return n }
+    const UNITS = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+    const closeSettings = () => win.locator('[class*=backButton]').click()
+    const sizeText = async () => { const t = await win.locator('[class*=overlay]').getByText(/^\d+(\.\d)? (B|KB|MB|GB)$|^Size unavailable$|^Calculating…$/).first().innerText({ timeout: 5000 }); return t.trim() }
+    const sizeBytes = (t) => { const m = /^(\d+(?:\.\d)?) (B|KB|MB|GB)$/.exec(t); assert(m, 'not a formatted size: ' + JSON.stringify(t)); return Number(m[1]) * UNITS[m[2]] }
+    const stubOpen = (ret = '') => app.evaluate(({ shell }, r) => { globalThis.__open = []; shell.openPath = async (p) => { globalThis.__open.push(p); return r } }, ret)
+    const opened = () => app.evaluate(() => globalThis.__open)
+    // Raw ipcRenderer in a throwaway hidden window (custom preload written by the test), so the channels can be hit
+    // with arguments / from other pages. The real preload bridge is not reachable from a sub-frame (the mermaid frame
+    // has no electronAPI, see MM-*), so a sub-frame sender cannot be produced; a non-own top frame stands in for it.
+    const rawPreload = join(Xd, 'raw-preload.cjs')
+    writeFileSync(rawPreload, "const { contextBridge, ipcRenderer } = require('electron'); contextBridge.exposeInMainWorld('raw', { invoke: (c, ...a) => ipcRenderer.invoke(c, ...a) })\n")
+    const foreign = join(Xd, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
+    const rawCalls = (url, calls) => app.evaluate(async ({ BrowserWindow }, { preload, url, calls }) => {
+        const w = new BrowserWindow({ show: false, webPreferences: { preload, sandbox: true, contextIsolation: true } })
+        try {
+            await w.loadURL(url)
+            const out = []
+            for (const [ch, ...a] of calls) out.push(await w.webContents.executeJavaScript(`window.raw.invoke(${JSON.stringify(ch)}, ...${JSON.stringify(a)}).then(v => ({ ok: v }), e => ({ err: String((e && e.message) || e) }))`))
+            return out
+        } finally { w.destroy() }
+    }, { preload: rawPreload, url, calls })
+    const ownUrl = (await ui.mainWindows(app)).find(w => /index\.html/.test(w.url)).url.split('#')[0].split('?')[0]
+
+    await check('DATA-1', 'datainfo', 'Settings > Session data shows exactly the NOTEPAD_FLUX_USER_DATA folder in a dir=ltr element, plus an Open folder button; no page error', async () => {
+        await openSettings()
+        const row = win.locator('[class*=overlay] [dir=ltr]').filter({ hasText: Ud })
+        await row.first().waitFor({ timeout: 5000 })
+        const texts = await win.locator('[class*=overlay] [dir=ltr]').allInnerTexts()
+        assert(texts.some(t => t.trim() === Ud), 'no dir=ltr element with exactly ' + Ud + ': ' + JSON.stringify(texts))
+        assert(await win.getByRole('button', { name: /open folder/i }).isVisible(), 'Open folder button not visible')
+        await win.screenshot({ path: join(shots, `${target}-datainfo-settings.png`) }).catch(() => {})
+    }, { smoke: true })
+    await check('DATA-2', 'datainfo', 'the size is above 0 and within 5% (+1 decimal of rounding) of a du-style sum the test computes over that folder', async () => {
+        await waitFor(async () => /^\d/.test(await sizeText()), { what: 'size loaded' })
+        const t = await sizeText()
+        const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+        const lo = Math.min(du(Ud), api.bytes), hi = Math.max(du(Ud), api.bytes)   // the app keeps writing; bracket it
+        assert(api.bytes > 0, 'getDataInfo bytes ' + api.bytes)
+        eq(api.path, Ud, 'getDataInfo path')
+        const shown = sizeBytes(t); const unit = UNITS[t.split(' ')[1]]
+        assert(shown > 0, 'size shown as ' + t)
+        assert(shown >= lo * 0.95 - unit * 0.05 && shown <= hi * 1.05 + unit * 0.05, `shown ${t} (${shown} B) vs du ${lo}..${hi} B`)
+        assert(api.bytes >= lo * 0.95 && api.bytes <= hi * 1.05, `getDataInfo bytes ${api.bytes} vs du ${lo}..${hi}`)
+        return `${t}; du ${lo}..${hi} B`
+    })
+    await check('DATA-3', 'datainfo', 'Open folder calls shell.openPath once with exactly the userData path (stubbed: nothing really opens)', async () => {
+        await stubOpen()
+        await win.getByRole('button', { name: /open folder/i }).click()
+        await waitFor(async () => (await opened()).length === 1, { what: 'openPath call' })
+        await sleep(300)
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+    })
+    await check('DATA-4', 'datainfo', 'reopening Settings asks again: a 3 MB file added to the folder makes the size grow by about 3 MB', async () => {
+        const before = sizeBytes(await sizeText())
+        await closeSettings(); writeFileSync(join(Ud, 'nf-data-grow.bin'), Buffer.alloc(3 * 1024 * 1024, 1))
+        await openSettings()
+        await waitFor(async () => { const t = await sizeText(); return /^\d/.test(t) && sizeBytes(t) - before > 2.5 * 1024 * 1024 }, { what: 'size grew after reopen' })
+        const grew = sizeBytes(await sizeText()) - before
+        assert(grew < 3.6 * 1024 * 1024, 'grew by ' + grew)
+        rmSync(join(Ud, 'nf-data-grow.bin'), { force: true })
+    })
+    await check('DATA-5', 'datainfo', 'preload bridge: openDataFolder drops any argument the page passes (still only userData)', async () => {
+        await stubOpen()
+        const r = await win.evaluate(async () => window.electronAPI.openDataFolder('/etc'))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+        assert(r && r.ok === true, 'result ' + JSON.stringify(r))
+        await win.evaluate(async () => window.electronAPI.getDataInfo('/etc'))   // must not throw either
+    })
+    await check('DATA-6', 'datainfo', 'own page, raw channel: get-data-info returns {path, bytes}; open-data-folder("/etc") (and other junk) still opens only userData; a failed openPath comes back as { ok: false, error: <openPath string> }', async () => {
+        await stubOpen()
+        const [info, o1, o2, o3] = await rawCalls(ownUrl, [['get-data-info'], ['open-data-folder', '/etc'], ['open-data-folder', { path: '/etc' }, '/'], ['open-data-folder']])
+        assert(!info.err && info.ok.path === Ud && info.ok.bytes > 0, 'get-data-info ' + JSON.stringify(info))
+        for (const o of [o1, o2, o3]) assert(!o.err && o.ok && o.ok.ok === true, 'open-data-folder ' + JSON.stringify(o))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud, Ud, Ud]), 'openPath calls')
+        await stubOpen('Failed to open path')
+        const [bad] = await rawCalls(ownUrl, [['open-data-folder']])
+        eq(JSON.stringify(bad), JSON.stringify({ ok: { ok: false, error: 'Failed to open path' } }), 'openPath error shape { ok: false, error }')
+    })
+    await check('DATA-7', 'datainfo', 'a page that is not the app (data: URL, other local file:) is denied on both channels with "Access denied"; nothing is opened', async () => {
+        await stubOpen()
+        for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {
+            const [a, b] = await rawCalls(url, [['get-data-info'], ['open-data-folder']])
+            assert(a.err && /Access denied/.test(a.err), url + ' get-data-info: ' + JSON.stringify(a))
+            assert(b.err && /Access denied/.test(b.err), url + ' open-data-folder: ' + JSON.stringify(b))
+        }
+        eq((await opened()).length, 0, 'openPath calls from denied senders')
+    })
+    await check('DATA-9', 'datainfo', 'symlinks / junctions inside the folder are not followed: a link to a folder holding a 5 MB file adds (almost) nothing to the size', async () => {
+        const big = tmp('nf-di-big-'); cleanup.push(big); writeFileSync(join(big, 'big.bin'), Buffer.alloc(5 * 1024 * 1024, 2))
+        const link = join(Ud, 'nf-data-link'); symlinkSync(big, link, 'junction')
+        try {
+            const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+            const base = du(Ud)   // du skips links too; the app may write a little meanwhile
+            assert(api.bytes < base + 1024 * 1024, `getDataInfo ${api.bytes} B vs du ${base} B: the link target (5 MB) was followed`)
+        } finally { rmSync(link, { force: true, recursive: false }) }
+    })
+    await check('DATA-10', 'datainfo', '50 concurrent getDataInfo() calls share one in-flight walk: all resolve to the same {path, bytes, truncated}, and main.log gains at most 2 "data-info walk" lines', async () => {
+        const walks = () => (logOf(Ud).match(/data-info walk/g) || []).length
+        await sleep(500); const w0 = walks()
+        const rs = await win.evaluate(() => Promise.all(Array.from({ length: 50 }, () => window.electronAPI.getDataInfo())))
+        await sleep(800)
+        eq(rs.length, 50, 'results')
+        const first = JSON.stringify(rs[0]); assert(rs[0].bytes > 0 && rs[0].path, 'first result ' + first)
+        assert(rs.every(r => JSON.stringify(r) === first), 'results differ: ' + [...new Set(rs.map(r => JSON.stringify(r)))].join(' | '))
+        const n = walks() - w0
+        assert(n >= 1 && n <= 2, n + ' "data-info walk" lines in main.log for 50 concurrent calls (want 1..2)')
+        return n + ' walk(s)'
+    })
+    await check('DATA-11', 'datainfo', 'a hardlink is counted once: a 3 MB file plus a hardlink to it grows the size by about 3 MB, not 6', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const a = join(Ud, 'nf-hard-a.bin'), b = join(Ud, 'nf-hard-b.bin')
+        writeFileSync(a, Buffer.alloc(3 * 1024 * 1024, 3)); linkSync(a, b)
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew > 2.9 * 1024 * 1024, 'grew only ' + grew)
+            assert(grew < 3.5 * 1024 * 1024, 'grew by ' + grew + ' B: the hardlink was counted twice')
+        } finally { rmSync(a, { force: true }); rmSync(b, { force: true }) }
+    })
+    await check('DATA-12', 'datainfo', 'many distinct files are all counted (guards the dev:ino dedupe against id collisions, e.g. NTFS file ids above 2^53): 400 files of 1 KB grow the size by about 400 KB', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const d = join(Ud, 'nf-many'); mkdirSync(d)
+        for (let i = 0; i < 400; i++) writeFileSync(join(d, 'f' + i), Buffer.alloc(1024, i % 251))
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew >= 400 * 1024 * 0.97, 'grew only ' + grew + ' B of ' + 400 * 1024 + ': files were skipped (id collision?)')
+            assert(grew < 400 * 1024 + 256 * 1024, 'grew by ' + grew)
+        } finally { rmSync(d, { recursive: true, force: true }) }
+    })
+    await check('DATA-8', 'datainfo', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('datainfo', e) }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
