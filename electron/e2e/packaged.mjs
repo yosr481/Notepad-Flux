@@ -9,7 +9,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
-import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke } from './lib/harness.mjs'
+import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 // exact URL match on the openExternal log (array of URLs), not a substring test
 const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
@@ -33,17 +33,22 @@ let sandboxNote = noSandbox ? 'launched with --no-sandbox (requested)' : 'launch
 const env = /\.AppImage$/.test(binary) ? { APPIMAGE_EXTRACT_AND_RUN: '1' } : {}
 const pageErrors = []
 // Electron resolves a beforeunload block itself (will-prevent-unload); Playwright's auto-dismiss then races it.
-process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method))) return; throw e })
+// Anything else (a failed launch leaves Playwright-internal promises rejected) is a FAIL against the running check, not a dead run.
+process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method)) || absorbLaunchNoise(e)) return; recordFailure('UNHANDLED-' + (globalThis.__cur ?? 'pre-check'), 'unhandled promise rejection', e) })
+process.on('uncaughtException', (e) => recordFailure('UNCAUGHT-' + (globalThis.__cur ?? 'pre-check'), 'uncaught exception', e))
 
 async function L(userData, extra = {}) {
     const go = (ns) => launch({ binary, userData, extraArgs: ns ? ['--no-sandbox'] : [], env: { ...env, ...extra.env } })
     let r
     try { r = await go(noSandbox) } catch (e) {
         if (noSandbox) throw e
-        console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n')[0] + '); retrying --no-sandbox')
+        if (e?.name === 'TimeoutError') launchStats.retries++
+        if (userData) killAppsOf(userData)   // the abandoned app must not hold the single-instance lock for the retry
+        console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n').slice(0, 12).join(' ~ ').slice(0, 900) + '); retrying --no-sandbox')   // the call log holds the app's stderr: keep it, a 60 s hang here is otherwise invisible (B10)
         noSandbox = true; sandboxNote = 'DEVIATION: sandboxed launch failed, ran with --no-sandbox'
         r = await go(true)
     }
+    launched.add(r.app); r.app.once('close', () => launched.delete(r.app))
     r.win.on('pageerror', e => pageErrors.push(`[during ${globalThis.__cur}] ` + String(e.stack || e).replace(/\s+/g, ' ').slice(0, 400)))
     // The renderer loads the saved session ~1-2s after the window is up; actions inside that window hit a
     // tab-id race (see RACE-1). Every scenario except RACE-1 waits it out so one defect does not mask the rest.
@@ -70,7 +75,7 @@ const dotted = join(W, 'notes..md'); writeFileSync(dotted, 'dotted body\r\n'); c
 writeFileSync(join(U1, 'authorized-paths.json'), JSON.stringify([granted, gdir, swapped, join(linkdir, 'n.md')]))
 
 let app, win
-if (want('core')) {
+if (want('core')) try {
 try {
     ;({ app, win } = await L(U1))
 } catch (e) {
@@ -559,11 +564,11 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
     })
     await win.screenshot({ path: join(shots, `${target}-core.png`) }).catch(() => {})
     await app.close().catch(() => {})
-} // end core
+} catch (e) { await scenarioCrashed('core', e) } // end core
 
 // ---------------------------------------------------------------- scenario: live preview
 const walk = (d, out = []) => { for (const n of readdirSync(d, { withFileTypes: true })) { const f = join(d, n.name); n.isDirectory() ? walk(f, out) : out.push(f) } return out }
-if (want('lp')) {
+if (want('lp')) try {
     const Ulp = tmp('nf-lp-u-'), Wlp = tmp('nf-lp-w-'); cleanup.push(Ulp, Wlp)
     const { app, win } = await L(Ulp)
     const doc = async (name, text) => {
@@ -762,11 +767,11 @@ if (want('lp')) {
     })
     await win.screenshot({ path: join(shots, `${target}-live-preview.png`) }).catch(() => {})
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('lp', e) }
 
 // ---------------------------------------------------------------- scenario: math rendering (F1, Docs/internal/math-spec.md)
 // Only the packaged build proves the lazy MathJax chunk and the runtime font ranges load from app.asar.
-if (want('math')) {
+if (want('math')) try {
     const Um = tmp('nf-m-u-'), Wm = tmp('nf-m-w-'); cleanup.push(Um, Wm)
     const { app, win } = await L(Um)
     const consoleMsgs = []
@@ -836,11 +841,11 @@ if (want('math')) {
         eq(r.text, 'costs $5 and $10'); eq(r.math, 0, 'widgets on the dollar line')
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('math', e) }
 
 // ---------------------------------------------------------------- scenario: footnotes (F2, Docs/internal/footnotes-spec.md)
 // Real hover / Ctrl+click / the export path: what jsdom cannot cover. The doc is opened from a file (typing `[^` would hit bracket auto-close).
-if (want('footnotes')) {
+if (want('footnotes')) try {
     const Uf = tmp('nf-fn-u-'), Wf = tmp('nf-fn-w-'); cleanup.push(Uf, Wf)
     const { app, win } = await L(Uf)
     const errs0 = pageErrors.length
@@ -918,11 +923,11 @@ if (want('footnotes')) {
         assert(consoleErrs.length === 0, 'console errors: ' + JSON.stringify(consoleErrs.slice(0, 3)))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('footnotes', e) }
 
 // ---------------------------------------------------------------- scenario: callouts (F3, Docs/internal/callouts-spec.md)
 // Real typing / mouse / keyboard / computed colours / the export path: what jsdom cannot cover. The fixture is opened from a file; CO-1 types its own callout at the end.
-if (want('callouts')) {
+if (want('callouts')) try {
     const Uc = tmp('nf-co-u-'), Wc = tmp('nf-co-w-'); cleanup.push(Uc, Wc)
     const { app, win } = await L(Uc)
     const f = join(Wc, 'co.md')
@@ -1050,11 +1055,11 @@ if (want('callouts')) {
         assert(!h.includes('[!warning]') && !h.includes('[!note]'), 'raw callout marker leaked into the export')
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('callouts', e) }
 
 // ---------------------------------------------------------------- scenario: mermaid (F4, Docs/internal/mermaid-spec.md)
 // Real Mermaid layout + CSS under the app CSP (script-src 'self'), the lazy chunk, theme re-render, the export path: what jsdom cannot cover.
-if (want('mermaid')) {
+if (want('mermaid')) try {
     const Um = tmp('nf-mm-u-'), Wm = tmp('nf-mm-w-'); cleanup.push(Um, Wm)
     const { app, win } = await L(Um)
     const consoleMsgs = []
@@ -1214,11 +1219,11 @@ if (want('mermaid')) {
         } finally { await cdp.send('Network.disable').catch(() => {}); await cdp.detach().catch(() => {}) }
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('mermaid', e) }
 
 // ---------------------------------------------------------------- scenario: front matter (F5, Docs/internal/frontmatter-spec.md)
 // Real layout, computed fonts/colours/direction, mouse click, export and keystroke timing: what jsdom cannot cover.
-if (want('frontmatter')) {
+if (want('frontmatter')) try {
     const Uf = tmp('nf-fm-u-'), Wf = tmp('nf-fm-w-'); cleanup.push(Uf, Wf)
     const { app, win } = await L(Uf)
     const errs0 = pageErrors.length
@@ -1374,11 +1379,11 @@ if (want('frontmatter')) {
         return info
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('frontmatter', e) }
 
 // ---------------------------------------------------------------- scenario: sub/superscript + emoji (F6, Docs/internal/subsup-emoji-spec.md)
 // Real layout, computed styles, line height, emoji font and export: what jsdom cannot cover.
-if (want('subsupemoji')) {
+if (want('subsupemoji')) try {
     const Ue = tmp('nf-se-u-'), We = tmp('nf-se-w-'); cleanup.push(Ue, We)
     const { app, win } = await L(Ue)
     const errs0 = pageErrors.length
@@ -1494,11 +1499,11 @@ if (want('subsupemoji')) {
         } finally { await setTheme('light').catch(() => {}) }
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('subsupemoji', e) }
 
 // ---------------------------------------------------------------- scenario: table cells (B12, Docs/internal/table-cells-spec.md)
 // Real layout, computed styles, MathJax, link click and the keyboard: what jsdom cannot cover.
-if (want('tablecells')) {
+if (want('tablecells')) try {
     const Ut = tmp('nf-tc-u-'), Wt = tmp('nf-tc-w-'); cleanup.push(Ut, Wt)
     const { app, win } = await L(Ut)
     const errs0 = pageErrors.length
@@ -1646,10 +1651,10 @@ if (want('tablecells')) {
         return `cell direction ${r.dir}, שלום x ${r.firstX.toFixed(1)} > עולם x ${r.secondX.toFixed(1)}`
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('tablecells', e) }
 
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
-if (want('session')) {
+if (want('session')) try {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
     const A = join(Ws, 'alpha.md'); writeFileSync(A, 'alpha\n')
     const DOT = join(Ws, 'my..notes.md'); writeFileSync(DOT, 'dot base\n')
@@ -1760,10 +1765,10 @@ if (want('session')) {
         eq(await app.evaluate(() => globalThis.__picker), 0, 'picker opened'); assert(!/read: denied/.test(logOf(Us)), 'denied read in log'); assert((await ui.toastText(win)).trim() === '', 'toast: ' + await ui.toastText(win))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('session', e) }
 
 // ---------------------------------------------------------------- scenario: close races
-if (want('close')) {
+if (want('close')) try {
     for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         const Uc = tmp('nf-c-u-'), Wc = tmp('nf-c-w-'); cleanup.push(Uc, Wc)
         const F = join(Wc, 'dirty.md'); writeFileSync(F, 'base\n')
@@ -1794,10 +1799,10 @@ if (want('close')) {
         }, { smoke: via === 'x' })
         await app.close().catch(() => {})
     }
-}
+} catch (e) { await scenarioCrashed('close', e) }
 
 // ---------------------------------------------------------------- scenario: opening files right after launch
-if (want('race')) {
+if (want('race')) try {
     const Ur = tmp('nf-r-u-'), Wr = tmp('nf-r-w-'); cleanup.push(Ur, Wr)
     const f1 = join(Wr, 'first-doc.md'), f2 = join(Wr, 'second-doc.md'); writeFileSync(f1, 'FIRST-DOC-BODY\n'); writeFileSync(f2, 'SECOND-DOC-BODY\n')
     const { app, win } = await L(Ur, { settle: 0 })
@@ -1810,10 +1815,10 @@ if (want('race')) {
         assert(t.includes('SECOND-DOC-BODY') && !t.includes('FIRST-DOC-BODY'), 'editor shows the wrong document: ' + JSON.stringify(t.slice(0, 40)))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('race', e) }
 
 // ---------------------------------------------------------------- scenario: race with a NON-EMPTY saved session
-if (want('race2')) {
+if (want('race2')) try {
     const { cpSync } = await import('node:fs')
     const Ub = tmp('nf-r2-base-'), Wr = tmp('nf-r2-w-'); cleanup.push(Ub, Wr)
     const F = join(Wr, 'early.md'); writeFileSync(F, 'EARLY-FILE-BODY\n')
@@ -1895,16 +1900,16 @@ if (want('race2')) {
         })
         await app.close().catch(() => {})
     }
-}
+} catch (e) { await scenarioCrashed('race2', e) }
 
 // ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
 const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: false })
-if (want('failover') || want('multiwin')) await multiWindow(scenarioCtx())
-if (want('failover') || want('orphan')) await orphanRows(scenarioCtx())
-if (want('override')) await overrideScenarios(scenarioCtx())
+if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) }
+if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) }
+if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) }
 
 // ---------------------------------------------------------------- scenario: second window
-if (want('newwin')) {
+if (want('newwin')) try {
     const Un = tmp('nf-n-u-'); cleanup.push(Un)
     const { app, win } = await L(Un)
     await check('TAB-2', 'tabs', 'CHANGELOG (corrected): tabs keep a fixed width (3 tabs ~160px each), "+" is pinned at the far right of the tab bar', async () => {
@@ -1944,10 +1949,10 @@ if (want('newwin')) {
         assert(!/Blocked (window\.open|open-external|unsafe)/.test(logOf(Un)), 'a block was logged: ' + (logOf(Un).match(/.*Blocked (window\.open|open-external|unsafe).*/) || [])[0])
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('newwin', e) }
 
 // ---------------------------------------------------------------- scenario: single instance (A4)
-if (want('single')) {
+if (want('single')) try {
     const Ui = tmp('nf-i-u-'), Xi = tmp('nf-i-x-'); cleanup.push(Ui, Xi)
     const { app } = await L(Ui, { env: { XDG_CONFIG_HOME: Xi } })
     await check('SINGLE-1', 'launch', 'launching a second instance focuses the existing window: second process exits, no second window, no second start block (A4)', async () => {
@@ -1961,10 +1966,10 @@ if (want('single')) {
         return 'second instance exit code ' + code
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('single', e) }
 
 // ---------------------------------------------------------------- scenario: command-line files
-if (want('argv')) {
+if (want('argv')) try {
 // open files passed on the command line (OS default-app / "Open with"); own profile so it can't share the main run's instance lock
 await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab (name + content); a second launch with another path while running opens in the SAME window, no 2nd window', async () => {
     const UA = tmp('nf-ua-'), WA = tmp('nf-wa-'); cleanup.push(UA, WA)
@@ -1985,10 +1990,10 @@ await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab
         assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
     } finally { await a1.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('argv', e) }
 
 // ---------------------------------------------------------------- scenario: close while the session load is still running
-if (want('closeload')) {
+if (want('closeload')) try {
 // Cold boot with a slow keyring: the session load (which decrypts the stored key first) is still running when the user types and closes.
 // The slow decrypt is the RACE-3s mechanism (ipcMain override from the test side, no app hook), 2s per call (the long-wait cases are in `closewait`).
 for (const via of ['x', 'menu-exit', 'menu-close-window']) {
@@ -2028,10 +2033,10 @@ for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         return res.ms + 'ms'
     })
 }
-}
+} catch (e) { await scenarioCrashed('closeload', e) }
 
 // ---------------------------------------------------------------- scenario: close waits for a slow save (no forced close; user is asked after 15s)
-if (want('closewait')) {
+if (want('closewait')) try {
 // Same slow-keyring mechanism as closeload, but the decrypt is held far longer than the old 3s limit, or never released.
 // main.js asks (dialog.showMessageBox, stubbed here: the real one is native) only after CLOSE_ASK_AFTER_MS = 15000.
 const Ub = tmp('nf-cw-base-'); cleanup.push(Ub)
@@ -2166,10 +2171,10 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
         return 'closed at ' + (Date.now() - c.t0) + 'ms'
     } finally { await c.app.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('closewait', e) }
 
 // ---------------------------------------------------------------- scenario: the page reloads in the middle of a close
-if (want('closereload')) {
+if (want('closereload')) try {
 // The close request reaches a page that is mid-reload and is lost; main must re-deliver it once the NEW page can
 // receive it. If the page's close subscription attaches after did-finish-load, a resend keyed on did-finish-load
 // is lost too and the user waits for the 15s "still saving" dialog. The first flush-before-close is swallowed in
@@ -2219,10 +2224,10 @@ async function survives2(Uc, MARK) {
         return seen.some(t => t.includes(MARK))
     } finally { await r2.app.close().catch(() => {}) }
 }
-}
+} catch (e) { await scenarioCrashed('closereload', e) }
 
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
-if (want('legacykey')) {
+if (want('legacykey')) try {
 // The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.
 // Needs an older packaged build: NF_LEGACY_BIN=<path> (default: the installed /opt/Notepad Flux/notepad-flux if it exists). Skipped loudly otherwise.
 const legacyBin = process.env.NF_LEGACY_BIN || (existsSync('/opt/Notepad Flux/notepad-flux') ? '/opt/Notepad Flux/notepad-flux' : '')
@@ -2255,9 +2260,9 @@ else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electr
         return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
     } finally { await app.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('legacykey', e) }
 
-if (want('updates')) {
+if (want('updates')) try {
 // U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
 
 const UP = tmp('nf-upd-'); cleanup.push(UP)
@@ -2290,10 +2295,10 @@ try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
 } finally { await app.close().catch(() => {}) }
-}
+} catch (e) { await scenarioCrashed('updates', e) }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-linux.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })
-console.log('\n' + JSON.stringify(tally()), 'pageErrors:', pageErrors.length, pageErrors.slice(0, 3))
+console.log('\n' + JSON.stringify({ ...tally(), ...(launchStats.retries ? { launchRetries: launchStats.retries } : {}), ...(launchStats.absorbed ? { launchAbsorbed: launchStats.absorbed } : {}) }), 'pageErrors:', pageErrors.length, pageErrors.slice(0, 3))
 process.exit(results.some(r => r.result === 'fail') ? 1 : 0)
