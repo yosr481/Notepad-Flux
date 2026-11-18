@@ -41,6 +41,8 @@ const pageErrors = []
 process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method)) || absorbLaunchNoise(e)) return; recordFailure('UNHANDLED-' + (globalThis.__cur ?? 'pre-check'), 'unhandled promise rejection', e) })
 process.on('uncaughtException', (e) => recordFailure('UNCAUGHT-' + (globalThis.__cur ?? 'pre-check'), 'uncaught exception', e))
 
+// the app's stderr as Playwright logged it in the call log of a failed electron.launch ([pid][err] lines)
+const errLines = (e) => String(e?.message).split('\n').filter(l => /\[err\]/.test(l)).map(l => l.replace(/\x1b\[[0-9;]*m/g, '').trim().slice(0, 300)).slice(-30)
 async function L(userData, extra = {}) {
     // (since 166b8cd the single-instance lock follows NOTEPAD_FLUX_USER_DATA, so instances may coexist: no leftover-process kill here)
     const go = (ns) => launch({ binary, userData, extraArgs: ns ? ['--no-sandbox'] : [], env: { ...env, ...extra.env } })
@@ -48,11 +50,11 @@ async function L(userData, extra = {}) {
     try { r = await go(noSandbox) } catch (e) {
         if (noSandbox) throw e
         if (e?.name === 'TimeoutError') launchStats.retries++
-        diag('launch failed: ' + String(e.message).split('\n')[0], { userData })
+        diag('launch failed: ' + String(e.message).split('\n')[0], { userData, stderr: errLines(e) })
         if (userData) killAppsOf(userData)   // the abandoned app must not hold the single-instance lock for the retry
         console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n').slice(0, 12).join(' ~ ').slice(0, 900) + '); retrying --no-sandbox')   // the call log holds the app's stderr: keep it, a 60 s hang here is otherwise invisible (B10)
         noSandbox = true; sandboxNote = 'DEVIATION: sandboxed launch failed, ran with --no-sandbox'
-        try { r = await go(true) } catch (e2) { diag('retry launch failed: ' + String(e2.message).split('\n')[0], { userData }); throw e2 }
+        try { r = await go(true) } catch (e2) { diag('retry launch failed: ' + String(e2.message).split('\n')[0], { userData, stderr: errLines(e2) }); throw e2 }
     }
     launched.add(r.app); r.app.once('close', () => launched.delete(r.app))
     r.win.on('pageerror', e => pageErrors.push(`[during ${globalThis.__cur}] ` + String(e.stack || e).replace(/\s+/g, ' ').slice(0, 400)))
