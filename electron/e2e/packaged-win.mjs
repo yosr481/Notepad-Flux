@@ -2653,6 +2653,53 @@ if (want('changelog')) try {
     await app.close().catch(() => {})
 } catch (e) { await scenarioCrashed('changelog', e) }
 
+// ---------------------------------------------------------------- scenario: file associations (B8, Docs/internal/win-assoc-spec.md)
+// Assumes a PER-USER NSIS install (registrations under HKCU\Software\Classes) and that `binary` IS the installed exe
+// (the one the shell must be told to run). Not meaningful against a --target=unpacked build: nothing is registered, ASSOC-1..4 fail by design.
+if (want('assoc')) try {
+    const root = 'HKCU\\Software\\Classes\\'
+    // Default value of a key, or null when the key/value is absent. execFileSync (no shell): `reg` exits 1 for a missing key.
+    // Output: "    (Default)    REG_SZ    <data>". The name column is localized, so match on the type token only; data keeps inner spaces.
+    const regDefault = (key) => {
+        let out
+        try { out = execFileSync('reg', ['query', root + key, '/ve'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }) } catch { return null }
+        const m = /^\s+.*?\s+REG_(?:EXPAND_)?SZ\s+(.*?)\s*$/m.exec(out)
+        return m ? m[1] : null
+    }
+    const sameExe = (cmd, exe) => cmd !== null && cmd.toLowerCase() === ('"' + exe + '" "%1"').toLowerCase()
+    const exe = binary   // the exe the harness launches; reg data is compared case-insensitively
+    await check('ASSOC-1', 'assoc', 'HKCU .md / .markdown / .txt default values are the namespaced ProgIDs NotepadFlux.Markdown / NotepadFlux.Markdown / NotepadFlux.Text', async () => {
+        eq(regDefault('.md'), 'NotepadFlux.Markdown', 'HKCU\\Software\\Classes\\.md')
+        eq(regDefault('.markdown'), 'NotepadFlux.Markdown', 'HKCU\\Software\\Classes\\.markdown')
+        eq(regDefault('.txt'), 'NotepadFlux.Text', 'HKCU\\Software\\Classes\\.txt')
+    })
+    await check('ASSOC-2', 'assoc', 'each ProgID\'s shell\\open\\command default is exactly "<installed exe>" "%1" (exe path quoted)', async () => {
+        for (const id of ['NotepadFlux.Markdown', 'NotepadFlux.Text']) {
+            const cmd = regDefault(id + '\\shell\\open\\command')
+            assert(sameExe(cmd, exe), id + ' open command is ' + JSON.stringify(cmd) + ', expected ' + JSON.stringify('"' + exe + '" "%1"'))
+        }
+    })
+    await check('ASSOC-3', 'assoc', 'no generic HKCU Markdown / Text class still opens our exe (old classes removed or never written; another app\'s class is not our concern)', async () => {
+        for (const id of ['Markdown', 'Text']) {
+            const cmd = regDefault(id + '\\shell\\open\\command')
+            assert(cmd === null || !cmd.toLowerCase().includes(basename(binary).toLowerCase()), 'HKCU\\Software\\Classes\\' + id + '\\shell\\open\\command still ours: ' + cmd)
+        }
+    })
+    await check('ASSOC-4', 'assoc', 'opening a .md through the registered association (cmd /c start, no explorer) forwards the file to the running app and shows it in a tab', async () => {
+        // Needs the ASSOC-1/2 registration and no user-chosen default app for .md (HKCU ...\FileExts\.md\UserChoice) on the VM.
+        // The started process inherits NOTEPAD_FLUX_USER_DATA from this one, so it hits the first instance's single-instance lock and exits.
+        const Ua = tmp('nf-as-u-'), Wa = tmp('nf-as-w-'); cleanup.push(Ua, Wa)
+        const f = join(Wa, 'assoc open.md'); writeFileSync(f, 'ASSOC OPEN BODY\n')
+        const { app, win } = await L(Ua)
+        try {
+            execFileSync('cmd', ['/c', 'start', '', f], { stdio: 'ignore', env: { ...process.env, NOTEPAD_FLUX_USER_DATA: Ua } })
+            await waitFor(async () => (await ui.tabsInfo(win)).some(t => t.title === 'assoc open.md'), { what: 'tab for the file opened via the association', timeout: 20000 })
+            assert((await ui.editorText(win)).includes('ASSOC OPEN BODY'), 'association-opened file content not shown')
+            eq((await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)).length, 1, 'window count')
+        } finally { await app.close().catch(() => {}) }
+    })
+} catch (e) { await scenarioCrashed('assoc', e) }
+
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-windows.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })

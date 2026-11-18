@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restart to update now closes every window through the usual save step first, so unsaved tabs are saved before the installer runs. Choosing Keep editing on a window with unsaved changes cancels the restart.
 - Table cells in the editor now render math, subscript and superscript, emoji, footnote numbers and highlight. Before, they showed the raw text, while export already rendered it.
 - Links in table cells now open in a new tab, and only web and email links are clickable, the same as outside tables.
+- Windows file associations now register under the app's own type names (`NotepadFlux.Markdown`, `NotepadFlux.Text`) with a quoted program path, so another app can't overwrite them and, from now on, uninstalling Notepad Flux won't remove another app's "Markdown" or "Text" type.
 
 ## [1.6.0] — 2026-11-16
 
