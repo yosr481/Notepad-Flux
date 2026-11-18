@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Moving the cursor in large documents with math or footnotes no longer re-reads the whole document; only an edit does.
 - A single `~text~` now exports as subscript instead of strikethrough. Use `~~text~~` for strikethrough.
 
 ### Fixed
