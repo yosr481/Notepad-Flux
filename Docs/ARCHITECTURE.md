@@ -87,7 +87,8 @@ src/
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
-│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes; callouts and mermaid use their own field)
+│   ├── entities.js        - Shared HTML entity decoder (`decodeEntity`): EntityWidget, table cells, abbr titles
+│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes). callouts, mermaid, frontMatter, subSup, emoji and htmlInline each use their own field (backlog C5)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
@@ -334,6 +335,7 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Task list creation
 
 7. **`tableCells.js`**: Rendered table cells
+   - Also a registry: every inline feature that should render in cells (math, sub/sup, emoji, footnote refs, highlight, HTML tags) needs a case in its `convert()` and `appendParts`.
    - `buildTableData` reads rows/cells/inline parts from the syntax tree (footnote numbers via `resolveFootnotes`); `tableDOM` builds the DOM with `createElement`/`textContent`, no sanitizer pass
 
 8. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
