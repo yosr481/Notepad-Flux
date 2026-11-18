@@ -136,6 +136,7 @@ Windows (NSIS):
 - Installer allows choosing install directory (default in user profile)
 - Desktop and Start Menu shortcuts are created
 - Uninstall keeps user data by default (session, settings) since deleteAppDataOnUninstall is false
+- File associations (`.md`, `.markdown`, `.txt`) register under the ProgIDs `NotepadFlux.Markdown` / `NotepadFlux.Text` (`build.win.fileAssociations[].name`). electron-builder writes the open command with the exe path unquoted, so `customInstall` in `installer/installer.nsh` rewrites it to `"$appExe" "%1"`. Renaming a ProgID means changing both files; `scripts/__tests__/file-associations.test.js` checks they agree.
 
 Linux:
 
