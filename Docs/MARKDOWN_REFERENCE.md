@@ -693,6 +693,22 @@ Use backslash to escape markdown characters:
 
 ---
 
+## HTML Tags
+
+A few inline HTML tags render in the editor: `kbd`, `mark`, `u`, `ins`, `small`, `abbr`, `sub`, `sup` and `span`. Hover an `abbr` to see its `title`. Put the cursor in a pair to see the raw tags. Tag names are case-insensitive.
+
+HTML export, PDF export and Print keep those tags, plus `details`/`summary`, `div` and `br`.
+
+- Attributes such as `style`, `class` and `on…` are ignored or removed. `abbr` keeps its `title`.
+- `<details>` and other block HTML show as source in the editor. Export still renders them.
+- A pair nested more than 32 deep stays as typed.
+
+```markdown
+Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save. <mark>Highlighted</mark> text, H<sub>2</sub>O, and <abbr title="HyperText Markup Language">HTML</abbr>.
+```
+
+---
+
 ## Keyboard Shortcuts
 
 While editing in Notepad Flux:

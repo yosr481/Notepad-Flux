@@ -1653,6 +1653,151 @@ if (want('tablecells')) try {
     await app.close().catch(() => {})
 } catch (e) { await scenarioCrashed('tablecells', e) }
 
+// ---------------------------------------------------------------- scenario: safe HTML tags (F7, Docs/internal/html-tags-spec.md)
+// Real layout, computed styles, caret reveal, export file: what jsdom cannot cover.
+if (want('htmltags')) try {
+    const Uh = tmp('nf-ht-u-'), Wh = tmp('nf-ht-w-'); cleanup.push(Uh, Wh)
+    const { app, win } = await L(Uh)
+    const errs0 = pageErrors.length
+    const f = join(Wh, 'ht.md')
+    const PARA = 'Press <kbd>Ctrl</kbd>+<kbd style="color:red" onclick="x()">C</kbd>, <mark>marked</mark>, <u>under</u>, <ins>added</ins>, <small>small</small>, <abbr title="HyperText Markup Language">HTML</abbr>, H<sub>2</sub>O, x<sup>2</sup>.'
+    const HEB = 'שלום <kbd>מקש</kbd> ו<mark>סימון</mark> עולם'
+    const DET = '<details><summary>S</summary>body</details>'
+    writeFileSync(f, `Plain body line here.\n\n${PARA}\n\n${HEB}\n\n${DET}\n\n| Head A | Head B |\n|---|---|\n| <kbd>K</kbd> | plain |\n\n<script>x()</script>\n\nTail plain line.\n`)
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'ht.md', { what: 'tab ht.md' })
+    const caretFar = async () => { await win.locator('.cm-content .cm-line').last().click({ position: { x: 400, y: 2 } }); await win.keyboard.press('Control+End') }   // not ui.focusEditor: it clicks the middle of .cm-content, which may be the table widget
+    const paraLine = () => win.locator('.cm-content .cm-line', { hasText: /^Press / }).first()
+    const rendered = async () => { await caretFar(); await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /^Press /.test(x.innerText)); return !!l && !!l.querySelector('.cm-html-kbd') && !!l.querySelector('.cm-html-abbr') && !!l.querySelector('.cm-superscript') && !l.innerText.includes('<') && !!document.querySelector('.cm-table-widget .cm-html-kbd') }), { what: 'tags rendered with the caret elsewhere' }) }
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const lineH = (re) => win.evaluate((s) => [...document.querySelectorAll('.cm-content .cm-line')].find(l => new RegExp(s).test(l.innerText)).getBoundingClientRect().height, re.source)
+    // caret inside the first <kbd>Ctrl</kbd>: Home, 6 x Right reaches the tag start (touching: raw), 6 more lands inside Ctrl
+    const caretInKbd = async () => {
+        await paraLine().click({ position: { x: 2, y: 8 } }); await win.keyboard.press('Home')
+        for (let i = 0; i < 6; i++) await win.keyboard.press('ArrowRight')
+        await waitFor(() => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('<kbd>Ctrl</kbd>'))), { what: 'raw <kbd>Ctrl</kbd> with the caret touching it' })
+        for (let i = 0; i < 6; i++) await win.keyboard.press('ArrowRight')
+        await sleep(200)
+    }
+
+    await check('HT-1', 'htmltags', 'caret elsewhere: no tag text visible; .cm-html-kbd has a non-transparent background, a visible border and a colour (light-theme kbd colour equals the body colour, so no inequality is asserted; a style="color:red" in the source is ignored, no onclick/style attribute applied); .cm-highlight covers "marked"; u and ins underlined; small smaller than body; abbr title = "HyperText Markup Language"; sub lowered / sup raised vs the plain neighbour', async () => {
+        await rendered()
+        const r = await win.evaluate(() => {
+            const fx = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)), plain = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /Plain body line/.test(l.innerText)), cs = (e) => getComputedStyle(e)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('.cm-line'), NodeFilter.SHOW_TEXT); let ref = null; for (let t = tw.nextNode(); t; t = tw.nextNode()) { if (!t.length || el.contains(t) || !(el.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(t, t.length - 1); rg.setEnd(t, t.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }
+            const q = (s) => fx.querySelector(s), kbds = [...fx.querySelectorAll('.cm-html-kbd')], s = q('.cm-subscript'), p = q('.cm-superscript')
+            return {
+                text: fx.innerText, kbdTexts: kbds.map(k => k.textContent), kbdBg: kbds.map(k => cs(k).backgroundColor), kbdColor: kbds.map(k => cs(k).color), kbdBorderW: kbds.map(k => cs(k).borderTopWidth + '/' + cs(k).borderBottomWidth), kbdBorderC: kbds.map(k => cs(k).borderTopColor), kbdBorderS: kbds.map(k => cs(k).borderTopStyle),
+                bodyColor: cs(plain).color, attrs: [...fx.querySelectorAll('*')].filter(e => e.hasAttribute('onclick') || e.hasAttribute('style')).length, hl: q('.cm-highlight')?.textContent,
+                u: q('.cm-html-u') && [q('.cm-html-u').textContent, cs(q('.cm-html-u')).textDecorationLine], ins: q('.cm-html-ins') && [q('.cm-html-ins').textContent, cs(q('.cm-html-ins')).textDecorationLine],
+                smallFs: q('.cm-html-small') && parseFloat(cs(q('.cm-html-small')).fontSize), smallText: q('.cm-html-small')?.textContent, bodyFs: parseFloat(cs(plain).fontSize),
+                abbr: q('.cm-html-abbr') && [q('.cm-html-abbr').textContent, q('.cm-html-abbr').getAttribute('title')],
+                subBot: s?.getBoundingClientRect().bottom, supBot: p?.getBoundingClientRect().bottom, subRef: s && prevCharBottom(s), supRef: p && prevCharBottom(p), subText: s?.textContent, supText: p?.textContent,
+            }
+        })
+        for (const t of ['<', '>', 'kbd>', 'mark>', 'onclick', 'color:red', 'title=']) assert(!r.text.includes(t), `tag/attr text "${t}" visible with the caret elsewhere: ` + JSON.stringify(r.text))
+        eq(r.kbdTexts, ['Ctrl', 'C'], '.cm-html-kbd contents')
+        for (const bg of r.kbdBg) assert(bg !== 'transparent' && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(bg), '.cm-html-kbd background transparent: ' + JSON.stringify(r.kbdBg))
+        assert(r.kbdBorderW.every(w => w.split('/').every(x => parseFloat(x) >= 1)) && r.kbdBorderS.every(x => x !== 'none' && x !== 'hidden') && r.kbdBorderC.every(c => !/,\s*0\)$/.test(c)), 'kbd border not visible: ' + JSON.stringify([r.kbdBorderW, r.kbdBorderS, r.kbdBorderC]))
+        eq(r.kbdColor[0], r.kbdColor[1], 'both kbd colours (source style="color:red" must be ignored)')
+        assert(!/255,\s*0,\s*0/.test(r.kbdColor[1]), 'kbd took the source style colour: ' + r.kbdColor[1]); eq(r.attrs, 0, 'elements with onclick/style attributes in the line')
+        eq(r.hl, 'marked', '.cm-highlight text')
+        eq(r.u?.[0], 'under', 'u text'); assert(r.u[1].includes('underline'), 'u not underlined: ' + r.u[1])
+        eq(r.ins?.[0], 'added', 'ins text'); assert(r.ins[1].includes('underline'), 'ins not underlined: ' + r.ins[1])
+        eq(r.smallText, 'small', 'small text'); assert(r.smallFs < r.bodyFs, `small font-size not smaller than body: ${r.smallFs} vs ${r.bodyFs}`)
+        eq(r.abbr?.[0], 'HTML', 'abbr text'); eq(r.abbr[1], 'HyperText Markup Language', 'abbr title')
+        assert(r.subRef !== null && r.supRef !== null && r.subBot != null && r.supBot != null, 'no sub/sup node or plain text before it to compare with')
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        eq(r.subText, '2', 'sub text'); eq(r.supText, '2', 'sup text')
+        await win.screenshot({ path: join(shots, `${target}-htmltags.png`) }).catch(() => {})
+        return `kbd bg ${r.kbdBg[0]} border ${r.kbdBorderW[0]} ${r.kbdBorderC[0]} colour ${r.kbdColor[0]} (body ${r.bodyColor}), small ${r.smallFs}px vs body ${r.bodyFs}px, sub ${(r.subBot - r.subRef).toFixed(2)} px below / sup ${(r.supRef - r.supBot).toFixed(2)} px above neighbour`
+    })
+    await check('HT-2', 'htmltags', 'line height of the tag line is at most 5% above a plain line and stays the same (+-1 px) with the caret inside <kbd>Ctrl</kbd> (raw)', async () => {
+        await rendered(); await sleep(200)
+        const plainH = await lineH(/Plain body line/), fxH = await lineH(/^Press /)
+        const info = `plain ${plainH.toFixed(2)} px, tag line ${fxH.toFixed(2)} px (x${(fxH / plainH).toFixed(3)})`
+        assert(fxH <= plainH * 1.05, 'tag line more than 5% taller than a plain line: ' + info)
+        await caretInKbd()
+        const rawH = await lineH(/^Press /)
+        assert(Math.abs(rawH - fxH) <= 1, `line height changes when the caret enters it (text below jumps): ${info}, caret on line ${rawH.toFixed(2)} px`)
+        return info + `, caret on line ${rawH.toFixed(2)} px`
+    })
+    await check('HT-3', 'htmltags', 'caret inside <kbd>Ctrl</kbd>: raw <kbd> and </kbd> show wrapped in cm-faint-syntax; the other pairs on the line (second kbd, mark, u, ins, small, abbr, sub, sup) stay rendered', async () => {
+        await rendered(); await caretInKbd()
+        const r = await win.evaluate(() => {
+            const fx = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)), q = (s) => fx.querySelectorAll(s).length
+            return { text: fx.innerText, faint: [...fx.querySelectorAll('.cm-faint-syntax')].map(e => e.textContent), kbd: [...fx.querySelectorAll('.cm-html-kbd')].map(e => e.textContent), hl: q('.cm-highlight'), u: q('.cm-html-u'), ins: q('.cm-html-ins'), small: q('.cm-html-small'), abbr: q('.cm-html-abbr'), sub: q('.cm-subscript'), sup: q('.cm-superscript') }
+        })
+        assert(r.text.includes('<kbd>Ctrl</kbd>'), 'raw <kbd>Ctrl</kbd> not shown: ' + JSON.stringify(r.text))
+        assert(r.faint.includes('<kbd>') && r.faint.includes('</kbd>'), 'raw tags not cm-faint-syntax: ' + JSON.stringify(r.faint))
+        for (const t of ['<mark>', '<u>', '<ins>', '<small>', '<abbr', '<sub>', '<sup>', 'onclick']) assert(!r.text.includes(t), `other pair ${t} went raw: ` + JSON.stringify(r.text))
+        assert(r.kbd.includes('C'), 'second kbd not rendered: ' + JSON.stringify(r.kbd))
+        eq([r.hl, r.u, r.ins, r.small, r.abbr, r.sub, r.sup], [1, 1, 1, 1, 1, 1, 1], 'rendered mark/u/ins/small/abbr/sub/sup counts')
+        await caretFar()
+        return 'faint: ' + JSON.stringify(r.faint)
+    })
+    await check('HT-4', 'htmltags', 'contrast of .cm-html-kbd text on its (composited) background >= 4.5:1 in light and dark', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await rendered(); await sleep(300)
+                const p = await win.evaluate(() => {
+                    const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+                    const over = (top, under) => top.rgb.map((c, i) => c * top.a + under[i] * (1 - top.a))
+                    const k = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)).querySelector('.cm-html-kbd')
+                    const chain = []; for (let e = k; e; e = e.parentElement) chain.push(parse(getComputedStyle(e).backgroundColor))
+                    let under = [255, 255, 255]; for (const c of chain.slice(1).reverse()) under = over(c, under)
+                    return { color: parse(getComputedStyle(k).color).rgb, bg: over(chain[0], under), rawBg: getComputedStyle(k).backgroundColor, rawColor: getComputedStyle(k).color }
+                })
+                const r = ratio(p.color, p.bg)
+                out.push(`${theme} ${r.toFixed(2)} (text ${p.rawColor} on ${p.rawBg} = ${p.bg.map(Math.round)})`)
+                if (r < 4.5) throw new Error(`${theme}: contrast ${r.toFixed(2)} < 4.5 (${out.join(', ')})`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('HT-5', 'htmltags', 'File > Export to HTML: <kbd>, <mark>, <u>, <ins>, <small>, <abbr title="HyperText Markup Language">, <details> present; no style= / on...= / color:red from the source (the kbd with style and onclick comes out plain); no <script', async () => {
+        await caretFar()
+        const dst = join(Wh, 'ht-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body')), flat = b.slice(0, 300).replace(/\s+/g, ' ')
+        for (const s of ['<kbd>Ctrl</kbd>', '<kbd>C</kbd>', '<kbd>K</kbd>', '<mark>marked</mark>', '<u>under</u>', '<ins>added</ins>', '<small>small</small>', '<abbr title="HyperText Markup Language">HTML</abbr>', '<details>', '<summary>S</summary>', '<sub>2</sub>', '<sup>2</sup>']) assert(b.includes(s), 'export missing ' + s + ': ' + flat)
+        assert(!/<[^>]*\sstyle\s*=/i.test(b), 'style= attribute in the exported body: ' + (b.match(/<[^>]*\sstyle\s*=[^>]*>/i) || [''])[0].slice(0, 200))
+        assert(!/<[^>]*\son[a-z]+\s*=/i.test(b), 'on...= attribute in the exported body: ' + (b.match(/<[^>]*\son[a-z]+\s*=[^>]*>/i) || [''])[0].slice(0, 200))
+        assert(!b.includes('color:red') && !b.includes('onclick') && !b.includes('x()'), 'source style/handler/script text leaked into the export')
+        assert(!/<script/i.test(h), 'export contains <script')
+    })
+    await check('HT-6', 'htmltags', '<details> line stays raw source (no widget, no details/summary element in the editor); the table cell shows span.cm-html-kbd "K"; the Hebrew line stays RTL with kbd and mark rendered; no page errors through the scenario', async () => {
+        await rendered()
+        const r = await win.evaluate((DET) => {
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')], d = lines.find(l => l.innerText.includes('<details>')), h = lines.find(l => /שלום/.test(l.innerText)), cs = (e) => getComputedStyle(e)
+            const td = document.querySelector('.cm-table-widget td span.cm-html-kbd')
+            return {
+                det: d && d.innerText, detHas: !!d && DET === d.textContent, detEls: document.querySelectorAll('.cm-content details, .cm-content summary').length, detSpans: d ? d.querySelectorAll('.cm-html-kbd, .cm-highlight, .cm-widgetBuffer, [class*=widget]').length : -1,
+                cell: td?.textContent, cellTag: td?.closest('td')?.textContent,
+                heb: h && { dir: cs(h).direction, rtl: h.matches(':dir(rtl)'), text: h.innerText, kbd: h.querySelector('.cm-html-kbd')?.textContent, mark: h.querySelector('.cm-highlight')?.textContent },
+            }
+        }, DET)
+        assert(r.det !== null && r.detHas, 'details line is not the raw source: ' + JSON.stringify(r.det)); eq(r.detEls, 0, 'details/summary elements in the editor'); eq(r.detSpans, 0, 'rendered spans/widgets on the details line')
+        eq(r.cell, 'K', 'table cell span.cm-html-kbd text'); eq(r.cellTag, 'K', 'table cell text (no raw tags)')
+        assert(r.heb && (r.heb.dir === 'rtl' || r.heb.rtl), 'Hebrew line not rtl: ' + JSON.stringify(r.heb))
+        eq(r.heb.kbd, 'מקש', 'Hebrew kbd'); eq(r.heb.mark, 'סימון', 'Hebrew mark'); assert(!r.heb.text.includes('<') && r.heb.text.indexOf('שלום') < r.heb.text.indexOf('עולם'), 'Hebrew line text: ' + JSON.stringify(r.heb.text))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return `Hebrew direction ${r.heb.dir}, details raw, cell kbd "${r.cell}"`
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('htmltags', e) }
+
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) try {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
