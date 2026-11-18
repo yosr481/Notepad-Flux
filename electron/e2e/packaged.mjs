@@ -742,6 +742,7 @@ if (want('lp')) try {
         const sorted = [...lat].sort((a, b) => a - b)
         return { size: statSync(big).size, clickMs, median: sorted[Math.floor(sorted.length / 2)], max: sorted.at(-1), avg: Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) }
     }
+    const perfErrs0 = pageErrors.length
     let plainMedian = 0
     await check('PERF-1', 'perf', '1.3 MB plain markdown file opens in a few seconds; typing near the end stays responsive (B11)', async () => {
         const r = await perf('large-plain', Array.from({ length: 16500 }, (_, i) => (i % 40 === 0 ? `## Section ${i}` : `line ${i} - lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor`)))
@@ -767,6 +768,12 @@ if (want('lp')) try {
         const ratio = r.median / Math.max(plainMedian, 1)
         assert(r.median < 2000 && ratio < 40, `typing median ${r.median}ms = ${ratio.toFixed(1)}x the plain-file median ${plainMedian}ms (limits: <2000ms and <40x; pre-fix ~2400ms / ~70x); max ${r.max}ms, open+click ${r.clickMs}ms`)
         return `${r.size} bytes, median ${r.median}ms (${ratio.toFixed(1)}x plain ${plainMedian}ms), max ${r.max}ms, open+click ${r.clickMs}ms`
+    })
+    // B1: opening each big doc switches tab from a tab scrolled to the end (Control+End) and then clicks. The stale scrollTop made CM's measure loop
+    // fail and the click threw "TypeError: Cannot read properties of null (reading 'length')" in scanTile. Editor must reset scrollTop on tab switch.
+    await check('PERF-2c', 'perf', 'no page errors (CM scanTile TypeError) while clicking in the large docs right after a tab switch from a tab scrolled to the bottom', async () => {
+        const pe = pageErrors.slice(perfErrs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return 'no page errors through PERF-1 / PERF-2a / PERF-2'
     })
     await win.screenshot({ path: join(shots, `${target}-live-preview.png`) }).catch(() => {})
     await app.close().catch(() => {})
