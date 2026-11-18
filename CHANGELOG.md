@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Settings › About has a "What's new in vX" section that shows the changes in the version you are running.
 - Update progress: after you choose Download Now, the status bar shows "Downloading update 42%" and the taskbar icon fills as the update downloads.
 - Settings › About has an update button: Check for updates, Update to vX, Downloading… N%, Restart to update, or Up to date. Checking from Settings shows the offer on the button instead of a pop-up.
 - Footnotes: `[^1]` references with a `[^1]: note` definition, and inline `^[note]`, show as numbered superscripts in the editor. Hover a number to read the note; Ctrl+click jumps between the reference and the note. Put the cursor on a reference to edit it. The numbers, and the notes at the end of the document, appear in HTML export, PDF export and Print.

@@ -2589,6 +2589,65 @@ if (want('datainfo')) try {
     await app.close().catch(() => {})
 } catch (e) { await scenarioCrashed('datainfo', e) }
 
+// ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
+if (want('changelog')) try {
+    const Uc = tmp('nf-cl-u-'); cleanup.push(Uc)
+    const { app, win } = await L(Uc)
+    const errs0 = pageErrors.length
+    // Independent of the app's helper on purpose: the built version's `## [X] <sep> date` section, straight from the checkout's CHANGELOG.md.
+    const ver = await app.evaluate(({ app: a }) => a.getVersion())
+    const md = readFileSync(join(here, '../../CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n')
+    const esc = ver.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const m = new RegExp('^## \\[' + esc + '\\][ \\t]*[-–—][^\\n]*\\n([\\s\\S]*?)(?=\\n## \\[|(?![\\s\\S]))', 'm').exec(md)
+    const body = m ? m[1].trim() : null
+    const heading = body && (/^###\s+(.+)$/m.exec(body) || [])[1]
+    const link = body && (/\]\((https?:\/\/[^)\s]+)\)/.exec(body) || [])[1]
+    const sec = () => win.locator('[class*=overlay] details').filter({ has: win.locator('summary', { hasText: /What's new in v/ }) })
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+
+    await check('CL-1', 'changelog', 'Settings > About: "What\'s new in v<built version>" is closed by default and expands to that version\'s CHANGELOG section (a heading read from CHANGELOG.md); a build with no section shows nothing (the block may vanish on first expand)', async () => {
+        await openSettings()
+        if (body === null) {
+            if (await sec().count()) await sec().locator('summary').click()
+            await waitFor(async () => (await sec().count()) === 0, { what: 'no changelog block for v' + ver })
+            return 'v' + ver + ' has no CHANGELOG section: block absent'
+        }
+        assert(heading, 'CHANGELOG section of v' + ver + ' has no ### heading to compare against')
+        await sec().first().waitFor({ timeout: 5000 })
+        eq(await sec().first().evaluate(d => d.open), false, 'details open by default')
+        eq((await sec().first().locator('summary').innerText()).trim(), "What's new in v" + ver, 'summary text')
+        await sec().first().locator('summary').click()
+        await waitFor(async () => (await sec().count()) === 1 && await sec().first().evaluate(d => d.open), { what: 'section open' })
+        const h = sec().first().locator('h1,h2,h3,h4,h5,h6').filter({ hasText: heading }).first()
+        await h.waitFor({ timeout: 5000 })
+        assert((await sec().first().locator('li').count()) >= 1, 'no list items rendered')
+        assert(!/Couldn't load the changelog/.test(await sec().first().innerText()), 'load failure shown')
+        await win.screenshot({ path: join(shots, `${target}-changelog-settings.png`) }).catch(() => {})
+        return 'v' + ver + ' heading "' + heading + '"'
+    })
+    await check('CL-2', 'changelog', 'clicking an http(s) link inside the section does not navigate the app window: it goes to shell.openExternal (stubbed); every rendered link has target=_blank and rel noopener', async () => {
+        if (body === null) return 'no section for v' + ver + ': nothing to click'
+        const box = sec().first()
+        // Real section may hold no link (1.6.0 has none): add one inside the rendered container so the click still goes through main's handlers.
+        const url = link || 'https://example.org/cl-2'
+        if (!link) await box.evaluate((d, u) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'cl-2 probe'; (d.querySelector('div') || d).appendChild(a) }, url)
+        await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
+        const wins0 = (await ui.mainWindows(app)).length
+        await box.locator('a[href]').first().waitFor({ timeout: 5000 })
+        const bad = await box.evaluate(d => [...d.querySelectorAll('a[href]')].filter(a => a.target !== '_blank' || !/noopener/.test(a.rel)).map(a => a.outerHTML.slice(0, 120)))
+        eq(bad.length, 0, 'links without target=_blank + rel noopener: ' + JSON.stringify(bad))
+        await box.locator(`a[href="${url}"]`).first().click({ noWaitAfter: true })
+        await waitFor(async () => openedUrl((await app.evaluate(() => globalThis.__ext)), url), { what: 'openExternal for ' + url })
+        await sleep(500)
+        assert(/index\.html/.test(win.url()), 'app window navigated away: ' + win.url())
+        eq((await ui.mainWindows(app)).length, wins0, 'app windows after the click')
+    })
+    await check('CL-3', 'changelog', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('changelog', e) }
+
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-linux.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })
