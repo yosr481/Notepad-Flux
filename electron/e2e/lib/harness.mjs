@@ -1,6 +1,7 @@
 // Tiny check registry: PASS/FAIL lines, results JSON, helpers shared by packaged.mjs.
 import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs'
-import { dirname } from 'node:path'
+import { dirname, join } from 'node:path'
+import { execFileSync } from 'node:child_process'
 
 export const results = []
 let smokeOnly = false
@@ -59,12 +60,33 @@ export function killAppsOf(userData) {
     }
     return n
 }
+// Evidence for a launch or exit failure that otherwise leaves nothing to look at (B17): the app's own log, its stderr
+// (buffered by launch.mjs on app._nfStderr) and which Notepad Flux processes are alive. Bounded to ~4 KB.
+export function diag(label, { userData, app } = {}) {
+    const tail = (s, n) => s.length > n ? '...' + s.slice(-n) : s
+    let log
+    try { log = readFileSync(join(userData, 'logs', 'main.log'), 'utf8').split('\n').slice(-40).join('\n') } catch (e) { log = '(no main.log: ' + (userData ? e.code : 'no userData') + ')' }
+    const err = (app?._nfStderr ?? []).join('\n') || '(none captured)'
+    let procs = ''
+    try {
+        procs = process.platform === 'win32'
+            ? execFileSync('tasklist', ['/NH', '/FO', 'CSV'], { encoding: 'utf8' }).split('\n').filter(l => /notepad/i.test(l)).join('\n')
+            : execFileSync('pgrep', ['-a', '-x', 'notepad-flux'], { encoding: 'utf8' })
+    } catch { /* pgrep exits 1 when nothing matches */ }
+    console.log(`DIAG ${label}\n--- main.log tail\n${tail(log, 1800)}\n--- app stderr tail\n${tail(err, 1000)}\n--- Notepad Flux processes\n${tail(procs.trim().split('\n').map(l => l.slice(0, 110)).join('\n') || '(none)', 700)}\n--- end DIAG`)
+}
+// Kill an app that will not close, by pid (and its process tree on Windows), so it cannot hold a lock or a window into the next scenario.
+export function killApp(app) {
+    const pid = app?.process?.().pid
+    if (!pid) return
+    try { if (process.platform === 'win32') execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore' }); else process.kill(pid, 'SIGKILL') } catch { /* already gone */ }
+}
 // Every launched app, so a crashed scenario can close what it left running.
 export const launched = new Set()
 export async function scenarioCrashed(name, e) {
     globalThis.__cur = 'SCENARIO-' + name
     recordFailure('SCENARIO-' + name, `scenario "${name}" threw outside a check (the remaining scenarios still run)`, e)
-    await Promise.all([...launched].map(async a => { try { await Promise.race([a.close(), new Promise(r => setTimeout(r, 5000))]) } catch { /* already gone */ } }))
+    await Promise.all([...launched].map(async a => { try { if (await Promise.race([a.close().then(() => 0), new Promise(r => setTimeout(() => r(1), 5000))])) killApp(a) } catch { /* already gone */ } }))
     launched.clear()
 }
 export function na(id, area, what, reason) {

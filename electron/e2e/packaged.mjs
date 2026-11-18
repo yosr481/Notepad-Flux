@@ -9,7 +9,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
-import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
+import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 // exact URL match on the openExternal log (array of URLs), not a substring test
 const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
@@ -43,10 +43,11 @@ async function L(userData, extra = {}) {
     try { r = await go(noSandbox) } catch (e) {
         if (noSandbox) throw e
         if (e?.name === 'TimeoutError') launchStats.retries++
+        diag('launch failed: ' + String(e.message).split('\n')[0], { userData })
         if (userData) killAppsOf(userData)   // the abandoned app must not hold the single-instance lock for the retry
         console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n').slice(0, 12).join(' ~ ').slice(0, 900) + '); retrying --no-sandbox')   // the call log holds the app's stderr: keep it, a 60 s hang here is otherwise invisible (B10)
         noSandbox = true; sandboxNote = 'DEVIATION: sandboxed launch failed, ran with --no-sandbox'
-        r = await go(true)
+        try { r = await go(true) } catch (e2) { diag('retry launch failed: ' + String(e2.message).split('\n')[0], { userData }); throw e2 }
     }
     launched.add(r.app); r.app.once('close', () => launched.delete(r.app))
     r.win.on('pageerror', e => pageErrors.push(`[during ${globalThis.__cur}] ` + String(e.stack || e).replace(/\s+/g, ' ').slice(0, 400)))

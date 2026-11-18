@@ -3,6 +3,7 @@ import { _electron as electron } from 'playwright'
 import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { diag } from './harness.mjs'
 
 export const mkTmp = (p) => mkdtempSync(join(tmpdir(), p))
 
@@ -17,6 +18,9 @@ export async function launch({ binary, userData, extraArgs = [], env = {}, prefi
         env: { ...(userData ? process.env : Object.fromEntries(Object.entries(process.env).filter(([k]) => k !== 'NOTEPAD_FLUX_USER_DATA'))), DISPLAY: process.env.DISPLAY, XDG_CONFIG_HOME: xdg, ...(userData ? { NOTEPAD_FLUX_USER_DATA: userData } : {}), ...env },
         timeout: 60000, chromiumSandbox: !extraArgs.includes("--no-sandbox"),
     })
+    // last stderr lines of the app, for diag(): a failed preload load prints its reason there and nowhere else
+    const errTail = []; app._nfStderr = errTail
+    app.process().stderr?.on('data', d => { for (const x of String(d).split('\n')) if (x.trim()) errTail.push(x.slice(0, 300)); if (errTail.length > 60) errTail.splice(0, errTail.length - 60) })
     let win
     const deadline = Date.now() + 30000
     while (Date.now() < deadline && !win) {
@@ -30,6 +34,7 @@ export async function launch({ binary, userData, extraArgs = [], env = {}, prefi
     }
     if (!win) {
         const urls = app.windows().map(w => w.url())
+        diag('no window exposed window.electronAPI', { userData, app })
         await app.close().catch(() => {})
         throw new Error('no window exposed window.electronAPI; windows=' + JSON.stringify(urls))
     }
