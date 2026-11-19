@@ -5,6 +5,12 @@ import electron from 'vite-plugin-electron'
 // https://vite.dev/config/
 export default defineConfig({
   base: './',
+  build: {
+    rollupOptions: {
+      // mermaid-frame.html is the CSP-locked page Mermaid runs in (see src/mermaidFrame.js).
+      input: { main: 'index.html', 'mermaid-frame': 'mermaid-frame.html' },
+    },
+  },
   plugins: [
     react(),
     electron([

@@ -156,43 +156,38 @@ function App() {
 
     // Keyboard Shortcuts
     useEffect(() => {
+        // Matches e.code (physical key), so it works on any layout and with Caps Lock.
+        // Modifiers are exact: an unlisted modifier (Alt, Meta, AltGr) means no match.
+        const newWindow = () => window.open(window.location.href, '_blank');
+        const find = () => { setFindReplaceMode('find'); setShowFindReplace(true); };
+        const replace = () => { setFindReplaceMode('replace'); setShowFindReplace(true); };
+        const shortcuts = [
+            { code: 'KeyN', ctrl: true, noRepeat: true, run: newTab },
+            { code: 'KeyN', ctrl: true, shift: true, noRepeat: true, run: newWindow },
+            { code: 'KeyO', ctrl: true, noRepeat: true, run: openFile },
+            { code: 'KeyS', ctrl: true, run: () => saveFile(editorRef) },
+            { code: 'KeyS', ctrl: true, shift: true, run: () => saveFileAs(editorRef) },
+            { code: 'KeyW', ctrl: true, noRepeat: true, run: () => closeTab(activeTabId) },
+            { code: 'Tab', ctrl: true, run: () => switchTab('next') },
+            { code: 'Tab', ctrl: true, shift: true, run: () => switchTab('prev') },
+            { code: 'KeyF', ctrl: true, run: find },
+            { code: 'KeyH', ctrl: true, run: replace },
+            { code: 'KeyG', ctrl: true, run: () => setShowGoToLine(true) },
+            { code: 'KeyP', ctrl: true, noRepeat: true, run: print },
+            { code: 'F5', run: () => editorRef.current?.insertDateTime() },
+        ];
+
         const handleKeyDown = (e) => {
-            if (e.ctrlKey && e.key === 'n') {
-                e.preventDefault();
-                newTab();
-            } else if (e.ctrlKey && e.key === 'o') {
-                e.preventDefault();
-                openFile();
-            } else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === 's') {
-                e.preventDefault();
-                saveFileAs(editorRef);
-            } else if (e.ctrlKey && e.key === 's') {
-                e.preventDefault();
-                saveFile(editorRef);
-            } else if (e.ctrlKey && e.key === 'w') {
-                e.preventDefault();
-                closeTab(activeTabId);
-            } else if (e.ctrlKey && e.key === 'Tab') {
-                e.preventDefault();
-                switchTab(e.shiftKey ? 'prev' : 'next');
-            } else if (e.ctrlKey && e.key === 'f') {
-                e.preventDefault();
-                setFindReplaceMode('find');
-                setShowFindReplace(true);
-            } else if (e.ctrlKey && e.key === 'h') {
-                e.preventDefault();
-                setFindReplaceMode('replace');
-                setShowFindReplace(true);
-            } else if (e.ctrlKey && e.key === 'g') {
-                e.preventDefault();
-                setShowGoToLine(true);
-            } else if (e.ctrlKey && e.key === 'p') {
-                e.preventDefault();
-                print();
-            } else if (e.key === 'F5') {
-                e.preventDefault();
-                editorRef.current?.insertDateTime();
-            }
+            const s = shortcuts.find(sc =>
+                sc.code === e.code &&
+                e.ctrlKey === !!sc.ctrl &&
+                e.shiftKey === !!sc.shift &&
+                !e.altKey && !e.metaKey
+            );
+            if (!s) return;
+            e.preventDefault();
+            if (s.noRepeat && e.repeat) return;
+            s.run();
         };
 
         window.addEventListener('keydown', handleKeyDown);

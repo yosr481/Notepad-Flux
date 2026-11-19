@@ -1,7 +1,7 @@
 # Markdown Reference Guide
 
 **Project:** Notepad Flux  
-**Last Updated:** 2025-12-11
+**Last Updated:** 2026-11-17
 
 ---
 
@@ -25,6 +25,10 @@ This reference guide provides a comprehensive overview of the Markdown syntax su
 12. [Math](#math)
 13. [Footnotes](#footnotes)
 14. [Callouts](#callouts)
+15. [Diagrams (Mermaid)](#diagrams-mermaid)
+16. [Front matter (Properties)](#front-matter-properties)
+17. [Subscript and superscript](#subscript-and-superscript)
+18. [Emoji shortcodes](#emoji-shortcodes)
 
 ---
 
@@ -255,6 +259,7 @@ function greet(name) {
 | col 3 is      | right-aligned | $1600 |
 | col 2 is      | centered      |   $12 |
 | zebra stripes | are neat      |    $1 |
+| inline        | $x^2$ H~2~O   | :tada: |
 ```
 
 **Renders as:**
@@ -264,6 +269,11 @@ function greet(name) {
 | col 3 is      | right-aligned | $1600 |
 | col 2 is      | centered      |   $12 |
 | zebra stripes | are neat      |    $1 |
+| inline        | $x^2$ H~2~O   | :tada: |
+
+In the editor, table cells show inline math, subscript and superscript, emoji shortcodes, footnote numbers and `==highlight==` the same way they show outside a table. Click the table to edit its source.
+
+In the editor, only web and email links in cells are clickable, the same as outside tables.
 
 ### Simple Table
 
@@ -530,6 +540,113 @@ Export:
 
 ---
 
+## Diagrams (Mermaid)
+
+A fenced code block whose language is `mermaid` draws a diagram, with Mermaid. Flowcharts, sequence diagrams and the other Mermaid diagram types work.
+
+````markdown
+```mermaid
+flowchart LR
+    A[Write] --> B{Cursor inside?}
+    B -- yes --> C[Edit the source]
+    B -- no --> D[Show the diagram]
+```
+
+```mermaid
+sequenceDiagram
+    Alice->>Bob: Hello Bob, how are you?
+    Bob-->>Alice: Fine, thanks.
+```
+````
+
+Rules:
+
+- The fence can be backticks or tildes, of any length. The language word is not case-sensitive.
+- With the cursor outside the block, the diagram replaces the whole block. Click the diagram to edit its source. The cursor goes to the first line of the source.
+- With the cursor inside the block, you see only the source. There is no preview while you edit. The diagram comes back when the cursor leaves the block.
+- The diagram follows the app's light or dark theme. HTML export, PDF export and Print always use the light theme.
+- A syntax error shows Mermaid's message in a box, in place of the diagram.
+- Works offline. Mermaid is bundled with the app. It loads the first time a diagram appears, so a document without diagrams never loads it.
+- For safety, links you click in a diagram are off, and HTML labels are off. Diagrams are drawn in an isolated hidden page that can't load anything from the network or disk, so a diagram can't contact the network. A web address in a label is just text. A `%%{init}%%` line or front matter config in the document can't change the theme, the look or the styles.
+- Syntax reference: [mermaid.js.org syntax docs](https://mermaid.js.org/intro/syntax-reference.html).
+
+---
+
+## Front matter (Properties)
+
+A YAML block at the very top of the file, between two `---` lines, is front matter. With the cursor outside the block, it shows as a Properties box. The box lists one row per key.
+
+````markdown
+---
+title: Trip notes
+date: 2026-11-17
+tags: [travel, family]
+---
+````
+
+Rules:
+
+- The first line of the file must be `---`. The block ends at the next line that is `---` or `...`.
+- Lists show as chips. Dates show exactly as written. Nested values show as compact YAML.
+- An empty block shows "No properties".
+- Invalid YAML shows the error and the raw text.
+- Click the box, or move the cursor into it, to edit the raw YAML.
+- A `---` anywhere else is a horizontal rule, as before.
+- HTML export, PDF export and Print leave front matter out.
+- Known limits: keys that are whole numbers (`1:`, `2:`) are listed first. A block with more than 500 lines between the `---` lines is not front matter (the editor and export treat it as normal text).
+
+---
+
+## Subscript and superscript
+
+Write `~text~` for subscript and `^text^` for superscript.
+
+```markdown
+Water is H~2~O, and x^2^ is x squared.
+
+Use a backslash for a space: H~a\ b~.
+```
+
+**Renders as:**
+
+Water is H~2~O, and x^2^ is x squared.
+
+Use a backslash for a space: H~a\ b~.
+
+Rules:
+
+- The text can't hold a plain space. Write `\ ` for a space.
+- The text isn't formatted further. `~*a*~` shows the asterisks.
+- `~~text~~` is still strikethrough.
+- A single `~text~` used to export as strikethrough. It now exports as subscript. Use `~~text~~` for strikethrough.
+- `^[note]` is still an inline footnote, not a superscript.
+- Subscript and superscript don't work inside code or math.
+
+---
+
+## Emoji shortcodes
+
+Write a name between colons to get an emoji.
+
+```markdown
+Shipped it :tada: Thanks :+1:
+```
+
+**Renders as:**
+
+Shipped it :tada: Thanks :+1:
+
+Rules:
+
+- Names are GitHub's, about 1,900 including aliases. `:smile:`, `:+1:` and `:tada:` all work.
+- Unknown names stay as typed.
+- A letter or digit right before or after the colons blocks it. So `12:100:45` and `a:smile:b` stay as typed.
+- Not inside code, math, link addresses or front matter.
+- With the cursor outside the shortcode, you see the emoji. Put the cursor on it to see the raw text.
+- HTML export, PDF export and Print write the emoji character.
+
+---
+
 ## Images
 
 ```markdown
@@ -573,6 +690,22 @@ Use backslash to escape markdown characters:
 \*This text is not italic\*  
 \# This is not a heading  
 \[This is not a link\]
+
+---
+
+## HTML Tags
+
+A few inline HTML tags render in the editor: `kbd`, `mark`, `u`, `ins`, `small`, `abbr`, `sub`, `sup` and `span`. Hover an `abbr` to see its `title`. Put the cursor in a pair to see the raw tags. Tag names are case-insensitive.
+
+HTML export, PDF export and Print keep those tags, plus `details`/`summary`, `div` and `br`.
+
+- Attributes such as `style`, `class` and `on…` are ignored or removed. `abbr` keeps its `title`.
+- `<details>` and other block HTML show as source in the editor. Export still renders them.
+- A pair nested more than 32 deep stays as typed.
+
+```markdown
+Press <kbd>Ctrl</kbd>+<kbd>S</kbd> to save. <mark>Highlighted</mark> text, H<sub>2</sub>O, and <abbr title="HyperText Markup Language">HTML</abbr>.
+```
 
 ---
 

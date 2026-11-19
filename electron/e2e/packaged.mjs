@@ -1,7 +1,7 @@
 // E2E against a PACKAGED Notepad Flux binary (linux-unpacked, .deb payload, AppImage).
 //   DISPLAY=:77 node electron/e2e/packaged.mjs <binary> [--target=<name>] [--smoke] [--no-sandbox]
 // Never touches real app data: every launch uses NOTEPAD_FLUX_USER_DATA=<temp dir>.
-import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
+import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, lstatSync, linkSync, statSync, renameSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -9,7 +9,7 @@ import { execFileSync, spawn } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
-import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke } from './lib/harness.mjs'
+import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 // exact URL match on the openExternal log (array of URLs), not a substring test
 const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
@@ -33,17 +33,25 @@ let sandboxNote = noSandbox ? 'launched with --no-sandbox (requested)' : 'launch
 const env = /\.AppImage$/.test(binary) ? { APPIMAGE_EXTRACT_AND_RUN: '1' } : {}
 const pageErrors = []
 // Electron resolves a beforeunload block itself (will-prevent-unload); Playwright's auto-dismiss then races it.
-process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method))) return; throw e })
+// Anything else (a failed launch leaves Playwright-internal promises rejected) is a FAIL against the running check, not a dead run.
+process.on('unhandledRejection', (e) => { if (/handleJavaScriptDialog/.test(String(e?.message) + String(e?.method)) || absorbLaunchNoise(e)) return; recordFailure('UNHANDLED-' + (globalThis.__cur ?? 'pre-check'), 'unhandled promise rejection', e) })
+process.on('uncaughtException', (e) => recordFailure('UNCAUGHT-' + (globalThis.__cur ?? 'pre-check'), 'uncaught exception', e))
 
+// the app's stderr as Playwright logged it in the call log of a failed electron.launch ([pid][err] lines)
+const errLines = (e) => String(e?.message).split('\n').filter(l => /\[err\]/.test(l)).map(l => l.replace(/\x1b\[[0-9;]*m/g, '').trim().slice(0, 300)).slice(-30)
 async function L(userData, extra = {}) {
     const go = (ns) => launch({ binary, userData, extraArgs: ns ? ['--no-sandbox'] : [], env: { ...env, ...extra.env } })
     let r
     try { r = await go(noSandbox) } catch (e) {
         if (noSandbox) throw e
-        console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n')[0] + '); retrying --no-sandbox')
+        if (e?.name === 'TimeoutError') launchStats.retries++
+        diag('launch failed: ' + String(e.message).split('\n')[0], { userData, stderr: errLines(e) })
+        if (userData) killAppsOf(userData)   // the abandoned app must not hold the single-instance lock for the retry
+        console.log('NOTE sandboxed launch failed (' + String(e.message).split('\n').slice(0, 12).join(' ~ ').slice(0, 900) + '); retrying --no-sandbox')   // the call log holds the app's stderr: keep it, a 60 s hang here is otherwise invisible (B10)
         noSandbox = true; sandboxNote = 'DEVIATION: sandboxed launch failed, ran with --no-sandbox'
-        r = await go(true)
+        try { r = await go(true) } catch (e2) { diag('retry launch failed: ' + String(e2.message).split('\n')[0], { userData, stderr: errLines(e2) }); throw e2 }
     }
+    launched.add(r.app); r.app.once('close', () => launched.delete(r.app))
     r.win.on('pageerror', e => pageErrors.push(`[during ${globalThis.__cur}] ` + String(e.stack || e).replace(/\s+/g, ' ').slice(0, 400)))
     // The renderer loads the saved session ~1-2s after the window is up; actions inside that window hit a
     // tab-id race (see RACE-1). Every scenario except RACE-1 waits it out so one defect does not mask the rest.
@@ -70,7 +78,7 @@ const dotted = join(W, 'notes..md'); writeFileSync(dotted, 'dotted body\r\n'); c
 writeFileSync(join(U1, 'authorized-paths.json'), JSON.stringify([granted, gdir, swapped, join(linkdir, 'n.md')]))
 
 let app, win
-if (want('core')) {
+if (want('core')) try {
 try {
     ;({ app, win } = await L(U1))
 } catch (e) {
@@ -559,11 +567,11 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
     })
     await win.screenshot({ path: join(shots, `${target}-core.png`) }).catch(() => {})
     await app.close().catch(() => {})
-} // end core
+} catch (e) { await scenarioCrashed('core', e) } // end core
 
 // ---------------------------------------------------------------- scenario: live preview
 const walk = (d, out = []) => { for (const n of readdirSync(d, { withFileTypes: true })) { const f = join(d, n.name); n.isDirectory() ? walk(f, out) : out.push(f) } return out }
-if (want('lp')) {
+if (want('lp')) try {
     const Ulp = tmp('nf-lp-u-'), Wlp = tmp('nf-lp-w-'); cleanup.push(Ulp, Wlp)
     const { app, win } = await L(Ulp)
     const doc = async (name, text) => {
@@ -734,6 +742,7 @@ if (want('lp')) {
         const sorted = [...lat].sort((a, b) => a - b)
         return { size: statSync(big).size, clickMs, median: sorted[Math.floor(sorted.length / 2)], max: sorted.at(-1), avg: Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) }
     }
+    const perfErrs0 = pageErrors.length
     let plainMedian = 0
     await check('PERF-1', 'perf', '1.3 MB plain markdown file opens in a few seconds; typing near the end stays responsive (B11)', async () => {
         const r = await perf('large-plain', Array.from({ length: 16500 }, (_, i) => (i % 40 === 0 ? `## Section ${i}` : `line ${i} - lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor`)))
@@ -760,13 +769,19 @@ if (want('lp')) {
         assert(r.median < 2000 && ratio < 40, `typing median ${r.median}ms = ${ratio.toFixed(1)}x the plain-file median ${plainMedian}ms (limits: <2000ms and <40x; pre-fix ~2400ms / ~70x); max ${r.max}ms, open+click ${r.clickMs}ms`)
         return `${r.size} bytes, median ${r.median}ms (${ratio.toFixed(1)}x plain ${plainMedian}ms), max ${r.max}ms, open+click ${r.clickMs}ms`
     })
+    // B1: opening each big doc switches tab from a tab scrolled to the end (Control+End) and then clicks. The stale scrollTop made CM's measure loop
+    // fail and the click threw "TypeError: Cannot read properties of null (reading 'length')" in scanTile. Editor must reset scrollTop on tab switch.
+    await check('PERF-2c', 'perf', 'no page errors (CM scanTile TypeError) while clicking in the large docs right after a tab switch from a tab scrolled to the bottom', async () => {
+        const pe = pageErrors.slice(perfErrs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return 'no page errors through PERF-1 / PERF-2a / PERF-2'
+    })
     await win.screenshot({ path: join(shots, `${target}-live-preview.png`) }).catch(() => {})
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('lp', e) }
 
 // ---------------------------------------------------------------- scenario: math rendering (F1, Docs/internal/math-spec.md)
 // Only the packaged build proves the lazy MathJax chunk and the runtime font ranges load from app.asar.
-if (want('math')) {
+if (want('math')) try {
     const Um = tmp('nf-m-u-'), Wm = tmp('nf-m-w-'); cleanup.push(Um, Wm)
     const { app, win } = await L(Um)
     const consoleMsgs = []
@@ -836,11 +851,11 @@ if (want('math')) {
         eq(r.text, 'costs $5 and $10'); eq(r.math, 0, 'widgets on the dollar line')
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('math', e) }
 
 // ---------------------------------------------------------------- scenario: footnotes (F2, Docs/internal/footnotes-spec.md)
 // Real hover / Ctrl+click / the export path: what jsdom cannot cover. The doc is opened from a file (typing `[^` would hit bracket auto-close).
-if (want('footnotes')) {
+if (want('footnotes')) try {
     const Uf = tmp('nf-fn-u-'), Wf = tmp('nf-fn-w-'); cleanup.push(Uf, Wf)
     const { app, win } = await L(Uf)
     const errs0 = pageErrors.length
@@ -918,11 +933,11 @@ if (want('footnotes')) {
         assert(consoleErrs.length === 0, 'console errors: ' + JSON.stringify(consoleErrs.slice(0, 3)))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('footnotes', e) }
 
 // ---------------------------------------------------------------- scenario: callouts (F3, Docs/internal/callouts-spec.md)
 // Real typing / mouse / keyboard / computed colours / the export path: what jsdom cannot cover. The fixture is opened from a file; CO-1 types its own callout at the end.
-if (want('callouts')) {
+if (want('callouts')) try {
     const Uc = tmp('nf-co-u-'), Wc = tmp('nf-co-w-'); cleanup.push(Uc, Wc)
     const { app, win } = await L(Uc)
     const f = join(Wc, 'co.md')
@@ -1050,10 +1065,751 @@ if (want('callouts')) {
         assert(!h.includes('[!warning]') && !h.includes('[!note]'), 'raw callout marker leaked into the export')
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('callouts', e) }
+
+// ---------------------------------------------------------------- scenario: mermaid (F4, Docs/internal/mermaid-spec.md)
+// Real Mermaid layout + CSS under the app CSP (script-src 'self'), the lazy chunk, theme re-render, the export path: what jsdom cannot cover.
+if (want('mermaid')) try {
+    const Um = tmp('nf-mm-u-'), Wm = tmp('nf-mm-w-'); cleanup.push(Um, Wm)
+    const { app, win } = await L(Um)
+    const consoleMsgs = []
+    win.on('console', m => consoleMsgs.push(`[${m.type()}] ${m.text()}`.slice(0, 300)))
+    const errs0 = pageErrors.length
+    await win.evaluate(() => { window.__csp = []; document.addEventListener('securitypolicyviolation', e => window.__csp.push(e.violatedDirective + ' ' + e.blockedURI)) })
+    const f = join(Wm, 'mm.md')
+    writeFileSync(f, 'Intro line\n\n```mermaid\nflowchart TD\n  A[Start] --> B{Ok?}\n  B -->|yes| C[Done]\n  B -->|no| A\n```\n\nMiddle line\n\n```mermaid\nsequenceDiagram\n  Alice->>Bob: Hello Bob\n  Bob-->>Alice: Hi Alice\n```\n\n```mermaid\nthis is not ((a diagram\n```\n\nlast\n')
+    // performance.getEntriesByType('resource') does not list file:// module scripts, so ask the debugger (enable replays scriptParsed for every loaded script)
+    const chunkNames = async () => {
+        const s = await win.context().newCDPSession(win); const u = []
+        s.on('Debugger.scriptParsed', e => u.push(e.url))
+        await s.send('Debugger.enable'); await sleep(300); await s.send('Debugger.disable'); await s.detach()
+        return u.filter(n => /mermaid|flowchart|sequenceDiagram/i.test(n)).map(n => n.split('/').pop())
+    }
+    // MM-1 runs BEFORE the fixture is opened: a fresh profile has no mermaid block
+    await check('MM-1', 'mermaid', 'startup: before any mermaid block is open no mermaid chunk was fetched', async () => {
+        const n = await chunkNames(); eq(n.length, 0, 'mermaid chunk loaded at startup: ' + JSON.stringify(n))
+    })
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'mm.md', { what: 'tab mm.md' })
+    await ui.focusEditor(win); await win.keyboard.press('Control+End')
+    const ok = win.locator('.cm-mermaid:not(.cm-mermaid-error)')
+    const err = win.locator('div.cm-mermaid-error')
+    const svgInfo = (i) => win.evaluate((i) => {
+        const w = document.querySelectorAll('.cm-mermaid:not(.cm-mermaid-error)')[i]; const s = w?.querySelector('svg'); if (!s) return null
+        const r = s.getBoundingClientRect(); const shape = s.querySelector('.node rect, .node polygon, .node path'); const cs = shape && getComputedStyle(shape)
+        return { w: r.width, h: r.height, labels: [...s.querySelectorAll('text')].map(t => t.textContent.trim()).filter(Boolean), tspans: s.querySelectorAll('tspan').length, style: s.querySelectorAll('style').length,
+            fill: cs?.fill, stroke: cs?.stroke, html: s.outerHTML.length, foreign: s.querySelectorAll('foreignObject').length }
+    }, i)
+    await check('MM-2', 'mermaid', 'flowchart fence, caret outside: div.cm-mermaid svg with <text> labels, non-zero size, Mermaid <style> applied (node fill/stroke not default), no cm-mermaid-error on it, no CSP violation, no page error', async () => {
+        await waitFor(async () => (await svgInfo(0)) !== null, { timeout: 60000, what: 'first mermaid svg (chunk load + render)' })
+        const r = await svgInfo(0)
+        assert(r.w > 20 && r.h > 20, 'svg has no size: ' + JSON.stringify(r))
+        for (const l of ['Start', 'Ok?', 'Done']) assert(r.labels.some(t => t.includes(l)), `label "${l}" missing: ` + JSON.stringify(r.labels))
+        assert(r.style >= 1, 'no <style> in svg')
+        assert(r.fill !== 'rgb(0, 0, 0)' && r.fill !== 'none' && r.stroke !== 'none', `node shape unstyled (fill ${r.fill}, stroke ${r.stroke})`)
+        eq(r.foreign, 0, 'foreignObject in svg')
+        eq(await win.locator('.cm-mermaid-error').first().evaluate(e => e.querySelector('svg') !== null).catch(() => false), false, 'error widget contains an svg')
+        const csp = await win.evaluate(() => window.__csp); eq(csp.length, 0, 'CSP violations: ' + JSON.stringify(csp))
+        const bad = consoleMsgs.filter(m => /Content Security Policy|Refused to/i.test(m)); eq(bad.length, 0, 'CSP console: ' + JSON.stringify(bad.slice(0, 3)))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        const n = await chunkNames(); assert(n.length > 0, 'no mermaid chunk among loaded scripts after rendering')
+        await win.screenshot({ path: join(shots, `${target}-mermaid.png`) }).catch(() => {})
+    })
+    await check('MM-3', 'mermaid', 'sequence diagram renders: svg with <text> for Alice, Bob and the messages, non-zero size', async () => {
+        await waitFor(async () => (await svgInfo(1)) !== null, { timeout: 60000, what: 'second mermaid svg' })
+        const r = await svgInfo(1)
+        assert(r.w > 20 && r.h > 20, 'svg has no size: ' + JSON.stringify(r))
+        for (const l of ['Alice', 'Bob', 'Hello Bob', 'Hi Alice']) assert(r.labels.some(t => t.includes(l)), `label "${l}" missing: ` + JSON.stringify(r.labels))
+        eq((await win.evaluate(() => window.__csp)).length, 0, 'CSP violations')
+    })
+    await check('MM-4', 'mermaid', 'invalid syntax: div.cm-mermaid-error with message text, no svg, no page error, the other two diagrams still render', async () => {
+        await waitFor(async () => (await err.count()) === 1, { timeout: 30000, what: 'error box' })
+        const t = (await err.first().innerText()).trim(); assert(t.length > 0, 'empty error box')
+        eq(await err.first().locator('svg').count(), 0, 'svg inside the error box')
+        eq(await ok.count(), 2, 'good diagrams')
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return 'error text: ' + t.replace(/\s+/g, ' ').slice(0, 80)
+    })
+    await check('MM-5', 'mermaid', 'click the flowchart: raw source appears (that widget gone, ```mermaid fence + "flowchart TD" visible); caret away brings the diagram back', async () => {
+        await ok.first().click()
+        await waitFor(async () => (await ok.count()) === 1, { what: 'flowchart widget gone after click' })
+        await waitFor(async () => { const t = await ui.editorText(win); return t.includes('flowchart TD') && t.includes('A[Start]') }, { what: 'raw source visible' })
+        assert((await win.locator('.cm-content').innerText()).includes('flowchart TD'), 'raw source not visible in the DOM')
+        await win.keyboard.press('Control+End')
+        await waitFor(async () => (await ok.count()) === 2, { timeout: 30000, what: 'diagram back after caret left' })
+        assert(!(await win.locator('.cm-content').innerText()).includes('flowchart TD'), 'raw source still visible with caret outside')
+    })
+    const setTheme = async (t) => {
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const look = () => win.evaluate(() => {
+        const s = document.querySelector('.cm-mermaid:not(.cm-mermaid-error) svg'); if (!s) return null
+        const n = s.querySelector('.node rect, .node polygon, .node path'); const t = s.querySelector('text')
+        return { theme: document.body.getAttribute('data-theme'), fill: n && getComputedStyle(n).fill, text: t && getComputedStyle(t).fill, css: [...s.querySelectorAll('style')].map(x => x.textContent).join('').length, html: s.innerHTML.length }
+    })
+    await check('MM-6', 'mermaid', 'Settings > App theme dark: the visible diagram re-renders (node fill and/or label colour differ); back to light restores it', async () => {
+        try {
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => (await look()) !== null, { what: 'light svg' })
+            const light = await look()
+            await setTheme('dark')
+            await waitFor(() => win.evaluate(() => document.body.getAttribute('data-theme') === 'dark'), { what: 'data-theme=dark' })
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => { const d = await look(); return d && d.theme === 'dark' && (d.fill !== light.fill || d.text !== light.text) }, { timeout: 30000, what: 'diagram re-rendered in dark (light was ' + JSON.stringify(light) + ')' })
+            const dark = await look()
+            await setTheme('light')
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => { const d = await look(); return d && d.theme === 'light' && d.fill === light.fill && d.text === light.text }, { timeout: 30000, what: 'diagram back to light colours' })
+            return `light ${light.fill}/${light.text}, dark ${dark.fill}/${dark.text}`
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('MM-7', 'mermaid', 'File > Export to HTML: two div.mermaid-diagram with svg, a pre.mermaid-error, no <script>', async () => {
+        await ui.focusEditor(win); await win.keyboard.press('Control+End')
+        const dst = join(Wm, 'mm-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8')
+        const d = h.match(/<div class="mermaid-diagram"[^>]*>\s*<svg/g) || []
+        eq(d.length, 2, 'div.mermaid-diagram with svg')
+        assert(/<pre class="mermaid-error"/.test(h), 'no pre.mermaid-error')
+        assert(!/<script/i.test(h), '<script in export')
+        assert(!/<foreignObject/i.test(h), 'foreignObject in export')
+        assert(h.includes('Start') && h.includes('Alice'), 'diagram labels missing from export')
+        assert(!/<code class="language-mermaid"/.test(h), 'raw mermaid code block left in export')
+    })
+    await check('MM-8', 'mermaid', 'diagrams fit the editor: each svg width <= .cm-content width, scroller has no horizontal overflow', async () => {
+        await ui.focusEditor(win); await win.keyboard.press('Control+End')
+        await waitFor(async () => (await ok.count()) === 2, { what: 'both diagrams' })
+        const r = await win.evaluate(() => { const c = document.querySelector('.cm-content').getBoundingClientRect(), sc = document.querySelector('.cm-scroller')
+            return { content: c.width, svgs: [...document.querySelectorAll('.cm-mermaid svg')].map(s => s.getBoundingClientRect().width), sw: sc.scrollWidth, cw: sc.clientWidth } })
+        assert(r.svgs.length >= 2 && r.svgs.every(w => w > 0 && w <= r.content + 1), 'svg wider than content: ' + JSON.stringify(r))
+        assert(r.sw <= r.cw + 1, 'horizontal overflow on the scroller: ' + JSON.stringify(r))
+    })
+    await check('MM-9', 'mermaid', 'repro: classDef mask-image:url(http://e.test/..) a flowchart image-shape node, a sequence participant icon and a $$ label with <img>, and the YAML-alias and explicit-key forms of img with a scheme-only host (http:e.test/x.png) cause zero network requests to e.test while rendering in the editor and during HTML export (CSS must not reach the live DOM unsanitized)', async () => {
+        const f2 = join(Wm, 'mm-net.md')
+        writeFileSync(f2, 'net\n\n```mermaid\nstateDiagram-v2\nA --> B\nclassDef x mask-image:url(http://e.test/1.png)\nclass A x\n```\n\n```mermaid\nflowchart TD\nA@{ img: "http://e.test/img.png", label: "x", pos: "t", w: 60, h: 60 }\n```\n\n```mermaid\nsequenceDiagram\nparticipant A@{ \"icon\": \"https://e.test/p.png\" }\nA->>A: hi\n```\n\n```mermaid\nsequenceDiagram\nA->>B: $$x$$ <img src=\"https://e.test/q.png\">\n```\n\n```mermaid\nflowchart TD\nA@{ label: &k img, *k : \"http:e.test/a.png\", w: 60, h: 60 }\n```\n\n```mermaid\nflowchart TD\nA@{\n  ? img # c\n  : \"http:e.test/b.png\"\n}\n```\n\nlast\n')
+        const cdp = await win.context().newCDPSession(win); const reqs = new Map() // requestId -> { url, failed, blockedReason, ok }
+        cdp.on('Network.requestWillBeSent', e => reqs.set(e.requestId, { url: e.request.url }))
+        cdp.on('Network.loadingFailed', e => { const r = reqs.get(e.requestId); if (r) { r.failed = true; r.blockedReason = e.blockedReason; r.err = e.errorText } })
+        cdp.on('Network.responseReceived', e => { const r = reqs.get(e.requestId); if (r) r.ok = true })
+        await cdp.send('Network.enable')
+        try {
+            // Main document must never hold the host in an attribute, even transiently (Mermaid must run in the sandboxed frame, not here)
+            await win.evaluate(() => { window.__attrHits = []; const scan = (n) => { if (n.nodeType !== 1) return; for (const el of [n, ...n.querySelectorAll('*')]) for (const a of el.attributes) if (/e\.test/i.test(a.value)) window.__attrHits.push(el.localName + '[' + a.name + ']') }; new MutationObserver(ms => { for (const m of ms) { if (m.type === 'attributes' && /e\.test/i.test(m.target.getAttribute(m.attributeName) || '')) window.__attrHits.push(m.target.localName + '[' + m.attributeName + ']'); m.addedNodes.forEach(scan) } }).observe(document.documentElement, { subtree: true, childList: true, attributes: true }) })
+            await ui.openViaDialog(app, win, f2)
+            await waitFor(async () => (await ui.activeTitle(win)) === 'mm-net.md', { what: 'tab mm-net.md' })
+            await ui.focusEditor(win); await win.keyboard.press('Control+End')
+            await waitFor(async () => (await ok.count()) >= 1, { timeout: 60000, what: 'repro diagram rendered (or errored) in the editor' }).catch(() => {})
+            await sleep(1500)
+            const dst = join(Wm, 'mm-net-out.html'); await ui.stubSave(app, dst)
+            await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+            await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+            await sleep(1500)
+            // requestWillBeSent also fires for requests the frame's CSP then blocks, so judge the outcome: every request to e.test must end in
+            // loadingFailed with blockedReason 'csp' (a DNS failure or a response means it left the machine). The count must be > 0 (frame requests
+            // are visible to this session; a vacuous pass would hide a broken probe).
+            const att = [...reqs.values()].filter(r => /e\.test/i.test(r.url))
+            const bad = att.filter(r => !(r.failed && r.blockedReason === 'csp') || r.ok)
+            assert(att.length > 0, 'no attempted request to e.test seen at all: the probe cannot see the frame, or Mermaid no longer tries')
+            eq(bad.length, 0, 'e.test requests not blocked by CSP: ' + JSON.stringify(bad.slice(0, 3)))
+            const attrHits = await win.evaluate(() => { const l = [...(window.__attrHits || [])]; for (const el of document.querySelectorAll('*')) for (const a of el.attributes) if (/e\.test/i.test(a.value)) l.push(el.localName + '[' + a.name + ']'); return l })
+            eq(attrHits.length, 0, 'main document attributes containing e.test: ' + JSON.stringify(attrHits.slice(0, 5)))
+            // The preload must not reach the sandboxed frame: no electronAPI / ipcRenderer / require inside mermaid-frame.html
+            const fr = win.frames().find(f => /mermaid-frame\.html/.test(f.url()))
+            assert(fr, 'mermaid frame not found among ' + JSON.stringify(win.frames().map(f => f.url())))
+            const leak = await fr.evaluate(() => ({ api: typeof window.electronAPI, ipc: typeof window.ipcRenderer, req: typeof window.require }))
+            eq(JSON.stringify(leak), JSON.stringify({ api: 'undefined', ipc: 'undefined', req: 'undefined' }), 'frame sees Electron bridges')
+            // A URL in a label is plain text now (the error box echoes the source), but it must not be live: no attribute, <style> text or url() may hold it.
+            const exp = readFileSync(dst, 'utf8')
+            const live = [...(exp.match(/<[^<>]*e\.test[^<>]*>/gi) || []), ...(exp.match(/<style[^>]*>[\s\S]*?<\/style>/gi) || []).filter(t => /e\.test/i.test(t)), ...(exp.match(/url\([^)]*e\.test[^)]*\)/gi) || [])]
+            eq(live.length, 0, 'e.test in an attribute, <style> or url() of the exported html: ' + JSON.stringify(live.slice(0, 2)).slice(0, 300))
+            return `${reqs.size} requests seen, ${att.length} to e.test all blocked by CSP`
+        } finally { await cdp.send('Network.disable').catch(() => {}); await cdp.detach().catch(() => {}) }
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('mermaid', e) }
+
+// ---------------------------------------------------------------- scenario: front matter (F5, Docs/internal/frontmatter-spec.md)
+// Real layout, computed fonts/colours/direction, mouse click, export and keystroke timing: what jsdom cannot cover.
+if (want('frontmatter')) try {
+    const Uf = tmp('nf-fm-u-'), Wf = tmp('nf-fm-w-'); cleanup.push(Uf, Wf)
+    const { app, win } = await L(Uf)
+    const errs0 = pageErrors.length
+    const f = join(Wf, 'fm.md')
+    writeFileSync(f, '---\ntitle: Sample Title\nauthor: שלום עולם\ntags: [alpha, beta, gamma]\ndate: 2026-03-05\nmeta:\n  nested: one\n  other: two\n---\n# Body Heading\n\nBody text line.\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'fm.md', { what: 'tab fm.md' })
+    const box = win.locator('.cm-content div.cm-properties')
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+
+    await check('FM-1', 'frontmatter', 'front matter at the top renders div.cm-properties with 5 rows (title, Hebrew author, tags chips, date, nested map), no hr and no YAML line/heading in the editor, Hebrew value right-to-left', async () => {
+        await caretFar()
+        await waitFor(async () => (await box.count()) === 1, { what: 'box with the caret in the body' })
+        const r = await win.evaluate(() => {
+            const b = document.querySelector('.cm-content div.cm-properties')
+            const rows = [...b.querySelectorAll('.cm-property')].map(p => ({
+                key: p.querySelector('.cm-property-key')?.textContent, val: p.querySelector('.cm-property-value')?.textContent,
+                chips: [...p.querySelectorAll('.cm-property-chip')].map(c => c.textContent),
+                dir: getComputedStyle(p.querySelector('.cm-property-value')).direction,
+            }))
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')]
+            const top = document.querySelector('.cm-content').getBoundingClientRect().top
+            return {
+                header: b.querySelector('.cm-properties-header')?.textContent, rows, hr: document.querySelectorAll('.cm-content hr, .cm-content .cm-hr').length,
+                yamlLines: lines.filter(l => /Sample Title|tags:|nested:/.test(l.innerText)).length, boxTop: b.getBoundingClientRect().top - top,
+                firstLine: lines[0]?.innerText, errorBox: !!b.closest('.cm-properties-error') || b.classList.contains('cm-properties-error'),
+            }
+        })
+        eq(r.header, 'Properties', 'header'); eq(r.errorBox, false, 'error box for valid YAML')
+        eq(r.rows.map(x => x.key).join(','), 'title,author,tags,date,meta', 'row keys')
+        const by = Object.fromEntries(r.rows.map(x => [x.key, x]))
+        eq(by.title.val, 'Sample Title', 'title'); eq(by.author.val, 'שלום עולם', 'Hebrew value')
+        eq(by.tags.chips.join(','), 'alpha,beta,gamma', 'tag chips'); eq(by.date.val, '2026-03-05', 'date')
+        assert(/nested/.test(by.meta.val) && /one/.test(by.meta.val) && /other/.test(by.meta.val), 'nested map text: ' + by.meta.val)
+        eq(by.author.dir, 'rtl', 'Hebrew value direction'); eq(by.title.dir, 'ltr', 'Latin value direction')
+        eq(r.hr, 0, 'hr elements'); eq(r.yamlLines, 0, 'raw YAML lines visible next to the box')
+        assert(r.boxTop < 40, 'box not at the top of the content: ' + r.boxTop)
+        assert(/Body Heading/.test(r.firstLine), 'first editor line is not the body heading: ' + JSON.stringify(r.firstLine))
+        await win.screenshot({ path: join(shots, `${target}-frontmatter.png`) }).catch(() => {})
+    })
+    await check('FM-2', 'frontmatter', 'click the box: raw YAML in monospace (cm-frontmatter-line), fences faint, box gone; cursor to the body brings the box back', async () => {
+        await caretFar()
+        await waitFor(async () => (await box.count()) === 1, { what: 'box' })
+        await box.locator('.cm-properties-header').click()
+        await waitFor(async () => (await box.count()) === 0, { what: 'box gone after click' })
+        const r = await win.evaluate(() => {
+            const ls = [...document.querySelectorAll('.cm-content .cm-frontmatter-line')]
+            const plain = [...document.querySelectorAll('.cm-content .cm-line:not(.cm-frontmatter-line)')][0]
+            const f = document.querySelector('.cm-content .cm-frontmatter-line .cm-faint-syntax')
+            return { n: ls.length, fonts: ls.map(l => getComputedStyle(l).fontFamily), text: ls.map(l => l.innerText).join('\n'),
+                bodyFont: plain && getComputedStyle(plain).fontFamily, faint: f && { text: f.textContent, opacity: getComputedStyle(f).opacity, color: getComputedStyle(f).color }, lineColor: ls[1] && getComputedStyle(ls[1]).color }
+        })
+        eq(r.n, 9, 'cm-frontmatter-line count (fence + 7 YAML + fence)')
+        assert(r.fonts.every(x => /mono|courier|consolas/i.test(x)), 'not monospace: ' + JSON.stringify(r.fonts[0]))
+        assert(r.fonts[0] !== r.bodyFont, 'same font as the body: ' + r.bodyFont)
+        assert(/title: Sample Title/.test(r.text) && /---/.test(r.text), 'raw YAML missing: ' + r.text)
+        assert(r.faint && r.faint.text.trim() === '---', 'fence not marked faint: ' + JSON.stringify(r.faint))
+        assert(r.faint.opacity !== '1' || r.faint.color !== r.lineColor, 'faint fence looks like the YAML text: ' + JSON.stringify(r.faint))
+        await win.keyboard.press('Control+End')
+        await waitFor(async () => (await box.count()) === 1, { what: 'box back with the caret in the body' })
+        eq(await win.locator('.cm-content .cm-frontmatter-line').count(), 0, 'raw YAML lines left behind')
+    })
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    // nativeTheme.themeSource does not flip prefers-color-scheme under Xephyr, so use Settings > App theme (the real user path)
+    const setTheme = async (t) => {
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const paint = () => win.evaluate(() => {
+        const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+        const over = (top, base) => ({ rgb: top.rgb.map((c, i) => c * top.a + base.rgb[i] * (1 - top.a)), a: 1 })
+        const bgOf = (el) => { const chain = []; for (let e = el; e; e = e.parentElement) { const p = parse(getComputedStyle(e).backgroundColor); if (p.a > 0) { chain.push(p); if (p.a === 1) break } } let acc = { rgb: [255, 255, 255], a: 1 }; for (const p of chain.reverse()) acc = over(p, acc); return acc }
+        const one = (sel) => { const e = document.querySelector(sel); if (!e) return null; return { color: parse(getComputedStyle(e).color).rgb, bg: bgOf(e).rgb } }
+        const b = document.querySelector('.cm-content div.cm-properties')
+        return { theme: document.body.getAttribute('data-theme'), key: one('.cm-property-key'), value: one('.cm-property-value'), chip: one('.cm-property-chip'), box: one('.cm-properties'),
+            boxAlpha: b && parse(getComputedStyle(b).backgroundColor).a }
+    })
+    await check('FM-3', 'frontmatter', 'key, value, chip text and box background: text vs its background >= 4.5:1 in light and dark (box bg opaque)', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await caretFar()
+                await waitFor(async () => (await box.count()) === 1, { what: 'box' }); await sleep(300)
+                const p = await paint()
+                eq(p.boxAlpha, 1, `${theme}: box background not opaque`)
+                for (const k of ['key', 'value', 'chip', 'box']) {
+                    assert(p[k], `${theme}/${k}: element missing`)
+                    const r = ratio(p[k].color, p[k].bg); assert(r >= 4.5, `${theme}/${k}: contrast ${r.toFixed(2)} (text ${p[k].color} on ${p[k].bg.map(Math.round)})`)
+                    out.push(`${theme}/${k} ${r.toFixed(1)}`)
+                }
+                assert(ratio(p.chip.bg, p.box.bg) > 1.05, `${theme}: chip background indistinguishable from the box`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('FM-4', 'frontmatter', 'invalid YAML: div.cm-properties-error with a message and the raw text, no page error', async () => {
+        const bad = join(Wf, 'fm-bad.md'); writeFileSync(bad, '---\ntitle: [unclosed\nfoo: bar: baz\n---\nBad body.\n')
+        await ui.openViaDialog(app, win, bad)
+        await waitFor(async () => (await ui.activeTitle(win)) === 'fm-bad.md', { what: 'tab fm-bad.md' })
+        try {
+            await caretFar()
+            const err = win.locator('.cm-content div.cm-properties-error')
+            await waitFor(async () => (await err.count()) === 1, { what: 'error box' })
+            const msg = (await err.locator('.cm-properties-message').innerText()).trim(); assert(msg.length > 0, 'empty error message')
+            const raw = await err.locator('.cm-properties-raw').innerText(); assert(/title: \[unclosed/.test(raw) && /foo: bar: baz/.test(raw), 'raw YAML not shown: ' + JSON.stringify(raw))
+            eq(await win.locator('.cm-content hr, .cm-content .cm-hr').count(), 0, 'hr next to the error box')
+            const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+            return 'message: ' + msg.replace(/\s+/g, ' ').slice(0, 80)
+        } finally {
+            await win.keyboard.press('Control+w'); await sleep(300)
+            await waitFor(async () => (await ui.activeTitle(win)) === 'fm.md', { what: 'back on fm.md' })
+        }
+    })
+    await check('FM-5', 'frontmatter', 'File > Export to HTML of the FM-1 fixture: none of the front matter text, no <hr>, the body is there', async () => {
+        await caretFar()
+        const dst = join(Wf, 'fm-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body'))
+        for (const s of ['Sample Title', 'שלום עולם', 'alpha', 'gamma', '2026-03-05', 'nested', 'title:', 'tags:']) assert(!h.includes(s), 'front matter text leaked into the export: ' + s)
+        assert(!/<hr/i.test(b), '<hr in the export body')
+        assert(!/<h2/i.test(b), 'setext <h2> in the export body')
+        assert(/<h1[^>]*>\s*Body Heading/.test(b) && b.includes('Body text line.'), 'body missing: ' + b.slice(0, 300).replace(/\s+/g, ' '))
+    })
+    await check('FM-6', 'frontmatter', '~1 MB doc starting with front matter: 20 keystrokes at the end, key-to-paint median <= 1.5 x the same doc without front matter + 50 ms (smoke check for O(doc) work per keystroke; absolute time is the app\'s large-doc cost, so a control doc sets the baseline)', async () => {
+        const body = Array.from({ length: 22000 }, (_, i) => `Line ${i} lorem ipsum dolor sit amet consectetur`).join('\n') + '\n'
+        const toTop = () => win.evaluate(() => { document.querySelector('.cm-scroller').scrollTop = 0 })   // the box is outside the viewport while the caret sits at the end
+        const measure = async (name, head, hasFm) => {
+            const p = join(Wf, name); writeFileSync(p, head + body)
+            await ui.openViaDialog(app, win, p)
+            await waitFor(async () => (await ui.activeTitle(win)) === name, { timeout: 60000, what: 'tab ' + name })
+            await ui.focusEditor(win); await sleep(500)
+            if (hasFm) await waitFor(async () => { await toTop(); await sleep(300); return (await box.count()) === 1 }, { timeout: 60000, what: 'box on ' + name })
+            await win.keyboard.press('Control+End'); await sleep(300)
+            await win.evaluate(() => { window.__t0 = 0; if (!window.__kd) { window.__kd = 1; document.addEventListener('keydown', () => { window.__t0 = performance.now() }, true) } })
+            const times = []
+            for (let i = 0; i < 24; i++) {
+                await win.keyboard.press('x')
+                times.push(await win.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(performance.now() - window.__t0))))))
+            }
+            const t = times.slice(4).sort((a, b) => a - b)   // first 4 are warm-up
+            if (hasFm) { await waitFor(async () => { await toTop(); await sleep(300); return (await box.count()) === 1 }, { what: 'box still there after typing in the body' }); await win.keyboard.press('Control+End') }
+            return { med: t[Math.floor(t.length / 2)], max: t[t.length - 1] }
+        }
+        const ctrl = await measure('fm-ctrl.md', 'Intro\n\n', false)
+        const fm = await measure('fm-big.md', '---\ntitle: Big\ntags: [a, b]\n---\n', true)
+        const info = `front matter median ${fm.med.toFixed(1)} ms (max ${fm.max.toFixed(1)}), control median ${ctrl.med.toFixed(1)} ms (max ${ctrl.max.toFixed(1)})`
+        assert(fm.med <= ctrl.med * 1.5 + 50, 'keystroke-to-paint slower with front matter than without: ' + info)
+        return info
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('frontmatter', e) }
+
+// ---------------------------------------------------------------- scenario: sub/superscript + emoji (F6, Docs/internal/subsup-emoji-spec.md)
+// Real layout, computed styles, line height, emoji font and export: what jsdom cannot cover.
+if (want('subsupemoji')) try {
+    const Ue = tmp('nf-se-u-'), We = tmp('nf-se-w-'); cleanup.push(Ue, We)
+    const { app, win } = await L(Ue)
+    const errs0 = pageErrors.length
+    const f = join(We, 'se.md')
+    writeFileSync(f, 'Plain body line here.\n\nH~2~O and E=mc^2^\n\n:smile: :+1: :t-rex: 12:100:45 a:smile:b\n\nשלום H~2~O :smile: x^2^ עולם\n\n~a~ and ~~del~~\n\nTail plain line.\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'se.md', { what: 'tab se.md' })
+    const caretFar = async () => { await ui.focusEditor(win); await win.keyboard.press('Control+End') }
+    const sub = win.locator('.cm-content .cm-subscript'), sup = win.locator('.cm-content .cm-superscript')
+
+    await check('SE-1', 'subsupemoji', 'H~2~O and E=mc^2^ with the caret elsewhere: .cm-subscript/.cm-superscript exist, bottom edge >= 1 px lower (sub) / higher (sup) than the adjacent plain glyph, font-size smaller than body, marks hidden, the line is at most 5% taller than a plain body line and keeps its height (+-1 px) with the caret on it (raw)', async () => {
+        await caretFar()
+        await waitFor(async () => (await sub.count()) > 0 && (await sup.count()) > 0, { what: 'sub and sup nodes' })
+        const r = await win.evaluate(() => {
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')]
+            const plain = lines.find(l => /Plain body line/.test(l.innerText)), fx = lines.find(l => /E=mc/.test(l.innerText))
+            const s = fx.querySelector('.cm-subscript'), p = fx.querySelector('.cm-superscript'), cs = (e) => getComputedStyle(e)
+            // plain neighbour = last visible char before the node on the same line (bottom edge of its glyph box)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('.cm-line'), NodeFilter.SHOW_TEXT); let ref = null; for (let t = tw.nextNode(); t; t = tw.nextNode()) { if (!t.length || el.contains(t) || !(el.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(t, t.length - 1); rg.setEnd(t, t.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }   // last visible char before the node (hidden ~ / ^ marks have no width)
+            const bottom = (e) => e.getBoundingClientRect().bottom
+            return { subBot: bottom(s), supBot: bottom(p), subRef: prevCharBottom(s), supRef: prevCharBottom(p), subFs: parseFloat(cs(s).fontSize), supFs: parseFloat(cs(p).fontSize), bodyFs: parseFloat(cs(plain).fontSize),
+                subText: s.textContent, supText: p.textContent, lineText: fx.innerText, plainH: plain.getBoundingClientRect().height, fxH: fx.getBoundingClientRect().height }
+        })
+        // visual contract (holds for vertical-align: sub|super or a relative-offset technique): sub drops below, sup rises above the plain glyph next to it
+        assert(r.subRef !== null && r.supRef !== null, 'no plain text node before the sub/sup node to compare with')
+        // edges, not centres: a smaller glyph on the baseline already has a lower centre; its bottom edge is only lower than the neighbour's if it really dropped
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        assert(r.subFs < r.bodyFs && r.supFs < r.bodyFs, `font-size not smaller than body: sub ${r.subFs} sup ${r.supFs} body ${r.bodyFs}`)
+        eq(r.subText, '2', 'subscript content'); eq(r.supText, '2', 'superscript content')
+        assert(!r.lineText.includes('~') && !r.lineText.includes('^'), 'marks visible with the caret elsewhere: ' + JSON.stringify(r.lineText))
+        const info = `plain line ${r.plainH.toFixed(2)} px, sub/sup line ${r.fxH.toFixed(2)} px (x${(r.fxH / r.plainH).toFixed(3)}), sub bottom ${(r.subBot - r.subRef).toFixed(2)} px below / sup bottom ${(r.subRef && r.supRef - r.supBot).toFixed(2)} px above its plain neighbour`
+        assert(r.fxH <= r.plainH * 1.05, 'sub/sup line more than 5% taller than a plain line: ' + info)
+        // caret inside the ~2~ run, then inside the ^2^ run (raw marks shown): the line must keep its height, or the text below jumps
+        const lh = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^H.?2.?O and/.test(l.innerText)).getBoundingClientRect().height)
+        const rawText = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^H.?2.?O and/.test(l.innerText)).innerText)
+        await win.locator('.cm-content .cm-line', { hasText: /^H.?2.?O and/ }).first().click({ position: { x: 2, y: 8 } })
+        await win.keyboard.press('Home'); await win.keyboard.press('ArrowRight'); await win.keyboard.press('ArrowRight')
+        await waitFor(async () => (await rawText()).includes('H~2~O'), { what: 'raw ~2~ with the caret inside' }); await sleep(200)
+        const subRawH = await lh()
+        await win.keyboard.press('End'); await win.keyboard.press('ArrowLeft')
+        await waitFor(async () => (await rawText()).includes('mc^2^') && !(await rawText()).includes('~'), { what: 'raw ^2^ with the caret inside' }); await sleep(200)
+        const supRawH = await lh()
+        const info2 = info + `, raw ~2~ ${subRawH.toFixed(2)} px, raw ^2^ ${supRawH.toFixed(2)} px`
+        assert(Math.abs(subRawH - r.fxH) <= 1 && Math.abs(supRawH - r.fxH) <= 1, 'line height changes when the caret enters it (text below jumps): ' + info2)
+        await win.keyboard.press('Control+End')
+        await win.screenshot({ path: join(shots, `${target}-subsup.png`) }).catch(() => {})
+        return info2
+    })
+    await check('SE-2', 'subsupemoji', 'click into H~2~O: raw ~2~ shows; caret away: renders again', async () => {
+        await caretFar()
+        await waitFor(async () => (await sub.count()) > 0, { what: 'sub rendered' })
+        await win.locator('.cm-content .cm-line', { hasText: /^H.?2.?O and/ }).first().click({ position: { x: 2, y: 8 } })
+        await win.keyboard.press('Home'); await win.keyboard.press('ArrowRight'); await win.keyboard.press('ArrowRight')
+        await waitFor(() => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('H~2~O'))), { what: 'raw H~2~O with the caret inside' })
+        await win.keyboard.press('Control+End')
+        await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /E=mc/.test(x.innerText)); return !!l && !l.innerText.includes('~') && !!l.querySelector('.cm-subscript') }), { what: 'H~2~O rendered again' })
+    })
+    await check('SE-3', 'subsupemoji', ':smile: :+1: :t-rex: 12:100:45 a:smile:b: exactly 3 span.cm-emoji (role=img, aria-labels smile,+1,t-rex, text 😄 👍 🦖), the rest literal, glyph width > 0', async () => {
+        await caretFar()
+        await waitFor(async () => (await win.locator('.cm-content span.cm-emoji').count()) >= 3, { what: 'emoji widgets' })
+        const r = await win.evaluate(() => {
+            const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /12:100:45/.test(x.innerText))
+            const es = [...l.querySelectorAll('span.cm-emoji')]
+            return { n: es.length, labels: es.map(e => e.getAttribute('aria-label')), roles: es.map(e => e.getAttribute('role')), texts: es.map(e => e.textContent), widths: es.map(e => e.getBoundingClientRect().width), line: l.innerText }
+        })
+        eq(r.n, 3, 'span.cm-emoji count on the line'); eq(r.labels.join(','), 'smile,+1,t-rex', 'aria-labels')
+        assert(r.roles.every(x => x === 'img'), 'roles: ' + JSON.stringify(r.roles)); eq(r.texts.join(' '), '😄 👍 🦖', 'emoji text')
+        assert(r.line.includes('12:100:45') && r.line.includes('a:smile:b'), 'literal text changed: ' + JSON.stringify(r.line))
+        assert(!r.line.includes(':smile: ') && !r.line.includes(':t-rex:') && !r.line.includes(':+1:'), 'raw shortcode still shown: ' + JSON.stringify(r.line))
+        assert(r.widths.every(w => w > 0), 'emoji glyph has no width (no emoji font?): ' + JSON.stringify(r.widths))
+        return 'emoji widths ' + r.widths.map(w => w.toFixed(1)).join('/') + ' px'
+    })
+    await check('SE-4', 'subsupemoji', 'Hebrew line with H~2~O, :smile: and x^2^: line is right-to-left, sub/sup/emoji render, no page error', async () => {
+        await caretFar()
+        await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); return !!l && !!l.querySelector('.cm-subscript') && !!l.querySelector('.cm-superscript') && !!l.querySelector('span.cm-emoji') }), { what: 'Hebrew line rendered' })
+        const r = await win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /שלום/.test(x.innerText)); return { dir: getComputedStyle(l).direction, matchesRtl: l.matches(':dir(rtl)'), text: l.innerText, emoji: l.querySelector('span.cm-emoji').textContent } })
+        assert(r.dir === 'rtl' || r.matchesRtl, 'line not rtl: ' + JSON.stringify(r))
+        eq(r.emoji, '😄', 'emoji'); assert(r.text.includes('שלום') && r.text.includes('עולם') && r.text.indexOf('שלום') < r.text.indexOf('עולם'), 'Hebrew text changed: ' + JSON.stringify(r.text))
+        assert(!/[~^:]/.test(r.text), 'raw marks visible: ' + JSON.stringify(r.text))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+    })
+    await check('SE-5', 'subsupemoji', 'File > Export to HTML: <sub>2</sub>, <sup>2</sup>, 😄 👍 🦖, literal 12:100:45 and a:smile:b, no <del> for single ~a~, ~~del~~ stays <del>', async () => {
+        await caretFar()
+        const dst = join(We, 'se-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body'))
+        for (const s of ['<sub>2</sub>', '<sup>2</sup>', '😄', '👍', '🦖', '12:100:45', 'a:smile:b']) assert(b.includes(s), 'export missing ' + s + ': ' + b.slice(0, 400).replace(/\s+/g, ' '))
+        assert(!/<del>\s*a\s*<\/del>/.test(b), 'single ~a~ became <del>')
+        assert(/<del>\s*del\s*<\/del>/.test(b), '~~del~~ is not <del>')
+        eq((b.match(/<del>/g) || []).length, 1, '<del> count')
+        assert(!b.includes(':smile: ') && !b.includes(':t-rex:'), 'raw shortcode left in export')
+    })
+    await check('SE-6', 'subsupemoji', 'computed colour of .cm-subscript / .cm-superscript equals the body text colour in light and dark', async () => {
+        const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+            await win.locator('button[title="Settings"]').click()
+            await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+            await win.locator('[class*=backButton]').click()
+        }
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await caretFar()
+                await waitFor(async () => (await sub.count()) > 0 && (await sup.count()) > 0, { what: 'sub/sup rendered' }); await sleep(300)
+                const c = await win.evaluate(() => { const lines = [...document.querySelectorAll('.cm-content .cm-line')], plain = lines.find(l => /Plain body line/.test(l.innerText)); return { body: getComputedStyle(plain).color, sub: getComputedStyle(document.querySelector('.cm-subscript')).color, sup: getComputedStyle(document.querySelector('.cm-superscript')).color } })
+                eq(c.sub, c.body, `${theme}: subscript colour`); eq(c.sup, c.body, `${theme}: superscript colour`)
+                out.push(`${theme} ${c.body}`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('subsupemoji', e) }
+
+// ---------------------------------------------------------------- scenario: table cells (B12, Docs/internal/table-cells-spec.md)
+// Real layout, computed styles, MathJax, link click and the keyboard: what jsdom cannot cover.
+if (want('tablecells')) try {
+    const Ut = tmp('nf-tc-u-'), Wt = tmp('nf-tc-w-'); cleanup.push(Ut, Wt)
+    const { app, win } = await L(Ut)
+    const errs0 = pageErrors.length
+    const f = join(Wt, 'tc.md')
+    writeFileSync(f, 'Intro[^a] paragraph.\n\n| Head A | Head B |\n|---|---|\n| plain | plain |\n| H~2~O | x^2^ |\n| $x^2$ | plain |\n| :smile: | [^b] |\n| ^[inline] | ==hi== |\n| **bold [link *em*](https://example.com)** | שלום עולם |\n\n[^a]: note a\n\n[^b]: note b\n')
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'tc.md', { what: 'tab tc.md' })
+    const caretFar = async () => { await win.locator('.cm-content .cm-line').last().click({ position: { x: 400, y: 2 } }); await win.keyboard.press('Control+End') }   // not ui.focusEditor: it clicks the middle of .cm-content, which is the table widget here (mousedown there moves the caret into the table without focusing the editor)
+    const tbl = win.locator('.cm-content .cm-table-widget')
+    const tableReady = async () => {
+        await caretFar()
+        try { await waitFor(async () => (await tbl.count()) === 1 && (await tbl.locator('svg').count()) > 0, { timeout: 30000, what: 'table widget with the MathJax svg' }) }
+        catch (e) { throw new Error(e.message + ' | ' + await win.evaluate(() => JSON.stringify({ widgets: document.querySelectorAll('.cm-table-widget').length, svg: document.querySelectorAll('.cm-table-widget svg').length, math: [...document.querySelectorAll('.cm-table-widget .cm-math')].map(m => m.className + ' ' + m.innerHTML.slice(0, 80)), lines: [...document.querySelectorAll('.cm-content .cm-line')].map(l => l.innerText).slice(0, 14) }))) }
+    }
+    const cellOf = (re) => win.evaluate((s) => { const c = [...document.querySelectorAll('.cm-table-widget td')].find(x => new RegExp(s).test(x.textContent)); return c ? c.textContent : null }, re.source)
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+
+    await check('TC-1', 'tablecells', 'caret outside: table widget has a real MathJax svg, sub/sup lowered/raised (edge vs plain neighbour), 😄 as span.cm-emoji, footnote refs 2 and 3 next to the paragraph\'s 1, .cm-highlight with a non-transparent background, no raw $ ~ ^ :smile: ==', async () => {
+        await tableReady()
+        const r = await win.evaluate(() => {
+            const t = document.querySelector('.cm-table-widget'), cs = (e) => getComputedStyle(e)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('td'), NodeFilter.SHOW_TEXT); let ref = null; for (let n = tw.nextNode(); n; n = tw.nextNode()) { if (!n.length || el.contains(n) || !(el.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(n, n.length - 1); rg.setEnd(n, n.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }
+            const s = t.querySelector('.cm-subscript'), p = t.querySelector('.cm-superscript'), hl = t.querySelector('.cm-highlight'), mathCell = [...t.querySelectorAll('td')].find(c => c.querySelector('svg'))
+            const body = document.querySelector('.cm-content .cm-line')
+            return {
+                svgPaths: mathCell ? mathCell.querySelectorAll('svg path').length : 0, mjxErr: !!t.querySelector('[data-mjx-error]'), loading: !!t.querySelector('.cm-math-loading'),
+                subBot: s?.getBoundingClientRect().bottom, supBot: p?.getBoundingClientRect().bottom, subRef: s && prevCharBottom(s), supRef: p && prevCharBottom(p),
+                subFs: s && parseFloat(cs(s).fontSize), supFs: p && parseFloat(cs(p).fontSize), bodyFs: parseFloat(cs(body).fontSize), subText: s?.textContent, supText: p?.textContent,
+                emoji: [...t.querySelectorAll('span.cm-emoji')].map(e => ({ t: e.textContent, role: e.getAttribute('role'), label: e.getAttribute('aria-label'), w: e.getBoundingClientRect().width })),
+                tableFn: [...t.querySelectorAll('.cm-footnote-ref')].map(e => e.textContent),
+                paraFn: [...document.querySelectorAll('.cm-content .cm-footnote-ref')].filter(e => !e.closest('.cm-table-widget')).map(e => e.textContent),
+                hlBg: hl && cs(hl).backgroundColor, hlText: hl?.textContent, text: t.innerText,
+            }
+        })
+        assert(r.svgPaths >= 1 && !r.mjxErr && !r.loading, 'math cell has no real svg: ' + JSON.stringify({ paths: r.svgPaths, err: r.mjxErr, loading: r.loading }))
+        assert(r.subRef !== null && r.supRef !== null && r.subBot != null, 'no sub/sup node or no plain text before it to compare with')
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        assert(r.subFs < r.bodyFs && r.supFs < r.bodyFs, `font-size not smaller than body: sub ${r.subFs} sup ${r.supFs} body ${r.bodyFs}`)
+        eq(r.subText, '2', 'subscript content'); eq(r.supText, '2', 'superscript content')
+        eq(r.emoji.length, 1, 'span.cm-emoji count in the table'); eq(r.emoji[0].t, '😄', 'emoji text'); eq(r.emoji[0].role, 'img', 'emoji role'); eq(r.emoji[0].label, 'smile', 'emoji aria-label')
+        assert(r.emoji[0].w > 0, 'emoji glyph has no width')
+        eq(r.paraFn, ['1'], 'paragraph footnote number'); eq(r.tableFn, ['2', '3'], 'table footnote numbers')
+        assert(r.hlBg && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(r.hlBg) && r.hlBg !== 'transparent', '.cm-highlight background is transparent: ' + r.hlBg); eq(r.hlText, 'hi', 'highlight text')
+        for (const s of ['$', '~', '^', ':smile:', '==']) assert(!r.text.includes(s), `raw ${s} visible in the table: ` + JSON.stringify(r.text))
+        await win.screenshot({ path: join(shots, `${target}-tablecells.png`) }).catch(() => {})
+        return `footnotes para ${r.paraFn} / table ${r.tableFn}, highlight bg ${r.hlBg}, sub ${(r.subBot - r.subRef).toFixed(2)} px below / sup ${(r.supRef - r.supBot).toFixed(2)} px above neighbour`
+    })
+    await check('TC-2', 'tablecells', 'row heights: sub/sup row at most 5% taller than the plain row; the math, emoji+footnote and highlight+footnote rows at most 30% taller (numbers reported)', async () => {
+        await tableReady(); await sleep(300)
+        const r = await win.evaluate(() => {
+            const rows = [...document.querySelectorAll('.cm-table-widget tbody tr')], h = (re) => { const t = rows.find(x => re.test(x.textContent)); return t ? t.getBoundingClientRect().height : null }
+            return { plain: rows[0].getBoundingClientRect().height, subsup: h(/H2O/), math: rows.find(x => x.querySelector('svg'))?.getBoundingClientRect().height ?? null, emoji: h(/😄/), hl: h(/hi/) }
+        })
+        const rel = (k) => `${k} ${r[k]?.toFixed(2)} px (x${(r[k] / r.plain).toFixed(3)})`
+        const info = `plain ${r.plain.toFixed(2)} px, ` + ['subsup', 'math', 'emoji', 'hl'].map(rel).join(', ')
+        for (const k of ['subsup', 'math', 'emoji', 'hl']) assert(r[k] != null, 'row not found: ' + k + ' | ' + info)
+        assert(r.subsup <= r.plain * 1.05, 'sub/sup row more than 5% taller than the plain row: ' + info)
+        for (const k of ['math', 'emoji', 'hl']) assert(r[k] <= r.plain * 1.3, `${k} row more than 30% taller than the plain row: ` + info)
+        return info
+    })
+    await check('TC-3', 'tablecells', 'plain click on the <em> inside the cell link: no raw table (widget stays, caret not in the table), the link is followed (openExternal https://example.com); a plain cell click shows the raw table', async () => {
+        await tableReady()
+        await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
+        const a = tbl.locator('a'); eq(await a.count(), 1, 'link count'); eq(await a.getAttribute('href'), 'https://example.com', 'link href')
+        const em = tbl.locator('a em'); eq(await em.count(), 1, 'em inside the link')
+        await em.click(); await sleep(700)
+        const ext = await app.evaluate(() => globalThis.__ext)
+        assert(openedUrl(ext, 'https://example.com'), 'link not followed, openExternal got: ' + JSON.stringify(ext))
+        eq(await tbl.count(), 1, 'table widget gone after clicking the em (raw table shown)')
+        const raw = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |')))
+        assert(!raw, 'raw table lines visible after clicking the em')
+        // control: a plain cell shows the raw table
+        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
+        await tableReady()
+        return 'openExternal ' + JSON.stringify(ext)
+    })
+    await check('TC-4', 'tablecells', 'type a new ref [^c] in the paragraph and its definition at the end: with the caret off the table its footnote numbers shift to 3 and 4 and the paragraph numbers are 1 and 2', async () => {
+        await tableReady()
+        await win.locator('.cm-content .cm-line', { hasText: 'paragraph' }).first().click(); await win.keyboard.press('End')
+        await win.keyboard.type('[^c]')
+        await win.keyboard.press('Control+End'); await win.keyboard.type('\n[^c]: note c\n')
+        await caretFar()
+        await waitFor(async () => (await tbl.count()) === 1 && (await tbl.locator('.cm-footnote-ref').allInnerTexts()).join() === '3,4', { what: 'table footnote numbers 3,4' })
+        const para = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-footnote-ref')].filter(e => !e.closest('.cm-table-widget')).map(e => e.textContent))
+        eq(para.slice(0, 2), ['1', '2'], 'paragraph footnote numbers')
+        return 'paragraph ' + para + ', table ' + (await tbl.locator('.cm-footnote-ref').allInnerTexts())
+    })
+    await check('TC-5', 'tablecells', 'contrast of .cm-highlight text on its (composited) background in the table >= 4.5:1 in light and dark', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await tableReady(); await sleep(300)
+                const p = await win.evaluate(() => {
+                    const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+                    const over = (top, under) => top.rgb.map((c, i) => c * top.a + under[i] * (1 - top.a))
+                    const hl = document.querySelector('.cm-table-widget .cm-highlight')
+                    const chain = []; for (let e = hl; e; e = e.parentElement) chain.push(parse(getComputedStyle(e).backgroundColor))
+                    let under = [255, 255, 255]; for (const c of chain.slice(1).reverse()) under = over(c, under)
+                    return { color: parse(getComputedStyle(hl).color).rgb, bg: over(chain[0], under), rawBg: getComputedStyle(hl).backgroundColor, rawColor: getComputedStyle(hl).color }
+                })
+                const r = ratio(p.color, p.bg)
+                out.push(`${theme} ${r.toFixed(2)} (text ${p.rawColor} on ${p.rawBg} = ${p.bg.map(Math.round)})`)
+                if (r < 4.5) throw new Error(`${theme}: contrast ${r.toFixed(2)} < 4.5 (${out.join(', ')})`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('TC-7', 'tablecells', 'editor blurred, plain click on a table cell: the raw table shows, the editor takes focus, and a typed character lands in the document at the table (then undone)', async () => {
+        await tableReady()
+        await win.locator('button[title="Settings"]').focus()   // real focus elsewhere: a bare blur() lets the editor take focus back on its own
+        assert(await win.evaluate(() => !document.activeElement?.closest('.cm-content')), 'setup: editor still focused after blur')
+        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
+        const focused = await win.evaluate(() => !!document.activeElement?.closest('.cm-content'))
+        await win.keyboard.type('Z'); await sleep(300)
+        const lines = () => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].map(l => l.innerText))
+        const hit = (await lines()).some(l => /^Z\|\s*Head A/.test(l))
+        try { assert(focused, 'editor not focused after the cell click (typing goes nowhere)'); assert(hit, 'typed Z did not land at the table: ' + JSON.stringify((await lines()).slice(0, 6))) }
+        finally { if (hit) { await win.keyboard.press('Control+z'); await sleep(300) } }
+        assert(!(await lines()).some(l => /^Z\|/.test(l)), 'undo left the Z behind')
+        await tableReady()
+        return 'focused after click: ' + focused + ', Z landed at the table start'
+    })
+    await check('TC-6', 'tablecells', 'Hebrew cell stays right-to-left (שלום drawn right of עולם, cell text intact); no page errors through the whole scenario', async () => {
+        await tableReady()
+        const r = await win.evaluate(() => {
+            const td = [...document.querySelectorAll('.cm-table-widget td')].find(c => /שלום/.test(c.textContent)), n = td.firstChild
+            const box = (a, b) => { const rg = document.createRange(); rg.setStart(n, a); rg.setEnd(n, b); return rg.getBoundingClientRect() }
+            const t = n.textContent, i = t.indexOf('עולם'), j = t.indexOf('שלום')
+            return { text: td.textContent, dir: getComputedStyle(td).direction, firstX: box(j, j + 4).left, secondX: box(i, i + 4).left }
+        })
+        eq(r.text, 'שלום עולם', 'Hebrew cell text')
+        assert(r.firstX > r.secondX, `Hebrew words not laid out right-to-left: שלום x=${r.firstX} עולם x=${r.secondX}`)
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return `cell direction ${r.dir}, שלום x ${r.firstX.toFixed(1)} > עולם x ${r.secondX.toFixed(1)}`
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('tablecells', e) }
+
+// ---------------------------------------------------------------- scenario: safe HTML tags (F7, Docs/internal/html-tags-spec.md)
+// Real layout, computed styles, caret reveal, export file: what jsdom cannot cover.
+if (want('htmltags')) try {
+    const Uh = tmp('nf-ht-u-'), Wh = tmp('nf-ht-w-'); cleanup.push(Uh, Wh)
+    const { app, win } = await L(Uh)
+    const errs0 = pageErrors.length
+    const f = join(Wh, 'ht.md')
+    const PARA = 'Press <kbd>Ctrl</kbd>+<kbd style="color:red" onclick="x()">C</kbd>, <mark>marked</mark>, <u>under</u>, <ins>added</ins>, <small>small</small>, <abbr title="HyperText Markup Language">HTML</abbr>, H<sub>2</sub>O, x<sup>2</sup>.'
+    const HEB = 'שלום <kbd>מקש</kbd> ו<mark>סימון</mark> עולם'
+    const DET = '<details><summary>S</summary>body</details>'
+    writeFileSync(f, `Plain body line here.\n\n${PARA}\n\n${HEB}\n\n${DET}\n\n| Head A | Head B |\n|---|---|\n| <kbd>K</kbd> | plain |\n\n<script>x()</script>\n\nTail plain line.\n`)
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'ht.md', { what: 'tab ht.md' })
+    const caretFar = async () => { await win.locator('.cm-content .cm-line').last().click({ position: { x: 400, y: 2 } }); await win.keyboard.press('Control+End') }   // not ui.focusEditor: it clicks the middle of .cm-content, which may be the table widget
+    const paraLine = () => win.locator('.cm-content .cm-line', { hasText: /^Press / }).first()
+    const rendered = async () => { await caretFar(); await waitFor(() => win.evaluate(() => { const l = [...document.querySelectorAll('.cm-content .cm-line')].find(x => /^Press /.test(x.innerText)); return !!l && !!l.querySelector('.cm-html-kbd') && !!l.querySelector('.cm-html-abbr') && !!l.querySelector('.cm-superscript') && !l.innerText.includes('<') && !!document.querySelector('.cm-table-widget .cm-html-kbd') }), { what: 'tags rendered with the caret elsewhere' }) }
+    const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
+    const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
+    const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
+        await win.locator('button[title="Settings"]').click()
+        await win.locator('select', { has: win.locator('option[value="dark"]') }).selectOption(t)
+        await win.locator('[class*=backButton]').click()
+    }
+    const lineH = (re) => win.evaluate((s) => [...document.querySelectorAll('.cm-content .cm-line')].find(l => new RegExp(s).test(l.innerText)).getBoundingClientRect().height, re.source)
+    // caret inside the first <kbd>Ctrl</kbd>: Home, 6 x Right reaches the tag start (touching: raw), 6 more lands inside Ctrl
+    const caretInKbd = async () => {
+        await paraLine().click({ position: { x: 2, y: 8 } }); await win.keyboard.press('Home')
+        for (let i = 0; i < 6; i++) await win.keyboard.press('ArrowRight')
+        await waitFor(() => win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('<kbd>Ctrl</kbd>'))), { what: 'raw <kbd>Ctrl</kbd> with the caret touching it' })
+        for (let i = 0; i < 6; i++) await win.keyboard.press('ArrowRight')
+        await sleep(200)
+    }
+
+    await check('HT-1', 'htmltags', 'caret elsewhere: no tag text visible; .cm-html-kbd has a non-transparent background, a visible border and a colour (light-theme kbd colour equals the body colour, so no inequality is asserted; a style="color:red" in the source is ignored, no onclick/style attribute applied); .cm-highlight covers "marked"; u and ins underlined; small smaller than body; abbr title = "HyperText Markup Language"; sub lowered / sup raised vs the plain neighbour', async () => {
+        await rendered()
+        const r = await win.evaluate(() => {
+            const fx = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)), plain = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /Plain body line/.test(l.innerText)), cs = (e) => getComputedStyle(e)
+            const prevCharBottom = (el) => { const tw = document.createTreeWalker(el.closest('.cm-line'), NodeFilter.SHOW_TEXT); let ref = null; for (let t = tw.nextNode(); t; t = tw.nextNode()) { if (!t.length || el.contains(t) || !(el.compareDocumentPosition(t) & Node.DOCUMENT_POSITION_PRECEDING)) continue; const rg = document.createRange(); rg.setStart(t, t.length - 1); rg.setEnd(t, t.length); const b = rg.getBoundingClientRect(); if (b.width > 0) ref = b.bottom } return ref }
+            const q = (s) => fx.querySelector(s), kbds = [...fx.querySelectorAll('.cm-html-kbd')], s = q('.cm-subscript'), p = q('.cm-superscript')
+            return {
+                text: fx.innerText, kbdTexts: kbds.map(k => k.textContent), kbdBg: kbds.map(k => cs(k).backgroundColor), kbdColor: kbds.map(k => cs(k).color), kbdBorderW: kbds.map(k => cs(k).borderTopWidth + '/' + cs(k).borderBottomWidth), kbdBorderC: kbds.map(k => cs(k).borderTopColor), kbdBorderS: kbds.map(k => cs(k).borderTopStyle),
+                bodyColor: cs(plain).color, attrs: [...fx.querySelectorAll('*')].filter(e => e.hasAttribute('onclick') || e.hasAttribute('style')).length, hl: q('.cm-highlight')?.textContent,
+                u: q('.cm-html-u') && [q('.cm-html-u').textContent, cs(q('.cm-html-u')).textDecorationLine], ins: q('.cm-html-ins') && [q('.cm-html-ins').textContent, cs(q('.cm-html-ins')).textDecorationLine],
+                smallFs: q('.cm-html-small') && parseFloat(cs(q('.cm-html-small')).fontSize), smallText: q('.cm-html-small')?.textContent, bodyFs: parseFloat(cs(plain).fontSize),
+                abbr: q('.cm-html-abbr') && [q('.cm-html-abbr').textContent, q('.cm-html-abbr').getAttribute('title')],
+                subBot: s?.getBoundingClientRect().bottom, supBot: p?.getBoundingClientRect().bottom, subRef: s && prevCharBottom(s), supRef: p && prevCharBottom(p), subText: s?.textContent, supText: p?.textContent,
+            }
+        })
+        for (const t of ['<', '>', 'kbd>', 'mark>', 'onclick', 'color:red', 'title=']) assert(!r.text.includes(t), `tag/attr text "${t}" visible with the caret elsewhere: ` + JSON.stringify(r.text))
+        eq(r.kbdTexts, ['Ctrl', 'C'], '.cm-html-kbd contents')
+        for (const bg of r.kbdBg) assert(bg !== 'transparent' && !/^rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)$/.test(bg), '.cm-html-kbd background transparent: ' + JSON.stringify(r.kbdBg))
+        assert(r.kbdBorderW.every(w => w.split('/').every(x => parseFloat(x) >= 1)) && r.kbdBorderS.every(x => x !== 'none' && x !== 'hidden') && r.kbdBorderC.every(c => !/,\s*0\)$/.test(c)), 'kbd border not visible: ' + JSON.stringify([r.kbdBorderW, r.kbdBorderS, r.kbdBorderC]))
+        eq(r.kbdColor[0], r.kbdColor[1], 'both kbd colours (source style="color:red" must be ignored)')
+        assert(!/255,\s*0,\s*0/.test(r.kbdColor[1]), 'kbd took the source style colour: ' + r.kbdColor[1]); eq(r.attrs, 0, 'elements with onclick/style attributes in the line')
+        eq(r.hl, 'marked', '.cm-highlight text')
+        eq(r.u?.[0], 'under', 'u text'); assert(r.u[1].includes('underline'), 'u not underlined: ' + r.u[1])
+        eq(r.ins?.[0], 'added', 'ins text'); assert(r.ins[1].includes('underline'), 'ins not underlined: ' + r.ins[1])
+        eq(r.smallText, 'small', 'small text'); assert(r.smallFs < r.bodyFs, `small font-size not smaller than body: ${r.smallFs} vs ${r.bodyFs}`)
+        eq(r.abbr?.[0], 'HTML', 'abbr text'); eq(r.abbr[1], 'HyperText Markup Language', 'abbr title')
+        assert(r.subRef !== null && r.supRef !== null && r.subBot != null && r.supBot != null, 'no sub/sup node or plain text before it to compare with')
+        assert(r.subBot >= r.subRef + 1, `subscript bottom not >= 1 px below its plain neighbour's: ${r.subBot.toFixed(2)} vs ${r.subRef.toFixed(2)}`)
+        assert(r.supBot <= r.supRef - 1, `superscript bottom not >= 1 px above its plain neighbour's: ${r.supBot.toFixed(2)} vs ${r.supRef.toFixed(2)}`)
+        eq(r.subText, '2', 'sub text'); eq(r.supText, '2', 'sup text')
+        await win.screenshot({ path: join(shots, `${target}-htmltags.png`) }).catch(() => {})
+        return `kbd bg ${r.kbdBg[0]} border ${r.kbdBorderW[0]} ${r.kbdBorderC[0]} colour ${r.kbdColor[0]} (body ${r.bodyColor}), small ${r.smallFs}px vs body ${r.bodyFs}px, sub ${(r.subBot - r.subRef).toFixed(2)} px below / sup ${(r.supRef - r.supBot).toFixed(2)} px above neighbour`
+    })
+    await check('HT-2', 'htmltags', 'line height of the tag line is at most 5% above a plain line and stays the same (+-1 px) with the caret inside <kbd>Ctrl</kbd> (raw)', async () => {
+        await rendered(); await sleep(200)
+        const plainH = await lineH(/Plain body line/), fxH = await lineH(/^Press /)
+        const info = `plain ${plainH.toFixed(2)} px, tag line ${fxH.toFixed(2)} px (x${(fxH / plainH).toFixed(3)})`
+        assert(fxH <= plainH * 1.05, 'tag line more than 5% taller than a plain line: ' + info)
+        await caretInKbd()
+        const rawH = await lineH(/^Press /)
+        assert(Math.abs(rawH - fxH) <= 1, `line height changes when the caret enters it (text below jumps): ${info}, caret on line ${rawH.toFixed(2)} px`)
+        return info + `, caret on line ${rawH.toFixed(2)} px`
+    })
+    await check('HT-3', 'htmltags', 'caret inside <kbd>Ctrl</kbd>: raw <kbd> and </kbd> show wrapped in cm-faint-syntax; the other pairs on the line (second kbd, mark, u, ins, small, abbr, sub, sup) stay rendered', async () => {
+        await rendered(); await caretInKbd()
+        const r = await win.evaluate(() => {
+            const fx = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)), q = (s) => fx.querySelectorAll(s).length
+            return { text: fx.innerText, faint: [...fx.querySelectorAll('.cm-faint-syntax')].map(e => e.textContent), kbd: [...fx.querySelectorAll('.cm-html-kbd')].map(e => e.textContent), hl: q('.cm-highlight'), u: q('.cm-html-u'), ins: q('.cm-html-ins'), small: q('.cm-html-small'), abbr: q('.cm-html-abbr'), sub: q('.cm-subscript'), sup: q('.cm-superscript') }
+        })
+        assert(r.text.includes('<kbd>Ctrl</kbd>'), 'raw <kbd>Ctrl</kbd> not shown: ' + JSON.stringify(r.text))
+        assert(r.faint.includes('<kbd>') && r.faint.includes('</kbd>'), 'raw tags not cm-faint-syntax: ' + JSON.stringify(r.faint))
+        for (const t of ['<mark>', '<u>', '<ins>', '<small>', '<abbr', '<sub>', '<sup>', 'onclick']) assert(!r.text.includes(t), `other pair ${t} went raw: ` + JSON.stringify(r.text))
+        assert(r.kbd.includes('C'), 'second kbd not rendered: ' + JSON.stringify(r.kbd))
+        eq([r.hl, r.u, r.ins, r.small, r.abbr, r.sub, r.sup], [1, 1, 1, 1, 1, 1, 1], 'rendered mark/u/ins/small/abbr/sub/sup counts')
+        await caretFar()
+        return 'faint: ' + JSON.stringify(r.faint)
+    })
+    await check('HT-4', 'htmltags', 'contrast of .cm-html-kbd text on its (composited) background >= 4.5:1 in light and dark', async () => {
+        try {
+            const out = []
+            for (const theme of ['light', 'dark']) {
+                await setTheme(theme)
+                await waitFor(() => win.evaluate((t) => document.body.getAttribute('data-theme') === t, theme), { what: `body data-theme=${theme}` })
+                await rendered(); await sleep(300)
+                const p = await win.evaluate(() => {
+                    const parse = (s) => { const m = s.match(/[\d.]+/g).map(Number); return { rgb: m.slice(0, 3), a: m.length > 3 ? m[3] : 1 } }
+                    const over = (top, under) => top.rgb.map((c, i) => c * top.a + under[i] * (1 - top.a))
+                    const k = [...document.querySelectorAll('.cm-content .cm-line')].find(l => /^Press /.test(l.innerText)).querySelector('.cm-html-kbd')
+                    const chain = []; for (let e = k; e; e = e.parentElement) chain.push(parse(getComputedStyle(e).backgroundColor))
+                    let under = [255, 255, 255]; for (const c of chain.slice(1).reverse()) under = over(c, under)
+                    return { color: parse(getComputedStyle(k).color).rgb, bg: over(chain[0], under), rawBg: getComputedStyle(k).backgroundColor, rawColor: getComputedStyle(k).color }
+                })
+                const r = ratio(p.color, p.bg)
+                out.push(`${theme} ${r.toFixed(2)} (text ${p.rawColor} on ${p.rawBg} = ${p.bg.map(Math.round)})`)
+                if (r < 4.5) throw new Error(`${theme}: contrast ${r.toFixed(2)} < 4.5 (${out.join(', ')})`)
+            }
+            return out.join(', ')
+        } finally { await setTheme('light').catch(() => {}) }
+    })
+    await check('HT-5', 'htmltags', 'File > Export to HTML: <kbd>, <mark>, <u>, <ins>, <small>, <abbr title="HyperText Markup Language">, <details> present; no style= / on...= / color:red from the source (the kbd with style and onclick comes out plain); no <script', async () => {
+        await caretFar()
+        const dst = join(Wh, 'ht-out.html'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to HTML', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 60000, what: 'Export to HTML file' })
+        const h = readFileSync(dst, 'utf8'), b = h.slice(h.indexOf('<body')), flat = b.slice(0, 300).replace(/\s+/g, ' ')
+        for (const s of ['<kbd>Ctrl</kbd>', '<kbd>C</kbd>', '<kbd>K</kbd>', '<mark>marked</mark>', '<u>under</u>', '<ins>added</ins>', '<small>small</small>', '<abbr title="HyperText Markup Language">HTML</abbr>', '<details>', '<summary>S</summary>', '<sub>2</sub>', '<sup>2</sup>']) assert(b.includes(s), 'export missing ' + s + ': ' + flat)
+        assert(!/<[^>]*\sstyle\s*=/i.test(b), 'style= attribute in the exported body: ' + (b.match(/<[^>]*\sstyle\s*=[^>]*>/i) || [''])[0].slice(0, 200))
+        assert(!/<[^>]*\son[a-z]+\s*=/i.test(b), 'on...= attribute in the exported body: ' + (b.match(/<[^>]*\son[a-z]+\s*=[^>]*>/i) || [''])[0].slice(0, 200))
+        assert(!b.includes('color:red') && !b.includes('onclick') && !b.includes('x()'), 'source style/handler/script text leaked into the export')
+        assert(!/<script/i.test(h), 'export contains <script')
+    })
+    await check('HT-6', 'htmltags', '<details> line stays raw source (no widget, no details/summary element in the editor); the table cell shows span.cm-html-kbd "K"; the Hebrew line stays RTL with kbd and mark rendered; no page errors through the scenario', async () => {
+        await rendered()
+        const r = await win.evaluate((DET) => {
+            const lines = [...document.querySelectorAll('.cm-content .cm-line')], d = lines.find(l => l.innerText.includes('<details>')), h = lines.find(l => /שלום/.test(l.innerText)), cs = (e) => getComputedStyle(e)
+            const td = document.querySelector('.cm-table-widget td span.cm-html-kbd')
+            return {
+                det: d && d.innerText, detHas: !!d && DET === d.textContent, detEls: document.querySelectorAll('.cm-content details, .cm-content summary').length, detSpans: d ? d.querySelectorAll('.cm-html-kbd, .cm-highlight, .cm-widgetBuffer, [class*=widget]').length : -1,
+                cell: td?.textContent, cellTag: td?.closest('td')?.textContent,
+                heb: h && { dir: cs(h).direction, rtl: h.matches(':dir(rtl)'), text: h.innerText, kbd: h.querySelector('.cm-html-kbd')?.textContent, mark: h.querySelector('.cm-highlight')?.textContent },
+            }
+        }, DET)
+        assert(r.det !== null && r.detHas, 'details line is not the raw source: ' + JSON.stringify(r.det)); eq(r.detEls, 0, 'details/summary elements in the editor'); eq(r.detSpans, 0, 'rendered spans/widgets on the details line')
+        eq(r.cell, 'K', 'table cell span.cm-html-kbd text'); eq(r.cellTag, 'K', 'table cell text (no raw tags)')
+        assert(r.heb && (r.heb.dir === 'rtl' || r.heb.rtl), 'Hebrew line not rtl: ' + JSON.stringify(r.heb))
+        eq(r.heb.kbd, 'מקש', 'Hebrew kbd'); eq(r.heb.mark, 'סימון', 'Hebrew mark'); assert(!r.heb.text.includes('<') && r.heb.text.indexOf('שלום') < r.heb.text.indexOf('עולם'), 'Hebrew line text: ' + JSON.stringify(r.heb.text))
+        const pe = pageErrors.slice(errs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return `Hebrew direction ${r.heb.dir}, details raw, cell kbd "${r.cell}"`
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('htmltags', e) }
 
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
-if (want('session')) {
+if (want('session')) try {
     const Us = tmp('nf-s-u-'), Ws = tmp('nf-s-w-'); cleanup.push(Us, Ws)
     const A = join(Ws, 'alpha.md'); writeFileSync(A, 'alpha\n')
     const DOT = join(Ws, 'my..notes.md'); writeFileSync(DOT, 'dot base\n')
@@ -1164,10 +1920,10 @@ if (want('session')) {
         eq(await app.evaluate(() => globalThis.__picker), 0, 'picker opened'); assert(!/read: denied/.test(logOf(Us)), 'denied read in log'); assert((await ui.toastText(win)).trim() === '', 'toast: ' + await ui.toastText(win))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('session', e) }
 
 // ---------------------------------------------------------------- scenario: close races
-if (want('close')) {
+if (want('close')) try {
     for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         const Uc = tmp('nf-c-u-'), Wc = tmp('nf-c-w-'); cleanup.push(Uc, Wc)
         const F = join(Wc, 'dirty.md'); writeFileSync(F, 'base\n')
@@ -1198,10 +1954,10 @@ if (want('close')) {
         }, { smoke: via === 'x' })
         await app.close().catch(() => {})
     }
-}
+} catch (e) { await scenarioCrashed('close', e) }
 
 // ---------------------------------------------------------------- scenario: opening files right after launch
-if (want('race')) {
+if (want('race')) try {
     const Ur = tmp('nf-r-u-'), Wr = tmp('nf-r-w-'); cleanup.push(Ur, Wr)
     const f1 = join(Wr, 'first-doc.md'), f2 = join(Wr, 'second-doc.md'); writeFileSync(f1, 'FIRST-DOC-BODY\n'); writeFileSync(f2, 'SECOND-DOC-BODY\n')
     const { app, win } = await L(Ur, { settle: 0 })
@@ -1214,10 +1970,10 @@ if (want('race')) {
         assert(t.includes('SECOND-DOC-BODY') && !t.includes('FIRST-DOC-BODY'), 'editor shows the wrong document: ' + JSON.stringify(t.slice(0, 40)))
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('race', e) }
 
 // ---------------------------------------------------------------- scenario: race with a NON-EMPTY saved session
-if (want('race2')) {
+if (want('race2')) try {
     const { cpSync } = await import('node:fs')
     const Ub = tmp('nf-r2-base-'), Wr = tmp('nf-r2-w-'); cleanup.push(Ub, Wr)
     const F = join(Wr, 'early.md'); writeFileSync(F, 'EARLY-FILE-BODY\n')
@@ -1299,16 +2055,16 @@ if (want('race2')) {
         })
         await app.close().catch(() => {})
     }
-}
+} catch (e) { await scenarioCrashed('race2', e) }
 
 // ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
 const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: false })
-if (want('failover') || want('multiwin')) await multiWindow(scenarioCtx())
-if (want('failover') || want('orphan')) await orphanRows(scenarioCtx())
-if (want('override')) await overrideScenarios(scenarioCtx())
+if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) }
+if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) }
+if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) }
 
 // ---------------------------------------------------------------- scenario: second window
-if (want('newwin')) {
+if (want('newwin')) try {
     const Un = tmp('nf-n-u-'); cleanup.push(Un)
     const { app, win } = await L(Un)
     await check('TAB-2', 'tabs', 'CHANGELOG (corrected): tabs keep a fixed width (3 tabs ~160px each), "+" is pinned at the far right of the tab bar', async () => {
@@ -1348,10 +2104,10 @@ if (want('newwin')) {
         assert(!/Blocked (window\.open|open-external|unsafe)/.test(logOf(Un)), 'a block was logged: ' + (logOf(Un).match(/.*Blocked (window\.open|open-external|unsafe).*/) || [])[0])
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('newwin', e) }
 
 // ---------------------------------------------------------------- scenario: single instance (A4)
-if (want('single')) {
+if (want('single')) try {
     const Ui = tmp('nf-i-u-'), Xi = tmp('nf-i-x-'); cleanup.push(Ui, Xi)
     const { app } = await L(Ui, { env: { XDG_CONFIG_HOME: Xi } })
     await check('SINGLE-1', 'launch', 'launching a second instance focuses the existing window: second process exits, no second window, no second start block (A4)', async () => {
@@ -1365,10 +2121,10 @@ if (want('single')) {
         return 'second instance exit code ' + code
     })
     await app.close().catch(() => {})
-}
+} catch (e) { await scenarioCrashed('single', e) }
 
 // ---------------------------------------------------------------- scenario: command-line files
-if (want('argv')) {
+if (want('argv')) try {
 // open files passed on the command line (OS default-app / "Open with"); own profile so it can't share the main run's instance lock
 await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab (name + content); a second launch with another path while running opens in the SAME window, no 2nd window', async () => {
     const UA = tmp('nf-ua-'), WA = tmp('nf-wa-'); cleanup.push(UA, WA)
@@ -1389,10 +2145,10 @@ await check('ARGV-1', 'launch', 'launching with a .md path arg opens it in a tab
         assert((await ui.editorText(w1)).includes('ARGV TWO BODY'), 'second file content missing')
     } finally { await a1.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('argv', e) }
 
 // ---------------------------------------------------------------- scenario: close while the session load is still running
-if (want('closeload')) {
+if (want('closeload')) try {
 // Cold boot with a slow keyring: the session load (which decrypts the stored key first) is still running when the user types and closes.
 // The slow decrypt is the RACE-3s mechanism (ipcMain override from the test side, no app hook), 2s per call (the long-wait cases are in `closewait`).
 for (const via of ['x', 'menu-exit', 'menu-close-window']) {
@@ -1432,10 +2188,10 @@ for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         return res.ms + 'ms'
     })
 }
-}
+} catch (e) { await scenarioCrashed('closeload', e) }
 
 // ---------------------------------------------------------------- scenario: close waits for a slow save (no forced close; user is asked after 15s)
-if (want('closewait')) {
+if (want('closewait')) try {
 // Same slow-keyring mechanism as closeload, but the decrypt is held far longer than the old 3s limit, or never released.
 // main.js asks (dialog.showMessageBox, stubbed here: the real one is native) only after CLOSE_ASK_AFTER_MS = 15000.
 const Ub = tmp('nf-cw-base-'); cleanup.push(Ub)
@@ -1570,10 +2326,10 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
         return 'closed at ' + (Date.now() - c.t0) + 'ms'
     } finally { await c.app.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('closewait', e) }
 
 // ---------------------------------------------------------------- scenario: the page reloads in the middle of a close
-if (want('closereload')) {
+if (want('closereload')) try {
 // The close request reaches a page that is mid-reload and is lost; main must re-deliver it once the NEW page can
 // receive it. If the page's close subscription attaches after did-finish-load, a resend keyed on did-finish-load
 // is lost too and the user waits for the 15s "still saving" dialog. The first flush-before-close is swallowed in
@@ -1623,10 +2379,10 @@ async function survives2(Uc, MARK) {
         return seen.some(t => t.includes(MARK))
     } finally { await r2.app.close().catch(() => {}) }
 }
-}
+} catch (e) { await scenarioCrashed('closereload', e) }
 
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
-if (want('legacykey')) {
+if (want('legacykey')) try {
 // The secure key blob written through the old sync safeStorage API must stay readable by this build's async API.
 // Needs an older packaged build: NF_LEGACY_BIN=<path> (default: the installed /opt/Notepad Flux/notepad-flux if it exists). Skipped loudly otherwise.
 const legacyBin = process.env.NF_LEGACY_BIN || (existsSync('/opt/Notepad Flux/notepad-flux') ? '/opt/Notepad Flux/notepad-flux' : '')
@@ -1659,9 +2415,9 @@ else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electr
         return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
     } finally { await app.close().catch(() => {}) }
 })
-}
+} catch (e) { await scenarioCrashed('legacykey', e) }
 
-if (want('updates')) {
+if (want('updates')) try {
 // U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
 
 const UP = tmp('nf-upd-'); cleanup.push(UP)
@@ -1694,10 +2450,327 @@ try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
 } finally { await app.close().catch(() => {}) }
-}
+} catch (e) { await scenarioCrashed('updates', e) }
+
+// ---------------------------------------------------------------- scenario: session data path + size + Open folder (S1, Docs/internal/data-path-spec.md)
+if (want('datainfo')) try {
+    const Ud = tmp('nf-di-u-'), Xd = tmp('nf-di-x-'); cleanup.push(Ud, Xd)
+    const { app, win } = await L(Ud)
+    const errs0 = pageErrors.length
+    // du-style: sum of regular-file sizes (lstat, symlinks not followed, unreadable skipped) under the folder
+    const du = (d) => { let n = 0; const go = (p) => { let es; try { es = readdirSync(p, { withFileTypes: true }) } catch { return } for (const e of es) { const f = join(p, e.name); try { if (e.isDirectory()) go(f); else { const s = lstatSync(f); if (s.isFile()) n += s.size } } catch { /* vanished */ } } }; go(d); return n }
+    const UNITS = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+    const closeSettings = () => win.locator('[class*=backButton]').click()
+    const sizeText = async () => { const t = await win.locator('[class*=overlay]').getByText(/^\d+(\.\d)? (B|KB|MB|GB)$|^Size unavailable$|^Calculating…$/).first().innerText({ timeout: 5000 }); return t.trim() }
+    const sizeBytes = (t) => { const m = /^(\d+(?:\.\d)?) (B|KB|MB|GB)$/.exec(t); assert(m, 'not a formatted size: ' + JSON.stringify(t)); return Number(m[1]) * UNITS[m[2]] }
+    const stubOpen = (ret = '') => app.evaluate(({ shell }, r) => { globalThis.__open = []; shell.openPath = async (p) => { globalThis.__open.push(p); return r } }, ret)
+    const opened = () => app.evaluate(() => globalThis.__open)
+    // Raw ipcRenderer in a throwaway hidden window (custom preload written by the test), so the channels can be hit
+    // with arguments / from other pages. The real preload bridge is not reachable from a sub-frame (the mermaid frame
+    // has no electronAPI, see MM-*), so a sub-frame sender cannot be produced; a non-own top frame stands in for it.
+    const rawPreload = join(Xd, 'raw-preload.cjs')
+    writeFileSync(rawPreload, "const { contextBridge, ipcRenderer } = require('electron'); contextBridge.exposeInMainWorld('raw', { invoke: (c, ...a) => ipcRenderer.invoke(c, ...a) })\n")
+    const foreign = join(Xd, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
+    const rawCalls = (url, calls) => app.evaluate(async ({ BrowserWindow }, { preload, url, calls }) => {
+        const w = new BrowserWindow({ show: false, webPreferences: { preload, sandbox: true, contextIsolation: true } })
+        try {
+            await w.loadURL(url)
+            const out = []
+            for (const [ch, ...a] of calls) out.push(await w.webContents.executeJavaScript(`window.raw.invoke(${JSON.stringify(ch)}, ...${JSON.stringify(a)}).then(v => ({ ok: v }), e => ({ err: String((e && e.message) || e) }))`))
+            return out
+        } finally { w.destroy() }
+    }, { preload: rawPreload, url, calls })
+    const ownUrl = (await ui.mainWindows(app)).find(w => /index\.html/.test(w.url)).url.split('#')[0].split('?')[0]
+
+    await check('DATA-1', 'datainfo', 'Settings > Session data shows exactly the NOTEPAD_FLUX_USER_DATA folder in a dir=ltr element, plus an Open folder button; no page error', async () => {
+        await openSettings()
+        const row = win.locator('[class*=overlay] [dir=ltr]').filter({ hasText: Ud })
+        await row.first().waitFor({ timeout: 5000 })
+        const texts = await win.locator('[class*=overlay] [dir=ltr]').allInnerTexts()
+        assert(texts.some(t => t.trim() === Ud), 'no dir=ltr element with exactly ' + Ud + ': ' + JSON.stringify(texts))
+        assert(await win.getByRole('button', { name: /open folder/i }).isVisible(), 'Open folder button not visible')
+        await win.screenshot({ path: join(shots, `${target}-datainfo-settings.png`) }).catch(() => {})
+    }, { smoke: true })
+    await check('DATA-2', 'datainfo', 'the size is above 0 and within 5% (+1 decimal of rounding) of a du-style sum the test computes over that folder', async () => {
+        await waitFor(async () => /^\d/.test(await sizeText()), { what: 'size loaded' })
+        const t = await sizeText()
+        const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+        const lo = Math.min(du(Ud), api.bytes), hi = Math.max(du(Ud), api.bytes)   // the app keeps writing; bracket it
+        assert(api.bytes > 0, 'getDataInfo bytes ' + api.bytes)
+        eq(api.path, Ud, 'getDataInfo path')
+        const shown = sizeBytes(t); const unit = UNITS[t.split(' ')[1]]
+        assert(shown > 0, 'size shown as ' + t)
+        assert(shown >= lo * 0.95 - unit * 0.05 && shown <= hi * 1.05 + unit * 0.05, `shown ${t} (${shown} B) vs du ${lo}..${hi} B`)
+        assert(api.bytes >= lo * 0.95 && api.bytes <= hi * 1.05, `getDataInfo bytes ${api.bytes} vs du ${lo}..${hi}`)
+        return `${t}; du ${lo}..${hi} B`
+    })
+    await check('DATA-3', 'datainfo', 'Open folder calls shell.openPath once with exactly the userData path (stubbed: nothing really opens)', async () => {
+        await stubOpen()
+        await win.getByRole('button', { name: /open folder/i }).click()
+        await waitFor(async () => (await opened()).length === 1, { what: 'openPath call' })
+        await sleep(300)
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+    })
+    await check('DATA-4', 'datainfo', 'reopening Settings asks again: a 3 MB file added to the folder makes the size grow by about 3 MB', async () => {
+        const before = sizeBytes(await sizeText())
+        await closeSettings(); writeFileSync(join(Ud, 'nf-data-grow.bin'), Buffer.alloc(3 * 1024 * 1024, 1))
+        await openSettings()
+        await waitFor(async () => { const t = await sizeText(); return /^\d/.test(t) && sizeBytes(t) - before > 2.5 * 1024 * 1024 }, { what: 'size grew after reopen' })
+        const grew = sizeBytes(await sizeText()) - before
+        assert(grew < 3.6 * 1024 * 1024, 'grew by ' + grew)
+        rmSync(join(Ud, 'nf-data-grow.bin'), { force: true })
+    })
+    await check('DATA-5', 'datainfo', 'preload bridge: openDataFolder drops any argument the page passes (still only userData)', async () => {
+        await stubOpen()
+        const r = await win.evaluate(async () => window.electronAPI.openDataFolder('/etc'))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+        assert(r && r.ok === true, 'result ' + JSON.stringify(r))
+        await win.evaluate(async () => window.electronAPI.getDataInfo('/etc'))   // must not throw either
+    })
+    await check('DATA-6', 'datainfo', 'own page, raw channel: get-data-info returns {path, bytes}; open-data-folder("/etc") (and other junk) still opens only userData; a failed openPath comes back as { ok: false, error: <openPath string> }', async () => {
+        await stubOpen()
+        const [info, o1, o2, o3] = await rawCalls(ownUrl, [['get-data-info'], ['open-data-folder', '/etc'], ['open-data-folder', { path: '/etc' }, '/'], ['open-data-folder']])
+        assert(!info.err && info.ok.path === Ud && info.ok.bytes > 0, 'get-data-info ' + JSON.stringify(info))
+        for (const o of [o1, o2, o3]) assert(!o.err && o.ok && o.ok.ok === true, 'open-data-folder ' + JSON.stringify(o))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud, Ud, Ud]), 'openPath calls')
+        await stubOpen('Failed to open path')
+        const [bad] = await rawCalls(ownUrl, [['open-data-folder']])
+        eq(JSON.stringify(bad), JSON.stringify({ ok: { ok: false, error: 'Failed to open path' } }), 'openPath error shape { ok: false, error }')
+    })
+    await check('DATA-7', 'datainfo', 'a page that is not the app (data: URL, other local file:) is denied on both channels with "Access denied"; nothing is opened', async () => {
+        await stubOpen()
+        for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {
+            const [a, b] = await rawCalls(url, [['get-data-info'], ['open-data-folder']])
+            assert(a.err && /Access denied/.test(a.err), url + ' get-data-info: ' + JSON.stringify(a))
+            assert(b.err && /Access denied/.test(b.err), url + ' open-data-folder: ' + JSON.stringify(b))
+        }
+        eq((await opened()).length, 0, 'openPath calls from denied senders')
+    })
+    await check('DATA-9', 'datainfo', 'symlinks / junctions inside the folder are not followed: a link to a folder holding a 5 MB file adds (almost) nothing to the size', async () => {
+        const big = tmp('nf-di-big-'); cleanup.push(big); writeFileSync(join(big, 'big.bin'), Buffer.alloc(5 * 1024 * 1024, 2))
+        const link = join(Ud, 'nf-data-link'); symlinkSync(big, link, 'junction')
+        try {
+            const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+            const base = du(Ud)   // du skips links too; the app may write a little meanwhile
+            assert(api.bytes < base + 1024 * 1024, `getDataInfo ${api.bytes} B vs du ${base} B: the link target (5 MB) was followed`)
+        } finally { rmSync(link, { force: true, recursive: false }) }
+    })
+    await check('DATA-10', 'datainfo', '50 concurrent getDataInfo() calls share one in-flight walk: all resolve to the same {path, bytes, truncated}, and main.log gains at most 2 "data-info walk" lines', async () => {
+        const walks = () => (logOf(Ud).match(/data-info walk/g) || []).length
+        await sleep(500); const w0 = walks()
+        const rs = await win.evaluate(() => Promise.all(Array.from({ length: 50 }, () => window.electronAPI.getDataInfo())))
+        await sleep(800)
+        eq(rs.length, 50, 'results')
+        const first = JSON.stringify(rs[0]); assert(rs[0].bytes > 0 && rs[0].path, 'first result ' + first)
+        assert(rs.every(r => JSON.stringify(r) === first), 'results differ: ' + [...new Set(rs.map(r => JSON.stringify(r)))].join(' | '))
+        const n = walks() - w0
+        assert(n >= 1 && n <= 2, n + ' "data-info walk" lines in main.log for 50 concurrent calls (want 1..2)')
+        return n + ' walk(s)'
+    })
+    await check('DATA-11', 'datainfo', 'a hardlink is counted once: a 3 MB file plus a hardlink to it grows the size by about 3 MB, not 6', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const a = join(Ud, 'nf-hard-a.bin'), b = join(Ud, 'nf-hard-b.bin')
+        writeFileSync(a, Buffer.alloc(3 * 1024 * 1024, 3)); linkSync(a, b)
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew > 2.9 * 1024 * 1024, 'grew only ' + grew)
+            assert(grew < 3.5 * 1024 * 1024, 'grew by ' + grew + ' B: the hardlink was counted twice')
+        } finally { rmSync(a, { force: true }); rmSync(b, { force: true }) }
+    })
+    await check('DATA-12', 'datainfo', 'many distinct files are all counted (guards the dev:ino dedupe against id collisions, e.g. NTFS file ids above 2^53): 400 files of 1 KB grow the size by about 400 KB', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const d = join(Ud, 'nf-many'); mkdirSync(d)
+        for (let i = 0; i < 400; i++) writeFileSync(join(d, 'f' + i), Buffer.alloc(1024, i % 251))
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew >= 400 * 1024 * 0.97, 'grew only ' + grew + ' B of ' + 400 * 1024 + ': files were skipped (id collision?)')
+            assert(grew < 400 * 1024 + 256 * 1024, 'grew by ' + grew)
+        } finally { rmSync(d, { recursive: true, force: true }) }
+    })
+    await check('DATA-8', 'datainfo', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('datainfo', e) }
+
+// ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
+if (want('changelog')) try {
+    const Uc = tmp('nf-cl-u-'); cleanup.push(Uc)
+    const { app, win } = await L(Uc)
+    const errs0 = pageErrors.length
+    // Independent of the app's helper on purpose: the built version's `## [X] <sep> date` section, straight from the checkout's CHANGELOG.md.
+    const ver = await app.evaluate(({ app: a }) => a.getVersion())
+    const md = readFileSync(join(here, '../../CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n')
+    const esc = ver.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const m = new RegExp('^## \\[' + esc + '\\][ \\t]*[-–—][^\\n]*\\n([\\s\\S]*?)(?=\\n## \\[|(?![\\s\\S]))', 'm').exec(md)
+    const body = m ? m[1].trim() : null
+    const heading = body && (/^###\s+(.+)$/m.exec(body) || [])[1]
+    const link = body && (/\]\((https?:\/\/[^)\s]+)\)/.exec(body) || [])[1]
+    const sec = () => win.locator('[class*=overlay] details').filter({ has: win.locator('summary', { hasText: /What's new in v/ }) })
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+
+    await check('CL-1', 'changelog', 'Settings > About: "What\'s new in v<built version>" is closed by default and expands to that version\'s CHANGELOG section (a heading read from CHANGELOG.md); a build with no section shows nothing (the block may vanish on first expand)', async () => {
+        await openSettings()
+        if (body === null) {
+            if (await sec().count()) await sec().locator('summary').click()
+            await waitFor(async () => (await sec().count()) === 0, { what: 'no changelog block for v' + ver })
+            return 'v' + ver + ' has no CHANGELOG section: block absent'
+        }
+        assert(heading, 'CHANGELOG section of v' + ver + ' has no ### heading to compare against')
+        await sec().first().waitFor({ timeout: 5000 })
+        eq(await sec().first().evaluate(d => d.open), false, 'details open by default')
+        eq((await sec().first().locator('summary').innerText()).trim(), "What's new in v" + ver, 'summary text')
+        await sec().first().locator('summary').click()
+        await waitFor(async () => (await sec().count()) === 1 && await sec().first().evaluate(d => d.open), { what: 'section open' })
+        const h = sec().first().locator('h1,h2,h3,h4,h5,h6').filter({ hasText: heading }).first()
+        await h.waitFor({ timeout: 5000 })
+        assert((await sec().first().locator('li').count()) >= 1, 'no list items rendered')
+        assert(!/Couldn't load the changelog/.test(await sec().first().innerText()), 'load failure shown')
+        await win.screenshot({ path: join(shots, `${target}-changelog-settings.png`) }).catch(() => {})
+        return 'v' + ver + ' heading "' + heading + '"'
+    })
+    await check('CL-2', 'changelog', 'clicking an http(s) link inside the section does not navigate the app window: it goes to shell.openExternal (stubbed); every rendered link has target=_blank and rel noopener', async () => {
+        if (body === null) return 'no section for v' + ver + ': nothing to click'
+        const box = sec().first()
+        // Real section may hold no link (1.6.0 has none): add one inside the rendered container so the click still goes through main's handlers.
+        const url = link || 'https://example.org/cl-2'
+        if (!link) await box.evaluate((d, u) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'cl-2 probe'; (d.querySelector('div') || d).appendChild(a) }, url)
+        await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
+        const wins0 = (await ui.mainWindows(app)).length
+        await box.locator('a[href]').first().waitFor({ timeout: 5000 })
+        const bad = await box.evaluate(d => [...d.querySelectorAll('a[href]')].filter(a => a.target !== '_blank' || !/noopener/.test(a.rel)).map(a => a.outerHTML.slice(0, 120)))
+        eq(bad.length, 0, 'links without target=_blank + rel noopener: ' + JSON.stringify(bad))
+        await box.locator(`a[href="${url}"]`).first().click({ noWaitAfter: true })
+        await waitFor(async () => openedUrl((await app.evaluate(() => globalThis.__ext)), url), { what: 'openExternal for ' + url })
+        await sleep(500)
+        assert(/index\.html/.test(win.url()), 'app window navigated away: ' + win.url())
+        eq((await ui.mainWindows(app)).length, wins0, 'app windows after the click')
+    })
+    await check('CL-3', 'changelog', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('changelog', e) }
+
+// ---------------------------------------------------------------- scenario: keyboard shortcuts (B9)
+// Real key presses prove the wiring; the Hebrew layout cannot be switched here, so a KeyboardEvent {key:'ד', code:'KeyS', ctrlKey} is
+// dispatched from the focused element (it bubbles to the window listener) -- the bug is in that handler, not in the OS layout.
+if (want('keys')) try {
+    const Uk = tmp('nf-k-u-'), Wk = tmp('nf-k-w-'); cleanup.push(Uk, Wk)
+    const { app, win } = await L(Uk)
+    const errs0 = pageErrors.length
+    const nTabs = async () => (await ui.tabsInfo(win)).length
+    const activeIdx = async () => (await ui.tabsInfo(win)).findIndex(t => t.active)
+    const fire = (init) => win.evaluate((i) => (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...i })), init)
+    const DATE = /\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2} (AM|PM)/
+    await ui.focusEditor(win)
+
+    await check('KEYS-1', 'keys', 'Ctrl+N opens a tab, Ctrl+W closes the active one, Ctrl+Tab / Ctrl+Shift+Tab switch next / previous (real key presses)', async () => {
+        const n0 = await nTabs()
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+N new tab' })
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 2, { what: 'second Ctrl+N tab' })
+        eq(await activeIdx(), n0 + 1, 'new tab is active')
+        await win.keyboard.press('Control+Shift+Tab'); await waitFor(async () => (await activeIdx()) === n0, { what: 'Ctrl+Shift+Tab previous' })
+        await win.keyboard.press('Control+Tab'); await waitFor(async () => (await activeIdx()) === n0 + 1, { what: 'Ctrl+Tab next' })
+        await win.keyboard.press('Control+w'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+W closes a tab' })
+        eq(await nTabs(), n0 + 1, 'tab count after Ctrl+W')
+    })
+
+    await check('KEYS-2', 'keys', 'Ctrl+S on an unsaved tab opens Save As (dialog stubbed) and writes the file; Ctrl+Shift+S also opens Save As', async () => {
+        const dst = join(Wk, 'keys-save.md'), dst2 = join(Wk, 'keys-saveas.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-SAVE')
+        await ui.stubSave(app, dst)
+        await win.keyboard.press('Control+s')
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-SAVE', { what: 'Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+S')
+        await ui.stubSave(app, dst2)
+        await win.keyboard.press('Control+Shift+S')
+        await waitFor(() => existsSync(dst2), { what: 'Ctrl+Shift+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+Shift+S')
+    })
+
+    await check('KEYS-3', 'keys', 'Ctrl+O (dialog stubbed) opens a file; Ctrl+F shows Find, Ctrl+H shows Replace, Ctrl+G shows Go to Line', async () => {
+        const f = join(Wk, 'keys-open.md'); writeFileSync(f, 'KEYS-OPEN-BODY\nline two\nline three\n')
+        await ui.openViaDialog(app, win, f)
+        await waitFor(async () => (await ui.activeTitle(win)) === 'keys-open.md', { what: 'Ctrl+O opened the file' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+f')
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        assert((await win.locator('input[placeholder="Replace"]').count()) === 0, 'Replace field shown by Ctrl+F')
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'find bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+h')
+        await win.locator('input[placeholder="Replace"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'replace bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+g')
+        await win.locator('input[type=number]').fill('2'); await win.keyboard.press('Enter')
+        await waitFor(async () => (await win.locator('input[type=number]').count()) === 0, { what: 'Go to Line dialog closed' })
+    })
+
+    await check('KEYS-4', 'keys', 'Ctrl+P calls window.print (stubbed); F5 inserts the date/time at the caret', async () => {
+        await win.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++ } })
+        await ui.focusEditor(win); await win.keyboard.press('Control+p')
+        await waitFor(async () => (await win.evaluate(() => window.__printed)) >= 1, { what: 'window.print called' })
+        assert(!DATE.test(await ui.editorText(win)), 'date already present before F5')
+        await win.keyboard.press('F5')
+        await waitFor(async () => DATE.test(await ui.editorText(win)), { what: 'F5 inserted the date/time' })
+    })
+
+    await check('KEYS-5', 'keys', 'Hebrew layout (simulated KeyboardEvent key "ד", code KeyS): Ctrl+S on an unsaved tab opens Save As and saves (B9); Hebrew Ctrl+N opens a tab, Ctrl+F shows Find', async () => {
+        const dst = join(Wk, 'keys-hebrew.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-HEBREW')
+        await ui.stubSave(app, dst)
+        await fire({ key: 'ד', code: 'KeyS', ctrlKey: true })
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-HEBREW', { what: 'Hebrew Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs')
+        const n0 = await nTabs()
+        await fire({ key: 'מ', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Hebrew Ctrl+N new tab' })
+        await ui.focusEditor(win); await fire({ key: 'כ', code: 'KeyF', ctrlKey: true })
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape')
+        // Caps Lock: key is uppercase
+        const n1 = await nTabs(); await ui.focusEditor(win); await fire({ key: 'N', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n1 + 1, { what: 'Caps Lock Ctrl+N new tab' })
+    })
+
+    await check('KEYS-6', 'keys', 'AltGr (Ctrl+Alt) and Meta combos fire no app shortcut; Ctrl+N held (repeat) opens only the first tab', async () => {
+        await ui.focusEditor(win)
+        const n0 = await nTabs(); await ui.stubSave(app, join(Wk, 'never.md'))
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, altKey: true })
+        await fire({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, metaKey: true })
+        await fire({ key: 'w', code: 'KeyW', ctrlKey: true, altKey: true })
+        await sleep(500)
+        eq(await nTabs(), n0, 'tab count after AltGr/Meta combos'); eq(await ui.saveCalls(app), 0, 'save dialog after AltGr+S'); assert(!existsSync(join(Wk, 'never.md')), 'file written')
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true })
+        for (let i = 0; i < 5; i++) await fire({ key: 'n', code: 'KeyN', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after one press + 5 repeats')
+        for (let i = 0; i < 5; i++) await fire({ key: 'w', code: 'KeyW', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after 5 Ctrl+W repeats')
+    })
+
+    await check('KEYS-7', 'keys', 'Ctrl+Shift+N (real press) opens a second app window and does not add a tab', async () => {
+        const n0 = await nTabs()
+        await ui.focusEditor(win)
+        const wp = app.waitForEvent('window', { timeout: 15000 })
+        await win.keyboard.press('Control+Shift+N')
+        const w2 = await wp; await w2.waitForLoadState('domcontentloaded')
+        const own = (await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)); eq(own.length, 2, 'app windows after Ctrl+Shift+N')
+        eq(await nTabs(), n0, 'first window tab count')
+    })
+
+    await check('KEYS-8', 'keys', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('keys', e) }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-linux.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })
-console.log('\n' + JSON.stringify(tally()), 'pageErrors:', pageErrors.length, pageErrors.slice(0, 3))
+console.log('\n' + JSON.stringify({ ...tally(), ...(launchStats.retries ? { launchRetries: launchStats.retries } : {}), ...(launchStats.absorbed ? { launchAbsorbed: launchStats.absorbed } : {}) }), 'pageErrors:', pageErrors.length, pageErrors.slice(0, 3))
 process.exit(results.some(r => r.result === 'fail') ? 1 : 0)
