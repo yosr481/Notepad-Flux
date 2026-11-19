@@ -1,6 +1,7 @@
 import { EditorView, Decoration, WidgetType, ViewPlugin } from "@codemirror/view";
 import { StateField, StateEffect } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { isCursorTouching } from "./selection";
 import { renderMermaid } from "../utils/mermaid";
 
 const themeChanged = StateEffect.define();
@@ -39,8 +40,6 @@ class MermaidWidget extends WidgetType {
         return false;
     }
 }
-
-const touches = (selection, from, to) => selection.ranges.some((r) => r.from <= to && r.to >= from);
 
 // Drop the container prefix (blockquote markers, list-item indent) the opening fence sat behind.
 function bodyStripper(prefix) {
@@ -81,7 +80,7 @@ function mermaidBlocks(state) {
 
 // Indices of the blocks the selection touches: the only selection input to the decorations.
 const touchKey = (blocks, selection) =>
-    blocks.reduce((k, b, i) => (touches(selection, b.from, b.to) ? k + i + "," : k), "");
+    blocks.reduce((k, b, i) => (isCursorTouching(selection, b.from, b.to) ? k + i + "," : k), "");
 
 function buildDecos(blocks, key) {
     if (!blocks.length) return Decoration.none;

@@ -3,8 +3,11 @@ import { fileSystem } from './fileSystem';
 import { sanitizeHTML } from './sanitize';
 import { createMath } from './exportMath';
 import { createFootnotes } from './exportFootnotes';
+import { subSupExtension } from './exportSubSup';
+import { emojiExtension } from './exportEmoji';
 import { createCallouts } from './exportCallouts';
 import { createMermaid } from './exportMermaid';
+import { scanFrontMatter } from '../extensions/frontMatterSyntax';
 import calloutCss from '../styles/calloutExport.css?raw';
 
 const escapeHtml = (s) => {
@@ -23,14 +26,17 @@ export const markdownToHtml = (markdown) => {
 
 // Markdown -> sanitized HTML with math rendered and footnote ids set. Used by HTML export, PDF export and Print.
 export const renderMarkdownHtml = async (markdown, options = {}) => {
+    const fm = scanFrontMatter(markdown);
+    const body = fm ? markdown.slice(fm.to).replace(/^\r?\n/, '') : markdown;
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
     const idMark = `nf${nonce}-`; // footnote ids ride as classes with this prefix: sanitizing drops every id
     const math = createMath(nonce);
     const footnotes = createFootnotes(idMark);
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
-    const m = new Marked(math.extension, footnotes.extension, callouts.extension, mermaid.extension);
-    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(markdown))));
+    // marked tries the last-registered inline extension first: footnotes must come after subSup so `^[note]` stays a footnote.
+    const m = new Marked(math.extension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
+    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 
     await Promise.all([math.prepare(), mermaid.prepare()]);
@@ -61,6 +67,8 @@ export const exportToHtml = async (title, markdown) => {
                 blockquote { border-left: 4px solid #ddd; padding-left: 1rem; color: #666; }
                 .math-block, .math-display { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
                 .footnotes { font-size: 0.875rem; color: #444; border-top: 1px solid #ccc; margin-top: 2rem; padding-top: 0.5rem; }
+                kbd { font-family: monospace; font-size: 0.9em; padding: 1px 5px; color: #1e293b; background-color: #f1f5f9; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; }
+                mark { color: #1e293b; background-color: #ede9fe; padding: 2px 4px; border-radius: 4px; }
                 ${calloutCss}
                 .math svg { vertical-align: middle; }
             </style>

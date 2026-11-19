@@ -350,3 +350,136 @@
 .cm-table-widget .cm-align-right {
     text-align: right;
 }
+
+/* ============================================
+   FRONT MATTER PROPERTIES BOX
+   ============================================ */
+
+/* Light: text #1f2328 on #f4f4f8 ~15:1; dimmed key #565e6b on #f4f4f8 ~6:1; chip #1f2328 on #dfe3ec ~12:1;
+   error #5c1111 on #fde8e8 ~9:1. Dark ratios in the [data-theme="dark"] block below. */
+.cm-properties {
+    margin: 0.25em 0;
+    padding: 0.4em 0.75em;
+    border: 1px solid #c9cdd8;
+    border-radius: 6px;
+    font-size: 0.9em;
+    color: #1f2328;
+    background-color: #f4f4f8;
+    cursor: pointer;
+}
+
+.cm-properties-header {
+    font-weight: 600;
+    margin-bottom: 0.25em;
+}
+
+.cm-property {
+    display: flex;
+    gap: 0.75em;
+    align-items: baseline;
+    padding: 0.1em 0;
+}
+
+.cm-property-key {
+    flex: 0 0 8em;
+    overflow-wrap: anywhere;
+    color: #565e6b;
+}
+
+.cm-property-value {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+}
+
+.cm-property-chip {
+    display: inline-block;
+    margin: 0 0.3em 0.15em 0;
+    padding: 0 0.6em;
+    border-radius: 999px;
+    color: #1f2328;
+    background-color: #dfe3ec;
+}
+
+.cm-properties-empty {
+    color: #565e6b;
+}
+
+.cm-properties-error {
+    color: #5c1111;
+    background-color: #fde8e8;
+    border-color: #c33;
+}
+
+.cm-properties-raw {
+    margin: 0.4em 0 0;
+    white-space: pre-wrap;
+    font-family: var(--font-monospace, monospace);
+}
+
+[data-theme="dark"] .cm-properties {
+    color: #e6e8ee;
+    background-color: #2a2d37;
+    border-color: #474c5a;
+}
+
+[data-theme="dark"] .cm-property-key,
+[data-theme="dark"] .cm-properties-empty { color: #aeb4c2; }
+
+[data-theme="dark"] .cm-property-chip {
+    color: #e6e8ee;
+    background-color: #434858;
+}
+
+[data-theme="dark"] .cm-properties-error {
+    color: #ffd6d6;
+    background-color: #4a1a1a;
+    border-color: #e66;
+}
+
+/* Cursor inside the block: raw YAML */
+.cm-frontmatter-line {
+    font-family: var(--font-monospace, monospace);
+}
+
+/* ============================================
+   SUBSCRIPT / SUPERSCRIPT
+   ============================================ */
+
+.cm-subscript {
+    vertical-align: sub;
+    font-size: 0.8em;
+    line-height: 0;
+}
+
+.cm-superscript {
+    vertical-align: super;
+    font-size: 0.8em;
+    line-height: 0;
+}
+
+/* Safe inline HTML tags. kbd: #1e293b on #f1f5f9 ~13:1; dark #e2e8f0 on #2d3340 ~10:1. */
+.cm-html-kbd {
+    font-family: var(--font-monospace, monospace);
+    font-size: 0.9em;
+    padding: 1px 5px;
+    color: #1e293b;
+    background-color: #f1f5f9;
+    border: 1px solid #94a3b8;
+    border-bottom-width: 2px;
+    border-radius: 4px;
+}
+[data-theme="dark"] .cm-html-kbd { color: #e2e8f0; background-color: #2d3340; border-color: #64748b; }
+.cm-html-u { text-decoration: underline; }
+.cm-html-ins { text-decoration: underline double; }
+.cm-html-small { font-size: 0.8em; }
+.cm-html-abbr { text-decoration: underline dotted; cursor: help; }
+
+/* ============================================
+   EMOJI SHORTCODES
+   ============================================ */
+
+.cm-emoji {
+    font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
