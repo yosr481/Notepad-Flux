@@ -32,6 +32,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Table cells in the editor now render math, subscript and superscript, emoji, footnote numbers and highlight. Before, they showed the raw text, while export already rendered it.
 - Links in table cells now open in a new tab, and only web and email links are clickable, the same as outside tables.
 - Windows file associations now register under the app's own type names (`NotepadFlux.Markdown`, `NotepadFlux.Text`) with a quoted program path, so another app can't overwrite them and, from now on, uninstalling Notepad Flux won't remove another app's "Markdown" or "Text" type.
+- Clicking in a large document right after switching to it from a scrolled tab no longer throws an editor error. A tab you switch to now starts at the top unless it has its own saved scroll position.
+- Keyboard shortcuts (Ctrl+S, Ctrl+N, Ctrl+O, Ctrl+W, Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+P) now work on any keyboard layout, such as Hebrew, and with Caps Lock on. Ctrl+Shift+N opens a new window as the menu says. AltGr and Ctrl+Alt combinations no longer trigger shortcuts while typing, holding Ctrl+N or Ctrl+W no longer opens or closes a run of tabs, and F5 inserts the date only without other modifier keys.
 
 ## [1.6.0] — 2026-11-16
 

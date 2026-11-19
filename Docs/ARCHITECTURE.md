@@ -201,6 +201,8 @@ This path is used for window/session metadata, crash dumps, and other runtime da
   4. If a handle exists, it calls `fileSystem.saveFile`.
   5. If successful, it calls `session.updateTab` to clear the `isDirty` flag.
 
+Global shortcuts are one table in `App.jsx` (`handleKeyDown`), matched on `e.code` (physical key) with exact modifiers, so they work on any keyboard layout and AltGr/Ctrl+Alt never fires them. The `Ctrl+X` labels in `MenuBar.jsx` are display text; keep them in step with the table by hand.
+
 ---
 
 ## 6. Data Flow Scenarios
