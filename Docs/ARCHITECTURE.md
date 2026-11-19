@@ -86,7 +86,9 @@ src/
 │   ├── subSupPreview.js    - Subscript and superscript: `@lezer/markdown` Subscript/Superscript, marks hidden outside the cursor
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
-│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes; callouts and mermaid use their own field)
+│   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
+│   ├── entities.js        - Shared HTML entity decoder (`decodeEntity`): the entity text span, table cells, abbr titles
+│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes). callouts, mermaid, frontMatter, subSup, emoji and htmlInline each use their own field (backlog C5)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
@@ -199,6 +201,8 @@ This path is used for window/session metadata, crash dumps, and other runtime da
   4. If a handle exists, it calls `fileSystem.saveFile`.
   5. If successful, it calls `session.updateTab` to clear the `isDirty` flag.
 
+Global shortcuts are one table in `App.jsx` (`handleKeyDown`), matched on `e.code` (physical key) with exact modifiers, so they work on any keyboard layout and AltGr/Ctrl+Alt never fires them. The `Ctrl+X` labels in `MenuBar.jsx` are display text; keep them in step with the table by hand.
+
 ---
 
 ## 6. Data Flow Scenarios
@@ -286,6 +290,7 @@ The architecture allows for easy addition of new features by simply adding new C
 
 - **XSS Prevention**: All user-generated content is rendered through CodeMirror's safe DOM manipulation.
 - **Link Safety**: External links open in new tabs with `rel="noopener noreferrer"`.
+- **Tag Allowlist**: `sanitize.js` `ALLOWED_TAGS` grows with each safe inline tag (`kbd`, `mark`, `u`, `ins`, `small`, `abbr` added for F7). `ALLOWED_ATTR` stays as is, so no `style` or `on*`.
 
 ### 9.3. Local Storage
 
@@ -332,6 +337,7 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Task list creation
 
 7. **`tableCells.js`**: Rendered table cells
+   - Also a registry: every inline feature that should render in cells (math, sub/sup, emoji, footnote refs, highlight, HTML tags) needs a case in its `convert()` and `appendParts`.
    - `buildTableData` reads rows/cells/inline parts from the syntax tree (footnote numbers via `resolveFootnotes`); `tableDOM` builds the DOM with `createElement`/`textContent`, no sanitizer pass
 
 8. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
@@ -360,6 +366,9 @@ The editor's functionality is built through composable CodeMirror extensions:
 14. **`emojiSyntax.js`** / **`emojiPreview.js`**: Emoji shortcodes (`:name:`)
    - `emojiSyntax.js`: `scanEmoji` (the one copy of the rule, shared by the lezer node and the export) and the lezer node.
    - `emojiPreview.js`: `span.cm-emoji` widget showing the character outside the cursor; raw shortcode inside.
+
+15. **`htmlInlinePreview.js`**: Safe inline HTML tags (`<kbd>`, `<mark>`, `<u>`, `<ins>`, `<small>`, `<abbr>`, `<sub>`, `<sup>`, `<span>`)
+   - Pairs the opening and closing `HTMLTag` nodes in the same inline context. Outside the cursor the tags are hidden and the content gets a class; attributes are never applied, except `abbr` `title`, which becomes the tooltip. Block HTML and `<br>` stay source.
 
 Export: one module per feature in `src/utils/` follows one contract, `createX(...) → { extension, prepare?, has?, finish(root) }` (stateless features, `exportSubSup.js` and `exportEmoji.js`, export the marked extension object directly, with no `createX`/`finish`), and `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each `finish(root)` (the post-sanitize DOM pass): math (after `prepare`), footnotes (ids; its `appendSection` runs before sanitizing), callouts (icons) and mermaid (SVG). Sanitizing lives in `sanitize.js`, plus the SVG sanitizers in `math.js` and `mermaid.js` (MathJax/Mermaid output is inserted after `sanitizeHTML`). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). It strips front matter before marked lexes the document. `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`; sub/sup is the exception: the editor uses lezer's built-in Subscript/Superscript and export mirrors them with `scanSubSup` in `src/utils/exportSubSup.js`, kept in step by the shared case table `src/test/subSupCases.js`.
 

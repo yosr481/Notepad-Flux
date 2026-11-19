@@ -317,3 +317,81 @@ describe('table data: TableWidget holds data only', () => {
         expect(w.htmlContent).toBeUndefined();
     });
 });
+
+// F7 T1: safe inline HTML tags in cells (spec: "Table cells"). Pinned: a cell renders the same classes as outside,
+// built from textContent only. kbd/u/ins/small/abbr -> span.cm-html-<name>; mark -> span.cm-highlight; sub/sup ->
+// span.cm-subscript/.cm-superscript; span -> its text, no wrapper class. The tags themselves never reach the DOM as
+// elements (no <kbd> etc.), source attributes are not applied except abbr title (setAttribute). Unclosed/crossing/
+// unlisted tags and <br> stay text. Element names of the wrappers are not pinned, only classes.
+describe('table data: safe inline html tags', () => {
+    const cell = (c) => domOf(T('| h |', '| --- |', `| ${c} |`)).querySelector('tbody td');
+    it.each([
+        ['kbd', 'cm-html-kbd'], ['u', 'cm-html-u'], ['ins', 'cm-html-ins'], ['small', 'cm-html-small'], ['abbr', 'cm-html-abbr'],
+        ['mark', 'cm-highlight'], ['sub', 'cm-subscript'], ['sup', 'cm-superscript'],
+    ])('<%s>x</..> -> .%s holding x, tags gone from the text', (n, cls) => {
+        const td = cell(`a <${n}>x</${n}> b`);
+        expect(texts(td, '.' + cls)).toEqual(['x']);
+        expect(td.textContent).toBe('a x b');
+    });
+    it('<kbd>K</kbd> <mark>m</mark> <u>u</u> in one cell', () => {
+        const td = cell('<kbd>K</kbd> <mark>m</mark> <u>u</u>');
+        expect(texts(td, '.cm-html-kbd')).toEqual(['K']);
+        expect(texts(td, '.cm-highlight')).toEqual(['m']);
+        expect(texts(td, '.cm-html-u')).toEqual(['u']);
+        expect(td.textContent).toBe('K m u');
+    });
+    it('span: text only, no wrapper class, tags gone', () => {
+        const td = cell('a <span>x</span> b');
+        expect(td.textContent).toBe('a x b');
+        expect(td.querySelector('[class*="cm-html-"], .cm-highlight')).toBeNull();
+    });
+    it('case-insensitive', () => {
+        const td = cell('<KBD>K</Kbd>');
+        expect(texts(td, '.cm-html-kbd')).toEqual(['K']);
+    });
+    it('nesting and markdown inside', () => {
+        const td = cell('<kbd><u>x</u></kbd> <mark>**b**</mark>');
+        expect(td.querySelector('.cm-html-kbd .cm-html-u').textContent).toBe('x');
+        expect(td.querySelector('.cm-highlight strong').textContent).toBe('b');
+        expect(td.textContent).toBe('x b');
+    });
+    it('no real kbd/mark/u/abbr/ins/small element is created', () => {
+        const td = cell('<kbd>K</kbd> <mark>m</mark> <u>u</u> <abbr title="t">a</abbr> <ins>i</ins> <small>s</small>');
+        expect(td.querySelector('kbd, mark, u, abbr, ins, small')).toBeNull();
+    });
+    it('abbr title is an attribute; markup in it is not parsed', () => {
+        const td = cell('<abbr title="x <b>y</b> z">W</abbr> <abbr>V</abbr>');
+        const [a, b] = td.querySelectorAll('.cm-html-abbr');
+        expect(a.getAttribute('title')).toBe('x <b>y</b> z');
+        expect(td.querySelector('b')).toBeNull();
+        expect(b.hasAttribute('title')).toBe(false);
+    });
+    it('class/style/id/on*/data-* in the source are not applied', () => {
+        const td = cell('<kbd class="evil" style="color:red" id="i" onclick="alert(1)" data-x="1" title="t">K</kbd> <abbr title="t" class="evil" onclick="1">A</abbr>');
+        expect(td.querySelector('.evil, [style], [id], [onclick], [data-x]')).toBeNull();
+        expect(td.querySelector('.cm-html-kbd').hasAttribute('title')).toBe(false);
+        expect(td.querySelector('.cm-html-abbr').getAttribute('title')).toBe('t');
+        expect(td.textContent).toBe('K A');
+    });
+    it('<script> and other raw html in a cell stay text; no element appears', () => {
+        const td = cell('<script>alert(1)</script> <img src=x onerror=1> <b>y</b> <kbd>K</kbd>');
+        expect(td.querySelector('script, img, b')).toBeNull();
+        expect(td.textContent).toContain('<script>alert(1)</script>');
+        expect(td.textContent).toContain('<b>y</b>');
+        expect(texts(td, '.cm-html-kbd')).toEqual(['K']);
+    });
+    it('unclosed, mismatched, crossing tags and <br> stay as text', () => {
+        const td = cell('<u>x <kbd>a</u>b</kbd> </mark> <br>');
+        expect(td.querySelector('[class*="cm-html-"], .cm-highlight')).toBeNull();
+        expect(td.textContent).toBe('<u>x <kbd>a</u>b</kbd> </mark> <br>');
+    });
+    it('tags inside inline code stay text', () => {
+        const td = cell('`<kbd>K</kbd>`');
+        expect(td.querySelector('[class*="cm-html-"]')).toBeNull();
+        expect(td.textContent).toBe('<kbd>K</kbd>');
+    });
+    it('a pair split by the cell separator is not rendered (each cell is its own context)', () => {
+        const d = domOf(T('| a | b |', '| - | - |', '| <u>x | y</u> |'));
+        expect(d.querySelector('.cm-html-u')).toBeNull();
+    });
+});

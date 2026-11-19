@@ -47,6 +47,8 @@ All file system operations go through the main process via IPC. Channels:
 - save-file({ filePath?, content }): Saves content; opens Save As if filePath is missing
 - open-dropped-file(path): Reads a file dropped on the window. Only the preload calls it, with a path from webUtils.getPathForFile on a real dropped File
 - take-launch-files: Drains the queue of files passed on the command line (first launch, or a later launch handed over by `second-instance`), reading and granting each. App page in its top frame only. Returns `[{ filePath, content } | { filePath, error }]`; main sends `launch-files` when new files are queued
+- get-data-info: `{ path, bytes, truncated }` for the `userData` folder (path from main, bytes = async recursive sum of regular files via `lstat`, symlinks not followed, hardlinks counted once, unreadable skipped, walk capped at 100,000 entries, `truncated` true when the cap stopped it). Concurrent calls share one walk. No argument. App page in its top frame only; touches no grants
+- open-data-folder: Opens the `userData` folder with `shell.openPath`; ignores every argument. Returns `{ ok: true }`, or `{ ok: false, error }` (the `openPath` string, or `Not a folder` if `userData` isn't a directory). App page in its top frame only; touches no grants
 - file-exists(path): true/false for granted paths, null for anything else (restored-tab "moved/deleted" check)
 - quit-app: File > Exit. Main closes every app window, each through its own close handshake
 - close-window / flush-before-close / close-ready: close handshake. Main holds a window close until the renderer has written its session snapshot; the page shows "Saving your tabs" after 400 ms, and after 15 s main asks the user (keep waiting or close without saving)
@@ -134,6 +136,7 @@ Windows (NSIS):
 - Installer allows choosing install directory (default in user profile)
 - Desktop and Start Menu shortcuts are created
 - Uninstall keeps user data by default (session, settings) since deleteAppDataOnUninstall is false
+- File associations (`.md`, `.markdown`, `.txt`) register under the ProgIDs `NotepadFlux.Markdown` / `NotepadFlux.Text` (`build.win.fileAssociations[].name`). electron-builder writes the open command with the exe path unquoted, so `customInstall` in `installer/installer.nsh` rewrites it to `"$appExe" "%1"`. Renaming a ProgID means changing both files; `scripts/__tests__/file-associations.test.js` checks they agree.
 
 Linux:
 

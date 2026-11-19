@@ -26,8 +26,9 @@ const parse = (doc) => {
         doc,
         extensions: [markdown({ base: markdownLanguage, extensions: [mathSyntax, footnoteSyntax] })],
     });
+    // syntaxTree(state) is a snapshot from create (20 ms parse budget, partial under load); update({}) adopts the finished tree
     ensureSyntaxTree(s, s.doc.length, 5000);
-    return s;
+    return s.update({}).state;
 };
 
 describe('footnoteDefEnd: explicit cases', () => {

@@ -67,6 +67,8 @@ export const exportToHtml = async (title, markdown) => {
                 blockquote { border-left: 4px solid #ddd; padding-left: 1rem; color: #666; }
                 .math-block, .math-display { display: block; text-align: center; margin: 1em 0; overflow-x: auto; }
                 .footnotes { font-size: 0.875rem; color: #444; border-top: 1px solid #ccc; margin-top: 2rem; padding-top: 0.5rem; }
+                kbd { font-family: monospace; font-size: 0.9em; padding: 1px 5px; color: #1e293b; background-color: #f1f5f9; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; }
+                mark { color: #1e293b; background-color: #ede9fe; padding: 2px 4px; border-radius: 4px; }
                 ${calloutCss}
                 .math svg { vertical-align: middle; }
             </style>

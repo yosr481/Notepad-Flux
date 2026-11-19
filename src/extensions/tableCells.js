@@ -7,11 +7,13 @@ import { resolveReference } from "./linkDefs";
 import { resolveFootnotes } from "./footnotes";
 import { decodeEntity } from "./entities";
 import { syntaxTree } from "@codemirror/language";
+import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 
 // Rendered table cells, built from the editor's syntax tree so the inline rules are the editor's own.
 // Data shape (what TableWidget holds and compares):
 //   { align: [null|"left"|"center"|"right"], head: [cell], body: [[cell]] }  cell = part[]
 //   part = string | { k: "strong"|"em"|"del"|"code"|"sub"|"sup"|"mark"|"a", c: part[], href? }
+//        | { k: "html", cls, title, c: part[] }  (safe inline html tag pair)
 //        | { k: "math", tex, display } | { k: "emoji", name } | { k: "fn", n }
 
 const CONTAINERS = { StrongEmphasis: "strong", Emphasis: "em", Strikethrough: "del", Subscript: "sub", Superscript: "sup" };
@@ -34,20 +36,46 @@ function cellParts(state, cell, footnotes) {
         return out;
     };
 
+    // Pairs once per parent (memo), not per nesting level.
+    const pairMemo = new Map();
+    const pairsOf = (parent) => {
+        const key = parent.name + ":" + parent.from + ":" + parent.to;
+        if (!pairMemo.has(key)) {
+            const open = new Map(), close = new Set();
+            for (const p of pairHtmlTags(parent, doc)) { open.set(p.open.from, p); close.add(p.close.from); }
+            pairMemo.set(key, { open, close });
+        }
+        return pairMemo.get(key);
+    };
+
     // Parts for [from, to) of `parent`: children become parts, the gaps between them plain text.
+    // One pass; a rendered tag pair opens a frame that its closing tag pops.
     function walk(parent, from, to) {
-        const out = [];
+        const root = [];
+        const frames = [{ c: root }];
+        const { open, close } = pairsOf(parent);
         let pos = from;
-        const gap = (end) => { if (end > pos) out.push(...plain(pos, end)); };
+        const gap = (end) => { if (end > pos) frames.at(-1).c.push(...plain(pos, end)); };
         for (let n = parent.firstChild; n; n = n.nextSibling) {
             if (n.from < from || n.to > to) continue;
             gap(n.from);
             pos = n.to;
+            if (n.name === "HTMLTag") {
+                const p = open.get(n.from);
+                if (p && p.close.to <= to) {
+                    const title = p.name === "abbr" ? abbrTitle(text(n.from, n.to)) : null;
+                    const part = { k: "html", cls: HTML_TAG_CLASS[p.name], title, c: [] };
+                    frames.at(-1).c.push(part);
+                    frames.push({ c: part.c, end: p.close.from });
+                    continue;
+                }
+                if (close.has(n.from) && frames.at(-1).end === n.from) { frames.pop(); continue; }
+            }
             const part = convert(n);
-            if (part !== null) out.push(...part);
+            if (part !== null) frames.at(-1).c.push(...part);
         }
         gap(to);
-        return out;
+        return root;
     }
 
     const raw = (n) => [text(n.from, n.to)];
@@ -173,6 +201,10 @@ function appendParts(parent, parts, view) {
                 e = el("sup", "cm-footnote-ref");
                 e.dir = "ltr";
                 e.textContent = String(p.n);
+                break;
+            case "html":
+                e = el("span", p.cls);
+                if (p.title !== null) e.setAttribute("title", p.title);
                 break;
             case "mark": e = el("span", "cm-highlight"); break;
             case "sub": e = el("span", "cm-subscript"); break;
