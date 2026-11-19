@@ -1,0 +1,3255 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > atx-heading: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 27,
+  },
+  {
+    "endSide": -599999999,
+    "from": 28,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 33,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > atx-heading: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 27,
+  },
+  {
+    "endSide": -599999999,
+    "from": 28,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 33,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > atx-heading-empty-closing: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > atx-heading-empty-closing: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > autolink: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 3,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 4,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 23,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > autolink: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > bare-url: cursor outside 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > bare-url: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote: cursor outside 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote: cursor touching 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote-nested: cursor outside 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 16,
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 17,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 18,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 19,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote-nested: cursor touching 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-2",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-3",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 16,
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 17,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 18,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 19,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote-with-list: cursor outside 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 3,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "startSide": 499999999,
+    "to": 12,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > blockquote-with-list: cursor touching 1`] = `
+[
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 3,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 9,
+    "startSide": -200000000,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "startSide": 499999999,
+    "to": 12,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > bullet-list: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 1,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "startSide": 499999999,
+    "to": 15,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 23,
+    "startSide": 499999999,
+    "to": 24,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 30,
+    "startSide": 499999999,
+    "to": 31,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > bullet-list: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 1,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "startSide": 499999999,
+    "to": 15,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 23,
+    "startSide": 499999999,
+    "to": 24,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 30,
+    "startSide": 499999999,
+    "to": 31,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-bullet">•</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > crlf-mixed: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 7,
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 16,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "startSide": 499999999,
+    "to": 22,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 25,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 31,
+    "startSide": -200000000,
+    "to": 31,
+  },
+  {
+    "endSide": -599999999,
+    "from": 31,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 32,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 35,
+    "startSide": -200000000,
+    "to": 35,
+  },
+  {
+    "endSide": -599999999,
+    "from": 35,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 36,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 40,
+    "startSide": -200000000,
+    "to": 40,
+  },
+  {
+    "endSide": -599999999,
+    "from": 40,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 43,
+  },
+  {
+    "endSide": -599999999,
+    "from": 43,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 45,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 46,
+    "startSide": -200000000,
+    "to": 46,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 48,
+    "startSide": -200000000,
+    "to": 48,
+  },
+  {
+    "endSide": -599999999,
+    "from": 48,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 51,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > crlf-mixed: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 16,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 18,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "startSide": 499999999,
+    "to": 22,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 25,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 31,
+    "startSide": -200000000,
+    "to": 31,
+  },
+  {
+    "endSide": -599999999,
+    "from": 31,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 32,
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 35,
+    "startSide": -200000000,
+    "to": 35,
+  },
+  {
+    "endSide": -599999999,
+    "from": 35,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 36,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 40,
+    "startSide": -200000000,
+    "to": 40,
+  },
+  {
+    "endSide": -599999999,
+    "from": 40,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 43,
+  },
+  {
+    "endSide": -599999999,
+    "from": 43,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 45,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 46,
+    "startSide": -200000000,
+    "to": 46,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 48,
+    "startSide": -200000000,
+    "to": 48,
+  },
+  {
+    "endSide": -599999999,
+    "from": 48,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 51,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > crlf-table: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 29,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": false,
+      "eqEqualTwin": true,
+      "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></div>",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > crlf-table: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > emphasis: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > emphasis: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > empty: cursor outside 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > entities: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&amp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "startSide": 499999999,
+    "to": 14,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&lt;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "startSide": 499999999,
+    "to": 19,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&gt;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "startSide": 499999999,
+    "to": 25,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">A</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "startSide": 499999999,
+    "to": 32,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">B</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 41,
+    "startSide": 499999999,
+    "to": 47,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&nbsp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > entities: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&amp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "startSide": 499999999,
+    "to": 19,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&gt;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "startSide": 499999999,
+    "to": 25,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">A</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "startSide": 499999999,
+    "to": 32,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">B</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 41,
+    "startSide": 499999999,
+    "to": 47,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&nbsp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > escape: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > escape: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code: cursor outside 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "endSide": -599999999,
+    "from": 3,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 6,
+    "startSide": -200000000,
+    "to": 6,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 17,
+    "startSide": -200000000,
+    "to": 17,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 20,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code: cursor touching 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 0,
+    "startSide": 500000000,
+    "to": 3,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 3,
+    "startSide": 500000000,
+    "to": 5,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 6,
+    "startSide": -200000000,
+    "to": 6,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 17,
+    "startSide": -200000000,
+    "to": 17,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 17,
+    "startSide": 500000000,
+    "to": 20,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code-tilde-noinfo: cursor outside 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 10,
+    "startSide": -200000000,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code-tilde-noinfo: cursor touching 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 0,
+    "startSide": 500000000,
+    "to": 3,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 4,
+    "startSide": -200000000,
+    "to": 4,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 10,
+    "startSide": -200000000,
+    "to": 10,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 10,
+    "startSide": 500000000,
+    "to": 13,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code-unclosed: cursor outside 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 0,
+    "startSide": 500000000,
+    "to": 3,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 3,
+    "startSide": 500000000,
+    "to": 5,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 6,
+    "startSide": -200000000,
+    "to": 6,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 16,
+    "startSide": -200000000,
+    "to": 16,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > fenced-code-unclosed: cursor touching 1`] = `
+[
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 0,
+    "startSide": -200000000,
+    "to": 0,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 0,
+    "startSide": 500000000,
+    "to": 3,
+  },
+  {
+    "class": "cm-faint-syntax",
+    "endSide": -600000000,
+    "from": 3,
+    "startSide": 500000000,
+    "to": 5,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 6,
+    "startSide": -200000000,
+    "to": 6,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 15,
+    "startSide": -200000000,
+    "to": 15,
+  },
+  {
+    "class": "cm-code-block",
+    "endSide": -200000000,
+    "from": 16,
+    "startSide": -200000000,
+    "to": 16,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > hr: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<hr class="cm-hr">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 12,
+    "startSide": 499999999,
+    "to": 15,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<hr class="cm-hr">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > hr: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<hr class="cm-hr">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > image: cursor outside 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > image: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > image-reference: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 42,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > image-reference: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 17,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 42,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > inline-code: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "class": "cm-inline-code",
+    "endSide": -600000000,
+    "from": 4,
+    "startSide": 500000000,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 17,
+  },
+  {
+    "class": "cm-inline-code",
+    "endSide": -600000000,
+    "from": 15,
+    "startSide": 500000000,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > inline-code: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 17,
+  },
+  {
+    "class": "cm-inline-code",
+    "endSide": -600000000,
+    "from": 15,
+    "startSide": 500000000,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 31,
+  },
+  {
+    "endSide": -599999999,
+    "from": 31,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 32,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-in-emphasis: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+  {
+    "endSide": -599999999,
+    "from": 12,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 24,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 25,
+  },
+  {
+    "endSide": -599999999,
+    "from": 29,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 30,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-in-emphasis: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-in-strong-in-em: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 3,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 21,
+  },
+  {
+    "endSide": -599999999,
+    "from": 21,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 22,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 27,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-in-strong-in-em: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-ref-definition: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 39,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > link-ref-definition: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > math-skipped: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 12,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+  {
+    "endSide": -599999999,
+    "from": 25,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 26,
+  },
+  {
+    "endSide": -599999999,
+    "from": 27,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 28,
+  },
+  {
+    "endSide": -599999999,
+    "from": 33,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 34,
+  },
+  {
+    "endSide": -599999999,
+    "from": 38,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 39,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > math-skipped: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+  {
+    "endSide": -599999999,
+    "from": 12,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+  {
+    "endSide": -599999999,
+    "from": 25,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 26,
+  },
+  {
+    "endSide": -599999999,
+    "from": 27,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 28,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > nested-em-strong: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 1,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 17,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 23,
+  },
+  {
+    "endSide": -599999999,
+    "from": 28,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 29,
+  },
+  {
+    "endSide": -599999999,
+    "from": 34,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 36,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > nested-em-strong: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 1,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 3,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > nested-strike-in-strong: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 6,
+  },
+  {
+    "class": "cm-strikethrough",
+    "endSide": -600000000,
+    "from": 4,
+    "startSide": 500000000,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 9,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > nested-strike-in-strong: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "startSide": 499999999,
+    "to": 9,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "startSide": 499999999,
+    "to": 16,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">3.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "startSide": 499999999,
+    "to": 9,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 14,
+    "startSide": 499999999,
+    "to": 16,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">3.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-lazy-numbers: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "startSide": 499999999,
+    "to": 12,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">3.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-lazy-numbers: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "startSide": 499999999,
+    "to": 7,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "startSide": 499999999,
+    "to": 12,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">3.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-nested: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "startSide": 499999999,
+    "to": 18,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 21,
+    "startSide": 499999999,
+    "to": 23,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-nested: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "startSide": 499999999,
+    "to": 18,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 21,
+    "startSide": 499999999,
+    "to": 23,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-start5-paren: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">5)</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">6)</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "startSide": 499999999,
+    "to": 17,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">7)</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > ordered-list-start5-paren: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">5)</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "startSide": 499999999,
+    "to": 10,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">6)</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 15,
+    "startSide": 499999999,
+    "to": 17,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">7)</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > plain-only: cursor outside 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > range argument restricts iteration 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 7,
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > range selection spanning several constructs 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > reference-resolved: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 4,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 5,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 15,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 21,
+  },
+  {
+    "endSide": -599999999,
+    "from": 24,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 25,
+  },
+  {
+    "endSide": -599999999,
+    "from": 32,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 57,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > reference-resolved: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 21,
+  },
+  {
+    "endSide": -599999999,
+    "from": 24,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 25,
+  },
+  {
+    "endSide": -599999999,
+    "from": 32,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 57,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > reference-unresolved: cursor outside 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > reference-unresolved: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-emphasis: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 5,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 7,
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 13,
+  },
+  {
+    "endSide": -599999999,
+    "from": 18,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 19,
+  },
+  {
+    "endSide": -599999999,
+    "from": 23,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 28,
+  },
+  {
+    "class": "cm-strikethrough",
+    "endSide": -600000000,
+    "from": 26,
+    "startSide": 500000000,
+    "to": 34,
+  },
+  {
+    "endSide": -599999999,
+    "from": 32,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 34,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-emphasis: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 18,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 19,
+  },
+  {
+    "endSide": -599999999,
+    "from": 23,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 24,
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 28,
+  },
+  {
+    "class": "cm-strikethrough",
+    "endSide": -600000000,
+    "from": 26,
+    "startSide": 500000000,
+    "to": 34,
+  },
+  {
+    "endSide": -599999999,
+    "from": 32,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 34,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-heading-list: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "startSide": 499999999,
+    "to": 11,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "startSide": 499999999,
+    "to": 18,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 27,
+  },
+  {
+    "endSide": -599999999,
+    "from": 28,
+    "startSide": 499999999,
+    "to": 31,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 39,
+    "startSide": -200000000,
+    "to": 39,
+  },
+  {
+    "endSide": -599999999,
+    "from": 39,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 40,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-heading-list: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 2,
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "startSide": 499999999,
+    "to": 11,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 16,
+    "startSide": 499999999,
+    "to": 18,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 27,
+  },
+  {
+    "endSide": -599999999,
+    "from": 28,
+    "startSide": 499999999,
+    "to": 31,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "class": "cm-blockquote-line cm-blockquote-depth-1",
+    "endSide": -200000000,
+    "from": 39,
+    "startSide": -200000000,
+    "to": 39,
+  },
+  {
+    "endSide": -599999999,
+    "from": 39,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 40,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-link-entity: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 7,
+  },
+  {
+    "endSide": -599999999,
+    "from": 7,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 8,
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 20,
+  },
+  {
+    "endSide": -599999999,
+    "from": 20,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 21,
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&amp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 29,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 30,
+  },
+  {
+    "class": "cm-inline-code",
+    "endSide": -600000000,
+    "from": 29,
+    "startSide": 500000000,
+    "to": 34,
+  },
+  {
+    "endSide": -599999999,
+    "from": 33,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 34,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > rtl-link-entity: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-entity">&amp;</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 29,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 30,
+  },
+  {
+    "class": "cm-inline-code",
+    "endSide": -600000000,
+    "from": 29,
+    "startSide": 500000000,
+    "to": 34,
+  },
+  {
+    "endSide": -599999999,
+    "from": 33,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 34,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > setext-1: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 6,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 11,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > setext-1: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > setext-2-multiline: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 18,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 21,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > setext-2-multiline: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > strike: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 4,
+  },
+  {
+    "class": "cm-strikethrough",
+    "endSide": -600000000,
+    "from": 2,
+    "startSide": 500000000,
+    "to": 10,
+  },
+  {
+    "endSide": -599999999,
+    "from": 8,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 10,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > strike: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > strong: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 4,
+  },
+  {
+    "endSide": -599999999,
+    "from": 10,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > strong: cursor touching 1`] = `[]`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > table: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 33,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": false,
+      "eqEqualTwin": true,
+      "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th class="cm-align-center">b</th></tr></thead><tbody><tr><td>1</td><td class="cm-align-center"><strong>2</strong></td></tr></tbody></table></div>",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > table: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 26,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 28,
+  },
+  {
+    "endSide": -599999999,
+    "from": 29,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 31,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > table-escaped-pipe-link: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 48,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": false,
+      "eqEqualTwin": true,
+      "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>x|y</td><td><a href="http://e.com" target="_blank" rel="noopener noreferrer">l</a></td></tr></tbody></table></div>",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > table-escaped-pipe-link: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 29,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 30,
+  },
+  {
+    "endSide": -599999999,
+    "from": 31,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 32,
+  },
+  {
+    "endSide": -599999999,
+    "from": 32,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 33,
+  },
+  {
+    "endSide": -599999999,
+    "from": 33,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 45,
+  },
+  {
+    "endSide": -599999999,
+    "from": 45,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 46,
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-list: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 5,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+  {
+    "endSide": -599999999,
+    "from": 13,
+    "startSide": 499999999,
+    "to": 16,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 23,
+  },
+  {
+    "endSide": -599999999,
+    "from": 24,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-list: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 5,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+  {
+    "endSide": -599999999,
+    "from": 13,
+    "startSide": 499999999,
+    "to": 16,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 22,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 23,
+  },
+  {
+    "endSide": -599999999,
+    "from": 24,
+    "startSide": 499999999,
+    "to": 27,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-list-touch-mark: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 5,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 11,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 12,
+  },
+  {
+    "endSide": -599999999,
+    "from": 13,
+    "startSide": 499999999,
+    "to": 16,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-list-touch-mark: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "replace": true,
+    "startSide": 499999999,
+    "to": 1,
+  },
+  {
+    "endSide": -599999999,
+    "from": 2,
+    "startSide": 499999999,
+    "to": 5,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-ordered: cursor outside 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 3,
+    "startSide": 499999999,
+    "to": 6,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "startSide": 499999999,
+    "to": 11,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 12,
+    "startSide": 499999999,
+    "to": 15,
+    "widget": {
+      "checked": true,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+]
+`;
+
+exports[`buildDecorations characterization (pre-refactor snapshot) > task-ordered: cursor touching 1`] = `
+[
+  {
+    "endSide": -599999999,
+    "from": 0,
+    "startSide": 499999999,
+    "to": 2,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">1.</span>",
+      "ignoreEvent": false,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 3,
+    "startSide": 499999999,
+    "to": 6,
+    "widget": {
+      "checked": false,
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<input type="checkbox" class="cm-checkbox">",
+      "ignoreEvent": true,
+    },
+  },
+  {
+    "endSide": -599999999,
+    "from": 9,
+    "startSide": 499999999,
+    "to": 11,
+    "widget": {
+      "eqAnyFieldChangeIsUnequal": true,
+      "eqEqualTwin": true,
+      "html": "<span class="cm-ordered-marker">2.</span>",
+      "ignoreEvent": false,
+    },
+  },
+]
+`;
