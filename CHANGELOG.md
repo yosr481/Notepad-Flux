@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-11-19
+
 ### Added
 
 - Settings › About has a "What's new in vX" section that shows the changes in the version you are running.
