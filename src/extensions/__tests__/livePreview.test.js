@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { forceParsing } from '@codemirror/language';
+import { forceParsing, ensureSyntaxTree } from '@codemirror/language';
 import { livePreview, buildDecorations } from '../livePreview';
 import * as lp from '../livePreview';
 import { TableWidget, CheckboxWidget, TextSpanWidget, HRWidget } from '../widgets';
@@ -10,12 +10,17 @@ import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
 // is CommonMark only, which does not emit a `Table` node.
-const gfm = (doc, selection) =>
-    EditorState.create({
+// The parse is time-sliced: without forcing it, a loaded machine can stop before later lines and the
+// decoration tests would see a partial tree. Force the full tree so results never depend on timing.
+const gfm = (doc, selection) => {
+    const state = EditorState.create({
         doc,
         selection,
         extensions: [markdown({ base: markdownLanguage }), livePreview],
     });
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state;
+};
 
 // Count decoration ranges overlapping [from, to).
 const countDecos = (field, from, to) => {
