@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
-import { CheckboxWidget, EntityWidget, OrderedMarkerWidget } from '../widgets';
+import { CheckboxWidget, TextSpanWidget } from '../widgets';
 
 // The toggle lives in CheckboxWidget.toDOM's `mousedown` handler: it reads
 // view.state.doc, matches the task-line prefix, and view.dispatch()es a single
@@ -63,15 +63,15 @@ describe('CheckboxWidget toggle — GFM uppercase [X] + all bullet chars (audit 
     });
 });
 
-describe('EntityWidget — decoded HTML entity as a text-only span (audit #3)', () => {
+describe('TextSpanWidget as entity (cm-entity) — decoded HTML entity as a text-only span (audit #3)', () => {
     // Pinned contract:
-    //   constructor(ch) stores the already-decoded string.
+    //   TextSpanWidget(text, className): text stores the already-decoded string.
     //   toDOM() -> <span class="cm-entity"> whose textContent === ch, set via
     //     textContent (NEVER innerHTML) — so no element children.
-    //   eq(other) -> other.ch === this.ch
+    //   eq(other) -> same text and className
     //   ignoreEvent() -> false
     it('toDOM() is a bare SPAN.cm-entity with textContent === ch and no element children', () => {
-        const dom = new EntityWidget('&').toDOM();
+        const dom = new TextSpanWidget('&', 'cm-entity').toDOM();
         expect(dom.tagName).toBe('SPAN');
         expect(dom.textContent).toBe('&');
         expect(dom.className).toContain('cm-entity');
@@ -80,30 +80,30 @@ describe('EntityWidget — decoded HTML entity as a text-only span (audit #3)', 
     });
 
     it('renders a multi-char decoded value literally (no HTML interpretation)', () => {
-        const dom = new EntityWidget('<b>').toDOM();
+        const dom = new TextSpanWidget('<b>', 'cm-entity').toDOM();
         expect(dom.textContent).toBe('<b>');
         expect(dom.children.length).toBe(0);
     });
 
     it('eq: true for the same char, false for a different char', () => {
-        expect(new EntityWidget('&').eq(new EntityWidget('&'))).toBe(true);
-        expect(new EntityWidget('&').eq(new EntityWidget('<'))).toBe(false);
+        expect(new TextSpanWidget('&', 'cm-entity').eq(new TextSpanWidget('&', 'cm-entity'))).toBe(true);
+        expect(new TextSpanWidget('&', 'cm-entity').eq(new TextSpanWidget('<', 'cm-entity'))).toBe(false);
     });
 
     it('ignoreEvent() returns false', () => {
-        expect(new EntityWidget('&').ignoreEvent()).toBe(false);
+        expect(new TextSpanWidget('&', 'cm-entity').ignoreEvent()).toBe(false);
     });
 });
 
-describe('OrderedMarkerWidget — computed ordered-list marker (Task 7 / audit #12)', () => {
+describe('TextSpanWidget as ordered marker (cm-ordered-marker) — computed ordered-list marker (Task 7 / audit #12)', () => {
     // Pinned contract (same 4-method shape as BulletWidget):
-    //   constructor(text) stores the already-formatted marker string ("2.", "6)", ...).
+    //   TextSpanWidget(text, className): text stores the already-formatted marker string ("2.", "6)", ...).
     //   toDOM() -> <span class="cm-ordered-marker"> whose textContent === text, set via
     //     textContent (no element children).
-    //   eq(other) -> other.text === this.text
+    //   eq(other) -> same text and className
     //   ignoreEvent() -> false
     it('toDOM() is a bare SPAN.cm-ordered-marker with textContent === text and no element children', () => {
-        const dom = new OrderedMarkerWidget('2.').toDOM();
+        const dom = new TextSpanWidget('2.', 'cm-ordered-marker').toDOM();
         expect(dom.tagName).toBe('SPAN');
         expect(dom.className).toContain('cm-ordered-marker');
         expect(dom.textContent).toBe('2.');
@@ -112,15 +112,15 @@ describe('OrderedMarkerWidget — computed ordered-list marker (Task 7 / audit #
     });
 
     it('preserves a ")" delimiter verbatim in the rendered text', () => {
-        expect(new OrderedMarkerWidget('3)').toDOM().textContent).toBe('3)');
+        expect(new TextSpanWidget('3)', 'cm-ordered-marker').toDOM().textContent).toBe('3)');
     });
 
     it('eq: true for the same text, false for a different text', () => {
-        expect(new OrderedMarkerWidget('2.').eq(new OrderedMarkerWidget('2.'))).toBe(true);
-        expect(new OrderedMarkerWidget('2.').eq(new OrderedMarkerWidget('3.'))).toBe(false);
+        expect(new TextSpanWidget('2.', 'cm-ordered-marker').eq(new TextSpanWidget('2.', 'cm-ordered-marker'))).toBe(true);
+        expect(new TextSpanWidget('2.', 'cm-ordered-marker').eq(new TextSpanWidget('3.', 'cm-ordered-marker'))).toBe(false);
     });
 
     it('ignoreEvent() returns false', () => {
-        expect(new OrderedMarkerWidget('1.').ignoreEvent()).toBe(false);
+        expect(new TextSpanWidget('1.', 'cm-ordered-marker').ignoreEvent()).toBe(false);
     });
 });

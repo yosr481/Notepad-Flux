@@ -8,6 +8,17 @@ import { codeLanguages } from '../extensions/codeLanguages';
 import { livePreview } from '../extensions/livePreview';
 import { mathSyntax } from '../extensions/mathSyntax';
 import { mathPreview } from '../extensions/mathPreview';
+import { Subscript, Superscript } from '@lezer/markdown';
+import { footnoteSyntax } from '../extensions/footnoteSyntax';
+import { footnotePreview } from '../extensions/footnotes';
+import { calloutPreview } from '../extensions/callouts';
+import { mermaidPreview } from '../extensions/mermaidPreview';
+import { subSupPreview } from '../extensions/subSupPreview';
+import { htmlInlinePreview } from '../extensions/htmlInlinePreview';
+import { emojiSyntax } from '../extensions/emojiSyntax';
+import { emojiPreview } from '../extensions/emojiPreview';
+import { frontMatterPreview } from '../extensions/frontMatterPreview';
+import { frontMatterSyntax } from '../extensions/frontMatterSyntax';
 import { fastLinkEnd } from '../extensions/fastLinkEnd';
 import { imagePreview } from '../extensions/imagePreview';
 import { linkPreview } from '../extensions/linkPreview';
@@ -268,9 +279,16 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // editor were LTR, which garbles caret movement and highlighting on
         // Hebrew/Arabic lines.
         EditorView.perLineTextDirection.of(true),
-        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax] }),
+        markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax, Subscript, Superscript, emojiSyntax] }),
         livePreview,
+        subSupPreview,
+        htmlInlinePreview,
+        emojiPreview,
         mathPreview,
+        footnotePreview,
+        calloutPreview,
+        mermaidPreview,
+        frontMatterPreview,
         imagePreview,
         linkPreview,
         linkHandler,
@@ -488,6 +506,9 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // Reset baseline to the new tab's content
         savedContentRef.current = initialContent;
       }
+      // setState keeps the old scrollTop; a large offset into another doc breaks CM's measure loop.
+      // Reset here, before the rAF scroll restores below.
+      view.scrollDOM.scrollTop = 0;
 
       currentTabIdRef.current = activeTabId;
 

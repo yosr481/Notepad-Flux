@@ -104,3 +104,11 @@
 .content :global(.math) svg {
     vertical-align: middle;
 }
+
+/* Folds are expanded for paper; the disclosure marker is noise. */
+.content summary { list-style: none; }
+.content summary::-webkit-details-marker { display: none; }
+.content summary::after { content: none; }
+
+.content kbd { font-family: monospace; font-size: 0.9em; padding: 1px 5px; color: #1e293b; background-color: #f1f5f9; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.content mark { color: #1e293b; background-color: #ede9fe; padding: 2px 4px; border-radius: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }

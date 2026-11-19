@@ -5,7 +5,7 @@ import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { forceParsing } from '@codemirror/language';
 import { livePreview, buildDecorations } from '../livePreview';
 import * as lp from '../livePreview';
-import { TableWidget, CheckboxWidget, EntityWidget, OrderedMarkerWidget, HRWidget } from '../widgets';
+import { TableWidget, CheckboxWidget, TextSpanWidget, HRWidget } from '../widgets';
 import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
@@ -149,7 +149,8 @@ describe('Live Preview Extension — whole-document decoration build (no viewpor
         expect(widgets.length).toBe(1);
         expect(widgets[0][0]).toBe(tFrom);
         expect(widgets[0][1]).toBe(tTo);
-        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
+        expect(widgets[0][2].spec.widget.data.head).toEqual([['a'], ['b']]);
+        expect(widgets[0][2].spec.widget.data.body).toEqual([[['1'], ['2']]]);
 
         const open = buildDecorations(gfm(doc, { anchor: tFrom + 4 }), full);
         let stillWidget = false;
@@ -405,8 +406,8 @@ describe('Live Preview Extension — HTML entities decode to their character (au
     //
     // Pinned contract for the fix:
     //  - For an `Entity` node the cursor is NOT touching that decodes to a real
-    //    character: one Decoration.replace({ widget: new EntityWidget(decoded) })
-    //    over the whole node range. widget.ch === the decoded string.
+    //    character: one Decoration.replace({ widget: new TextSpanWidget(decoded, 'cm-entity') })
+    //    over the whole node range. widget.text === the decoded string.
     //  - Numeric "&#NN;" / "&#xNN;" decode via String.fromCodePoint(parseInt(...)).
     //  - Named entities decode to exactly their character ("&amp;"->"&", "&copy;"->"©",
     //    "&nbsp;"->U+00A0, "&lt;"->"<", "&gt;"->">").
@@ -425,27 +426,30 @@ describe('Live Preview Extension — HTML entities decode to their character (au
         const from = doc.indexOf('&');
         return { from, to: doc.indexOf(';', from) + 1 };
     };
+    // TextSpanWidget(text, 'cm-entity') is the entity widget (C4 fold of EntityWidget).
+    const isEntityWidget = (w) => w instanceof TextSpanWidget && w.className === 'cm-entity';
     const entityWidgetAt = (field, r) => {
         const vs = decosAt(field, r.from, r.to);
         if (vs.length !== 1) return null;
         const w = vs[0].spec && vs[0].spec.widget;
-        return w instanceof EntityWidget ? w : null;
+        return isEntityWidget(w) ? w : null;
     };
     const anyEntityWidget = (field, doc) => {
         let found = false;
         field.between(0, doc.length, (f, t, v) => {
-            if (v.spec && v.spec.widget instanceof EntityWidget) found = true;
+            if (v.spec && isEntityWidget(v.spec.widget)) found = true;
         });
         return found;
     };
 
-    it('"&amp;" cursor off -> one Decoration.replace whose widget is an EntityWidget with ch "&"', () => {
+    it('"&amp;" cursor off -> one Decoration.replace whose widget is a cm-entity TextSpanWidget with text "&"', () => {
         const doc = 'x\n&amp;';
         const r = entRange(doc); // [2,7]
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
         const w = entityWidgetAt(field, r);
-        expect(w).toBeInstanceOf(EntityWidget);
-        expect(w.ch).toBe('&');
+        expect(w).toBeInstanceOf(TextSpanWidget);
+        expect(w.className).toBe('cm-entity');
+        expect(w.text).toBe('&');
     });
 
     it('"&amp;" widget renders via textContent — bare <span>, no element children, textContent "&"', () => {
@@ -461,32 +465,32 @@ describe('Live Preview Extension — HTML entities decode to their character (au
     it('numeric "&#169;" -> ch "©"', () => {
         const doc = 'x\n&#169;';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
-        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+        expect(entityWidgetAt(field, entRange(doc)).text).toBe('©');
     });
 
     it('numeric hex "&#x2764;" -> ch "❤"', () => {
         const doc = 'x\n&#x2764;';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
-        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('❤');
+        expect(entityWidgetAt(field, entRange(doc)).text).toBe('❤');
     });
 
     it('"&nbsp;" -> ch " " (non-breaking space)', () => {
         const doc = 'x\n&nbsp;';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
-        expect(entityWidgetAt(field, entRange(doc)).ch).toBe(' ');
+        expect(entityWidgetAt(field, entRange(doc)).text).toBe(' ');
     });
 
     it('"&copy;" -> ch "©"', () => {
         const doc = 'x\n&copy;';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
-        expect(entityWidgetAt(field, entRange(doc)).ch).toBe('©');
+        expect(entityWidgetAt(field, entRange(doc)).text).toBe('©');
     });
 
     it('"&lt;" and "&gt;" decode to "<" and ">"', () => {
         for (const [tok, ch] of [['&lt;', '<'], ['&gt;', '>']]) {
             const doc = 'x ' + tok + ' y';
             const field = buildDecorations(gfm(doc, { anchor: doc.length }), full(doc));
-            expect(entityWidgetAt(field, entRange(doc)).ch).toBe(ch);
+            expect(entityWidgetAt(field, entRange(doc)).text).toBe(ch);
         }
     });
 
@@ -507,13 +511,13 @@ describe('Live Preview Extension — HTML entities decode to their character (au
         expect(anyEntityWidget(field, doc)).toBe(false);
     });
 
-    it('entity inside inline code "`&amp;`" is NOT decoded — no EntityWidget', () => {
+    it('entity inside inline code "`&amp;`" is NOT decoded — no entity widget', () => {
         const doc = 'x\n`&amp;`';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
         expect(anyEntityWidget(field, doc)).toBe(false);
     });
 
-    it('entity inside a fenced code block is NOT decoded — no EntityWidget', () => {
+    it('entity inside a fenced code block is NOT decoded — no entity widget', () => {
         const doc = '```\n&amp;\n```';
         const field = buildDecorations(gfm(doc, { anchor: 0 }), full(doc));
         expect(anyEntityWidget(field, doc)).toBe(false);
@@ -539,7 +543,7 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
     //
     // Pinned: the Table range [5,38] carries exactly one Decoration.replace
     // whose .spec.widget is a TableWidget, and (after the #6 fix) that widget's
-    // .htmlContent contains "<table" and NOT "cm-table-empty".
+    // .data holds the head [['a'],['b']] and body [[['1'],['2']]] (B12: the HTML string path is gone).
     const doc = 'x\n\n> | a | b |\n> | - | - |\n> | 1 | 2 |\n';
     const tFrom = 5;
     const tTo = 38;
@@ -560,9 +564,8 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
         expect(widgets.length).toBe(1);
         expect(widgets[0][0]).toBe(tFrom);
         expect(widgets[0][1]).toBe(tTo);
-        expect(widgets[0][2].spec.widget.htmlContent).toContain('<table');
-        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('cm-table-empty');
-        expect(widgets[0][2].spec.widget.htmlContent).not.toContain('Empty Table');
+        expect(widgets[0][2].spec.widget.data.head).toEqual([['a'], ['b']]);
+        expect(widgets[0][2].spec.widget.data.body).toEqual([[['1'], ['2']]]);
     });
 });
 
@@ -605,7 +608,7 @@ describe('Live Preview Extension — GFM table nested in a blockquote (TASK 6 / 
 //        the HeaderMark child's range (the underline row). The heading text is never
 //        replaced. Cursor on the text line OR the underline line -> nothing replaced.
 //  #12   Ordered ListMark: replaced with Decoration.replace({ widget:
-//        new OrderedMarkerWidget(text) }) where text = <computed number> + <delimiter
+//        new TextSpanWidget(text, 'cm-ordered-marker') }) where text = <computed number> + <delimiter
 //        char taken from the source marker via /^\d+([.)])/>. Number = (parseInt of
 //        the FIRST sibling item's marker digits) + (index of this ListItem among its
 //        direct OrderedList ListItem children). Each OrderedList numbers its own
@@ -691,7 +694,7 @@ describe('Task 7 — ordered list renumber (audit #12)', () => {
         const vs = decosAt(field, from, to);
         if (vs.length !== 1) return null;
         const w = vs[0].spec && vs[0].spec.widget;
-        return w instanceof OrderedMarkerWidget ? w : null;
+        return w instanceof TextSpanWidget && w.className === 'cm-ordered-marker' ? w : null;
     };
 
     it('"1.\\n1.\\n1." (all ones) cursor parked off the list -> markers render 1. 2. 3.', () => {
