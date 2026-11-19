@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- HTML export, PDF export and Print now show `==highlights==` as highlighted text instead of the raw `==` marks, keep table column alignment (`:---:`, `---:`), draw table borders, and right-align Hebrew and Arabic paragraphs.
 - Ticking a task checkbox inside a blockquote or callout (`> - [ ] task`), or on a `+ [ ]` or `1. [ ]` item, now changes the file. Before, the box looked ticked but the file kept `[ ]`, so the tick was lost.
 - A task checkbox can be ticked with Space or a screen reader, not only with the mouse.
 - Inline math such as `$E = mc^2$` shows the whole formula again, in the editor, in table cells and in HTML export, PDF export and Print. Before, it showed only the part before the first `=` or other operator.

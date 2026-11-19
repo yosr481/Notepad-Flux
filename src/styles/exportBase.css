@@ -1,0 +1,13 @@
+/* Shared by HTML export (embedded in export.js, on <body class="nf-export">) and Print / PDF export
+   (PrintDocument.jsx, on its content div, not the title header). Scoped to .nf-export: Print imports this globally, so bare element
+   selectors would restyle the app itself. :where() keeps the scope at zero specificity. */
+
+:where(.nf-export) table { border-collapse: collapse; margin: 1em 0; }
+:where(.nf-export) th, :where(.nf-export) td { border: 1px solid #cbd5e1; padding: 6px 12px; }
+:where(.nf-export) th { background-color: #f1f5f9; font-weight: 600; }
+:where(.nf-export) .align-left { text-align: left; }
+:where(.nf-export) .align-center { text-align: center; }
+:where(.nf-export) .align-right { text-align: right; }
+
+/* Each paragraph takes its direction from its first strong letter, so Hebrew and Arabic align right. */
+:where(.nf-export) :is(p, li, h1, h2, h3, h4, h5, h6, td, th, blockquote, summary) { unicode-bidi: plaintext; text-align: start; }
