@@ -144,15 +144,24 @@ describe('table cells: the existing set still renders', () => {
         expect(td(cellView('[m](mailto:a@b.test)')).querySelector('a').getAttribute('href')).toBe('mailto:a@b.test');
     });
 
-    it.each(['strong', '.cm-subscript', 'em'])('clicking <%s> inside a link is not swallowed and does not move the cursor', (sel) => {
+    it.each(['strong', '.cm-subscript', 'em'])('Ctrl+clicking <%s> inside a link is not swallowed and does not move the cursor', (sel) => {
         const v = cellView('[**b** *i* H~2~O](https://x)');
         const inner = td(v).querySelector(`a ${sel}`);
         expect(inner).not.toBeNull();
-        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, ctrlKey: true });
         inner.dispatchEvent(ev);
         expect(ev.defaultPrevented).toBe(false);
         expect(v.state.selection.main.head).toBe(0);
         expect(widget(v)).not.toBeNull();
+    });
+
+    it.each(['strong', '.cm-subscript', 'em'])('plain clicking <%s> inside a link puts the cursor in the table', (sel) => {
+        const v = cellView('[**b** *i* H~2~O](https://x)');
+        const inner = td(v).querySelector(`a ${sel}`);
+        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+        inner.dispatchEvent(ev);
+        expect(ev.defaultPrevented).toBe(true);
+        expect(v.state.selection.main.head).toBeGreaterThan(0);
     });
 
     it('a link with a "title" keeps only the url as href', () => {
@@ -160,10 +169,10 @@ describe('table cells: the existing set still renders', () => {
         expect(a.getAttribute('href')).toBe('https://x');
     });
 
-    it('clicking a link is not swallowed (no preventDefault, cursor stays outside the table)', () => {
+    it('Ctrl+clicking a link is not swallowed (no preventDefault, cursor stays outside the table)', () => {
         const v = cellView('[t](https://x)');
         const a = td(v).querySelector('a');
-        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0 });
+        const ev = new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 0, ctrlKey: true });
         a.dispatchEvent(ev);
         expect(ev.defaultPrevented).toBe(false);
         expect(v.state.selection.main.head).toBe(0);
