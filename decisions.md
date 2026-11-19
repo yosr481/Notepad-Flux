@@ -97,3 +97,29 @@ without losing the "why".
 - **MathJax, not KaTeX.** Yossi chose "the library Obsidian uses"; Obsidian renders
   `$…$` / `$$…$$` with MathJax, so notes written there look the same here. Cost: bigger and
   slower than KaTeX, so it is lazy-loaded and only for documents that contain math.
+
+## 2026-11-19 — 2.0.0 release
+
+- **Released as 2.0.0** (major: the markdown-coverage round F2–F7 plus S1, S2, C4, B1, B8,
+  B9, B12). Shipped as 16 stacked PRs (#113–#128), merged top-down into their bases with merge
+  commits, so #113 carried the whole stack and `main` CI ran once on the full content. Then
+  #129 (version bump), tag `v2.0.0`, release run 44476287696 green.
+- **Release gate:** unit 3732/3732 on a quiet machine; packaged e2e on the stack tip Linux
+  192/192, Windows 195/195 (+1 not automatable), 0 page errors. Full packaged runs flake
+  when other sessions load the host (Unity builds, clang); check `uptime` first and rerun
+  failures with `--only` before calling them regressions.
+- **Licences: per-package exceptions, not wider licence lists** (Yossi). Mermaid brings
+  `elkjs` (EPL-2.0 OR GPL-3.0-or-later, shipped unmodified as a lazy chunk; EPL-2.0 allows
+  that in an MIT app) and `robust-predicates` (public domain + Unlicense). Allowed by name in
+  `dependency-review.yml`, so a new dependency under those licences still fails.
+- **CodeQL alerts in test code get fixed, not dismissed** (unlike #90): one was a real
+  test gap (the no-inline-script check missed `<SCRIPT>`).
+- **B8:** ProgIDs namespaced (`NotepadFlux.*`) and the open command quoted by an NSIS
+  `customInstall` macro, because electron-builder 26 hardcodes the unquoted form. Upgrade
+  from 1.6.0 verified: the old uninstaller removes the generic `Markdown`/`Text` classes.
+- **B1:** root cause was `view.setState()` keeping the old `scrollTop`; reset it on tab
+  switch. Upstream CodeMirror gap, not reported yet: `posAtCoords` doesn't guard
+  `lineAt() == null` after "Viewport failed to stabilize".
+- **B9:** shortcuts match `e.code` with exact modifiers. Held Ctrl+N/W/O/P is swallowed
+  (`preventDefault`, no action) so a repeat can't reach a native default like print.
+  Accepted side effect: Ctrl+F5 / Shift+F5 no longer insert the date.
