@@ -251,3 +251,50 @@
     gap: var(--space-8, 8px);
     justify-content: flex-end;
 }
+
+.dataInfo {
+    min-width: 0;
+    margin-right: var(--space-16);
+}
+
+.dataPath {
+    color: var(--text-muted);
+    background-color: var(--background-primary);
+    font-family: var(--font-monospace, monospace);
+    font-size: 12px;
+    margin-top: var(--space-4);
+    overflow-wrap: anywhere;
+    user-select: text;
+}
+
+.whatsNew {
+    margin-top: var(--space-16);
+    color: var(--text-normal);
+}
+
+.whatsNew summary {
+    cursor: pointer;
+}
+
+/* #1E293B on #F8FAFC = 13.98:1 (light), #E2E8F0 on #252526 = 12.42:1 (dark) */
+.whatsNewBody {
+    margin-top: var(--space-8);
+    padding: var(--space-8) var(--space-16);
+    max-height: 50vh;
+    overflow: auto;
+    color: var(--text-normal);
+    background-color: var(--background-secondary);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    font-size: var(--font-size-s);
+}
+
+.whatsNewBody h3 {
+    font-size: 1em;
+    margin: var(--space-8) 0 var(--space-4);
+}
+
+.whatsNewBody a {
+    color: var(--text-normal);
+    text-decoration: underline;
+}

@@ -17,6 +17,10 @@ export function toUserMessage(error) {
         return 'Not a text file.'
     }
 
+    if (message === 'Access denied.') {
+        return 'Access denied.'
+    }
+
     if (typeof message === 'string') {
         // Case-insensitive substring check
         if (message.toLowerCase().includes('unauthorized file path')) {

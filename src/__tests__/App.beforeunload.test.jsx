@@ -164,7 +164,7 @@ describe('App wiring — close paths thread the live editor ref (P1-7)', () => {
 
     it('Ctrl+W calls closeTab(activeTabId)', () => {
         renderApp();
-        window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'w', bubbles: true }));
+        window.dispatchEvent(new KeyboardEvent('keydown', { ctrlKey: true, key: 'w', code: 'KeyW', bubbles: true }));
 
         expect(mockCtl.closeTab).toHaveBeenCalledWith('tab-1');
     });

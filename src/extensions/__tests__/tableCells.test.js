@@ -14,6 +14,7 @@ import { frontMatterPreview } from '../frontMatterPreview';
 import { emojiSyntax } from '../emojiSyntax';
 import { emojiPreview } from '../emojiPreview';
 import { subSupPreview } from '../subSupPreview';
+import { htmlInlinePreview } from '../htmlInlinePreview';
 import { livePreview } from '../livePreview';
 import { calloutPreview } from '../callouts';
 import { mermaidPreview } from '../mermaidPreview';
@@ -40,7 +41,7 @@ import { TABLE_CELL_CASES } from '../../test/tableCellCases';
 //    ALLOWED_TAGS), so a wrapper element is not pinned either way.
 //  - Link: <a href> kept; a mousedown on it is NOT default-prevented and does not move the cursor. A mousedown elsewhere
 //    in the widget puts the cursor into the table range.
-//  - Parity compares normalized textContent (whitespace collapsed, trimmed) and the ordered list of the five feature
+//  - Parity compares normalized textContent (whitespace collapsed, trimmed) and the ordered list of the feature
 //    classes per element.
 //  - Not asserted (jsdom): CSS, layout.
 //  - Time-free: renderTex is mocked; promise chains are drained with a macrotask flush, no clocks.
@@ -59,7 +60,7 @@ const EXTENSIONS = [
     EditorView.lineWrapping,
     EditorView.perLineTextDirection.of(true),
     markdown({ base: markdownLanguage, extensions: SYNTAX }),
-    livePreview, subSupPreview, emojiPreview, mathPreview, footnotePreview, calloutPreview, mermaidPreview,
+    livePreview, subSupPreview, htmlInlinePreview, emojiPreview, mathPreview, footnotePreview, calloutPreview, mermaidPreview,
     frontMatterPreview, imagePreview, linkPreview, linkHandler, textDirection,
 ];
 
@@ -734,7 +735,7 @@ describe('table cells: redraws (TableWidget.eq)', () => {
 });
 
 describe('table cells: parity with the same text outside a table', () => {
-    const FEATURES = ['cm-subscript', 'cm-superscript', 'cm-emoji', 'cm-math', 'cm-footnote-ref'];
+    const FEATURES = ['cm-subscript', 'cm-superscript', 'cm-emoji', 'cm-math', 'cm-footnote-ref', 'cm-highlight', 'cm-html-kbd', 'cm-html-u', 'cm-html-ins', 'cm-html-small', 'cm-html-abbr'];
     const defs = '[r]: https://e.com\n\n[^a]: A\n[^b]: B\n';
     const featureList = (root) => [...root.querySelectorAll('.' + FEATURES.join(',.'))]
         .map((el) => FEATURES.filter((c) => el.classList.contains(c)).join(' '));
