@@ -84,6 +84,44 @@ describe('CheckboxWidget toggle — GFM uppercase [X] + all bullet chars (audit 
         input.dispatchEvent(ev);
         expect(ev.defaultPrevented).toBe(true);
     });
+
+    // Keyboard (Space) and screen-reader activation fire a click with detail 0 and NO mousedown.
+    const keyClick = (input) => {
+        const ev = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 0 });
+        input.dispatchEvent(ev);
+        return ev;
+    };
+
+    for (const [before, after] of [['- [ ] t', '- [x] t'], ['> - [x] t', '> - [ ] t']]) {
+        it(`keyboard/AT click (detail 0) toggles ${JSON.stringify(before)} -> ${JSON.stringify(after)} and is defaultPrevented`, () => {
+            const { view, input } = setup(before);
+            const ev = keyClick(input);
+            expect(view.state.doc.toString()).toBe(after);
+            expect(ev.defaultPrevented).toBe(true);
+        });
+    }
+
+    it('a real mouse click toggles exactly once: mousedown toggles, the following click (detail 1) does not', () => {
+        const { view, input, fire } = setup('- [ ] t');
+        fire();
+        input.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 }));
+        expect(view.state.doc.toString()).toBe('- [x] t');
+    });
+
+    it('detail-1 click alone does not toggle (and is still defaultPrevented)', () => {
+        const { view, input } = setup('- [ ] t');
+        const ev = new MouseEvent('click', { bubbles: true, cancelable: true, detail: 1 });
+        input.dispatchEvent(ev);
+        expect(view.state.doc.toString()).toBe('- [ ] t');
+        expect(ev.defaultPrevented).toBe(true);
+    });
+
+    it('keyboard click with posAtDOM not on "[?]" does not dispatch', () => {
+        const { view, input } = setup('> - [ ] t');
+        view.posAtDOM = () => 0;
+        keyClick(input);
+        expect(view.state.doc.toString()).toBe('> - [ ] t');
+    });
 });
 
 describe('TextSpanWidget as entity (cm-entity) — decoded HTML entity as a text-only span (audit #3)', () => {

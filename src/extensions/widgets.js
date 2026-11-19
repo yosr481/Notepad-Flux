@@ -26,12 +26,9 @@ export class CheckboxWidget extends WidgetType {
         input.checked = this.checked;
         input.className = "cm-checkbox";
 
-        // The box shows the doc, never its own native toggle (else screen and file can disagree).
-        input.addEventListener("click", (e) => e.preventDefault());
-        input.addEventListener("mousedown", (e) => {
-            e.preventDefault(); // Prevent default focus change issues
-            // The widget replaces exactly the TaskMarker "[ ]", so its start is the "[".
-            // Works whatever precedes the bullet: "> ", "+ ", "1. ".
+        // The widget replaces exactly the TaskMarker "[ ]", so its start is the "[".
+        // Works whatever precedes the bullet: "> ", "+ ", "1. ".
+        const toggle = () => {
             const pos = view.posAtDOM(input);
             if (pos === null) return;
             const marker = view.state.doc.sliceString(pos, pos + 3);
@@ -39,6 +36,16 @@ export class CheckboxWidget extends WidgetType {
             view.dispatch({
                 changes: { from: pos + 1, to: pos + 2, insert: marker[1] === ' ' ? 'x' : ' ' }
             });
+        };
+        // The box shows the doc, never its own native toggle (else screen and file can disagree).
+        // A mouse toggles on mousedown; Space and assistive tech send only a click (detail 0).
+        input.addEventListener("click", (e) => {
+            e.preventDefault();
+            if (e.detail === 0) toggle();
+        });
+        input.addEventListener("mousedown", (e) => {
+            e.preventDefault(); // Prevent default focus change issues
+            toggle();
         });
         return input;
     }
