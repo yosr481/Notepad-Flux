@@ -2707,6 +2707,120 @@ if (want('assoc')) try {
     })
 } catch (e) { await scenarioCrashed('assoc', e) }
 
+// ---------------------------------------------------------------- scenario: keyboard shortcuts (B9)
+// Real key presses prove the wiring; the Hebrew layout cannot be switched here, so a KeyboardEvent {key:'ד', code:'KeyS', ctrlKey} is
+// dispatched from the focused element (it bubbles to the window listener) -- the bug is in that handler, not in the OS layout.
+if (want('keys')) try {
+    const Uk = tmp('nf-k-u-'), Wk = tmp('nf-k-w-'); cleanup.push(Uk, Wk)
+    const { app, win } = await L(Uk)
+    const errs0 = pageErrors.length
+    const nTabs = async () => (await ui.tabsInfo(win)).length
+    const activeIdx = async () => (await ui.tabsInfo(win)).findIndex(t => t.active)
+    const fire = (init) => win.evaluate((i) => (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...i })), init)
+    const DATE = /\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2} (AM|PM)/
+    await ui.focusEditor(win)
+
+    await check('KEYS-1', 'keys', 'Ctrl+N opens a tab, Ctrl+W closes the active one, Ctrl+Tab / Ctrl+Shift+Tab switch next / previous (real key presses)', async () => {
+        const n0 = await nTabs()
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+N new tab' })
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 2, { what: 'second Ctrl+N tab' })
+        eq(await activeIdx(), n0 + 1, 'new tab is active')
+        await win.keyboard.press('Control+Shift+Tab'); await waitFor(async () => (await activeIdx()) === n0, { what: 'Ctrl+Shift+Tab previous' })
+        await win.keyboard.press('Control+Tab'); await waitFor(async () => (await activeIdx()) === n0 + 1, { what: 'Ctrl+Tab next' })
+        await win.keyboard.press('Control+w'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+W closes a tab' })
+        eq(await nTabs(), n0 + 1, 'tab count after Ctrl+W')
+    })
+
+    await check('KEYS-2', 'keys', 'Ctrl+S on an unsaved tab opens Save As (dialog stubbed) and writes the file; Ctrl+Shift+S also opens Save As', async () => {
+        const dst = join(Wk, 'keys-save.md'), dst2 = join(Wk, 'keys-saveas.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-SAVE')
+        await ui.stubSave(app, dst)
+        await win.keyboard.press('Control+s')
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-SAVE', { what: 'Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+S')
+        await ui.stubSave(app, dst2)
+        await win.keyboard.press('Control+Shift+S')
+        await waitFor(() => existsSync(dst2), { what: 'Ctrl+Shift+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+Shift+S')
+    })
+
+    await check('KEYS-3', 'keys', 'Ctrl+O (dialog stubbed) opens a file; Ctrl+F shows Find, Ctrl+H shows Replace, Ctrl+G shows Go to Line', async () => {
+        const f = join(Wk, 'keys-open.md'); writeFileSync(f, 'KEYS-OPEN-BODY\nline two\nline three\n')
+        await ui.openViaDialog(app, win, f)
+        await waitFor(async () => (await ui.activeTitle(win)) === 'keys-open.md', { what: 'Ctrl+O opened the file' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+f')
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        assert((await win.locator('input[placeholder="Replace"]').count()) === 0, 'Replace field shown by Ctrl+F')
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'find bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+h')
+        await win.locator('input[placeholder="Replace"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'replace bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+g')
+        await win.locator('input[type=number]').fill('2'); await win.keyboard.press('Enter')
+        await waitFor(async () => (await win.locator('input[type=number]').count()) === 0, { what: 'Go to Line dialog closed' })
+    })
+
+    await check('KEYS-4', 'keys', 'Ctrl+P calls window.print (stubbed); F5 inserts the date/time at the caret', async () => {
+        await win.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++ } })
+        await ui.focusEditor(win); await win.keyboard.press('Control+p')
+        await waitFor(async () => (await win.evaluate(() => window.__printed)) >= 1, { what: 'window.print called' })
+        assert(!DATE.test(await ui.editorText(win)), 'date already present before F5')
+        await win.keyboard.press('F5')
+        await waitFor(async () => DATE.test(await ui.editorText(win)), { what: 'F5 inserted the date/time' })
+    })
+
+    await check('KEYS-5', 'keys', 'Hebrew layout (simulated KeyboardEvent key "ד", code KeyS): Ctrl+S on an unsaved tab opens Save As and saves (B9); Hebrew Ctrl+N opens a tab, Ctrl+F shows Find', async () => {
+        const dst = join(Wk, 'keys-hebrew.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-HEBREW')
+        await ui.stubSave(app, dst)
+        await fire({ key: 'ד', code: 'KeyS', ctrlKey: true })
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-HEBREW', { what: 'Hebrew Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs')
+        const n0 = await nTabs()
+        await fire({ key: 'מ', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Hebrew Ctrl+N new tab' })
+        await ui.focusEditor(win); await fire({ key: 'כ', code: 'KeyF', ctrlKey: true })
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape')
+        // Caps Lock: key is uppercase
+        const n1 = await nTabs(); await ui.focusEditor(win); await fire({ key: 'N', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n1 + 1, { what: 'Caps Lock Ctrl+N new tab' })
+    })
+
+    await check('KEYS-6', 'keys', 'AltGr (Ctrl+Alt) and Meta combos fire no app shortcut; Ctrl+N held (repeat) opens only the first tab', async () => {
+        await ui.focusEditor(win)
+        const n0 = await nTabs(); await ui.stubSave(app, join(Wk, 'never.md'))
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, altKey: true })
+        await fire({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, metaKey: true })
+        await fire({ key: 'w', code: 'KeyW', ctrlKey: true, altKey: true })
+        await sleep(500)
+        eq(await nTabs(), n0, 'tab count after AltGr/Meta combos'); eq(await ui.saveCalls(app), 0, 'save dialog after AltGr+S'); assert(!existsSync(join(Wk, 'never.md')), 'file written')
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true })
+        for (let i = 0; i < 5; i++) await fire({ key: 'n', code: 'KeyN', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after one press + 5 repeats')
+        for (let i = 0; i < 5; i++) await fire({ key: 'w', code: 'KeyW', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after 5 Ctrl+W repeats')
+    })
+
+    await check('KEYS-7', 'keys', 'Ctrl+Shift+N (real press) opens a second app window and does not add a tab', async () => {
+        const n0 = await nTabs()
+        await ui.focusEditor(win)
+        const wp = app.waitForEvent('window', { timeout: 15000 })
+        await win.keyboard.press('Control+Shift+N')
+        const w2 = await wp; await w2.waitForLoadState('domcontentloaded')
+        const own = (await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)); eq(own.length, 2, 'app windows after Ctrl+Shift+N')
+        eq(await nTabs(), n0, 'first window tab count')
+    })
+
+    await check('KEYS-8', 'keys', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('keys', e) }
+
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
 writeResults(join(here, '../../Docs/internal/e2e/results-windows.json'), target, { binary, sandbox: sandboxNote, at: new Date().toISOString(), smoke: flag('smoke') }, { merge: only.length > 0 })
