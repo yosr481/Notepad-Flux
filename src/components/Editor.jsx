@@ -14,6 +14,7 @@ import { footnotePreview } from '../extensions/footnotes';
 import { calloutPreview } from '../extensions/callouts';
 import { mermaidPreview } from '../extensions/mermaidPreview';
 import { subSupPreview } from '../extensions/subSupPreview';
+import { htmlInlinePreview } from '../extensions/htmlInlinePreview';
 import { emojiSyntax } from '../extensions/emojiSyntax';
 import { emojiPreview } from '../extensions/emojiPreview';
 import { frontMatterPreview } from '../extensions/frontMatterPreview';
@@ -281,6 +282,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         markdown({ base: markdownLanguage, codeLanguages, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax, Subscript, Superscript, emojiSyntax] }),
         livePreview,
         subSupPreview,
+        htmlInlinePreview,
         emojiPreview,
         mathPreview,
         footnotePreview,
@@ -504,6 +506,9 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // Reset baseline to the new tab's content
         savedContentRef.current = initialContent;
       }
+      // setState keeps the old scrollTop; a large offset into another doc breaks CM's measure loop.
+      // Reset here, before the rAF scroll restores below.
+      view.scrollDOM.scrollTop = 0;
 
       currentTabIdRef.current = activeTabId;
 

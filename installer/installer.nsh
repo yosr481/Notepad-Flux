@@ -8,3 +8,9 @@
     RMDir /r "$LOCALAPPDATA\notepad-flux-updater"
   ${endIf}
 !macroend
+
+; electron-builder writes the open command with the exe path unquoted; rewrite it quoted (runs after registerFileAssociations).
+!macro customInstall
+  WriteRegStr SHCTX "Software\Classes\NotepadFlux.Markdown\shell\open\command" "" '"$appExe" "%1"'
+  WriteRegStr SHCTX "Software\Classes\NotepadFlux.Text\shell\open\command" "" '"$appExe" "%1"'
+!macroend
