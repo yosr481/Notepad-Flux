@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Ticking a task checkbox inside a blockquote or callout (`> - [ ] task`), or on a `+ [ ]` or `1. [ ]` item, now changes the file. Before, the box looked ticked but the file kept `[ ]`, so the tick was lost.
 - A task checkbox can be ticked with Space or a screen reader, not only with the mouse.
+- Inline math such as `$E = mc^2$` shows the whole formula again, in the editor, in table cells and in HTML export, PDF export and Print. Before, it showed only the part before the first `=` or other operator.
+- A plain click on a link inside a table no longer opens it. It puts the cursor in the table, the same as outside tables; Ctrl+click (Cmd+click on macOS) opens the link.
 
 ## [2.0.0] — 2026-11-19
 
