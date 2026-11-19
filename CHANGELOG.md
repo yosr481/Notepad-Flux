@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Settings › About has a "What's new in vX" section that shows the changes in the version you are running.
 - Update progress: after you choose Download Now, the status bar shows "Downloading update 42%" and the taskbar icon fills as the update downloads.
 - Settings › About has an update button: Check for updates, Update to vX, Downloading… N%, Restart to update, or Up to date. Checking from Settings shows the offer on the button instead of a pop-up.
 - Footnotes: `[^1]` references with a `[^1]: note` definition, and inline `^[note]`, show as numbered superscripts in the editor. Hover a number to read the note; Ctrl+click jumps between the reference and the note. Put the cursor on a reference to edit it. The numbers, and the notes at the end of the document, appear in HTML export, PDF export and Print.
@@ -30,6 +31,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restart to update now closes every window through the usual save step first, so unsaved tabs are saved before the installer runs. Choosing Keep editing on a window with unsaved changes cancels the restart.
 - Table cells in the editor now render math, subscript and superscript, emoji, footnote numbers and highlight. Before, they showed the raw text, while export already rendered it.
 - Links in table cells now open in a new tab, and only web and email links are clickable, the same as outside tables.
+- Windows file associations now register under the app's own type names (`NotepadFlux.Markdown`, `NotepadFlux.Text`) with a quoted program path, so another app can't overwrite them and, from now on, uninstalling Notepad Flux won't remove another app's "Markdown" or "Text" type.
+- Clicking in a large document right after switching to it from a scrolled tab no longer throws an editor error. A tab you switch to now starts at the top unless it has its own saved scroll position.
+- Keyboard shortcuts (Ctrl+S, Ctrl+N, Ctrl+O, Ctrl+W, Ctrl+F, Ctrl+H, Ctrl+G, Ctrl+P) now work on any keyboard layout, such as Hebrew, and with Caps Lock on. Ctrl+Shift+N opens a new window as the menu says. AltGr and Ctrl+Alt combinations no longer trigger shortcuts while typing, holding Ctrl+N or Ctrl+W no longer opens or closes a run of tabs, and F5 inserts the date only without other modifier keys.
 
 ## [1.6.0] — 2026-11-16
 

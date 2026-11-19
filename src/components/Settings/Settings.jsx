@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { marked } from 'marked';
 import { ArrowLeft } from 'lucide-react';
 import styles from './Settings.module.css';
 import { version } from '../../../package.json';
@@ -6,6 +7,10 @@ import { dialogs } from '../../utils/dialogs';
 import { useSettings, useSessionActions } from '../../context/SessionContext';
 import { useUpdateStatus } from '../../hooks/useUpdateStatus';
 import { formatBytes } from '../../utils/formatBytes';
+import { loadChangelog } from '../../utils/loadChangelog';
+import { changelogSection } from '../../utils/changelogSection';
+import { sanitizeHTML } from '../../utils/sanitize';
+import { isSafeExternalUrl } from '../../extensions/linkHandler';
 
 // Label, action and disabled flag of the update button per update state (update-spec.md).
 const updateButton = (status) => {
@@ -21,6 +26,25 @@ const updateButton = (status) => {
     }
 };
 
+// Changelog section -> safe HTML: only http/https/mailto links survive, and they open in the system browser.
+const renderSection = (md) => {
+    const tpl = document.createElement('template');
+    tpl.innerHTML = sanitizeHTML(marked.parse(md));
+    tpl.content.querySelectorAll('a').forEach((a) => {
+        const href = a.getAttribute('href');
+        a.removeAttribute('target');
+        a.removeAttribute('rel');
+        if (href && isSafeExternalUrl(href)) {
+            a.setAttribute('href', new URL(href).href);
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+        } else {
+            a.removeAttribute('href');
+        }
+    });
+    return tpl.innerHTML;
+};
+
 const Settings = ({ isOpen, onClose, appVersion }) => {
     const [errors, setErrors] = useState({});
     const { settings, updateSettings } = useSettings();
@@ -32,6 +56,21 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
     const [dataSize, setDataSize] = useState('Calculating…');
     const [webUsage, setWebUsage] = useState('');
     const isDesktop = !!window.electronAPI;
+
+    // What's new: 'idle' -> 'loading' -> { html } | 'error' | 'none' (no section: details removed). Loaded once per mount.
+    const [changelog, setChangelog] = useState('idle');
+    const mounted = useRef(true);
+    useEffect(() => { mounted.current = true; return () => { mounted.current = false; }; }, []);
+    const loadWhatsNew = async () => {
+        if (changelog !== 'idle') return;
+        setChangelog('loading');
+        try {
+            const section = changelogSection(await loadChangelog(), version);
+            if (mounted.current) setChangelog(section ? { html: renderSection(section) } : 'none');
+        } catch {
+            if (mounted.current) setChangelog('error');
+        }
+    };
 
     // Refetch each time Settings opens; cleanup drops stale responses and anything after unmount.
     useEffect(() => {
@@ -224,6 +263,15 @@ const Settings = ({ isOpen, onClose, appVersion }) => {
                         </a>
                         </div>
                     </div>
+                    {changelog !== 'none' && (
+                        <details className={styles.whatsNew}>
+                            <summary onClick={loadWhatsNew}>{`What's new in v${version}`}</summary>
+                            {changelog === 'error' && <div className={styles.whatsNewBody}>Couldn't load the changelog.</div>}
+                            {changelog?.html && (
+                                <div className={styles.whatsNewBody} dangerouslySetInnerHTML={{ __html: changelog.html }} />
+                            )}
+                        </details>
+                    )}
                 </div>
             </div>
         </div>

@@ -112,7 +112,7 @@
             "md",
             "markdown"
           ],
-          "name": "Markdown",
+          "name": "NotepadFlux.Markdown",
           "description": "Markdown document",
           "mimeType": "text/markdown",
           "role": "Editor"
@@ -121,7 +121,7 @@
           "ext": [
             "txt"
           ],
-          "name": "Text",
+          "name": "NotepadFlux.Text",
           "description": "Text document",
           "mimeType": "text/plain",
           "role": "Editor"
