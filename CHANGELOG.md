@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Inline math such as `$E = mc^2$` shows the whole formula again, in the editor, in table cells and in HTML export, PDF export and Print. Before, it showed only the part before the first `=` or other operator.
+- A plain click on a link inside a table no longer opens it. It puts the cursor in the table, the same as outside tables; Ctrl+click (Cmd+click on macOS) opens the link.
+
 ## [2.0.0] — 2026-11-19
 
 ### Added

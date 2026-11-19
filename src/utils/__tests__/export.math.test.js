@@ -11,6 +11,13 @@ const T = 60000;
 const count = (s, needle) => s.split(needle).length - 1;
 
 describe('renderMarkdownHtml: math', () => {
+    it('inline $E = mc^2$ exports the full formula, not just "E"', async () => {
+        const full = await renderMarkdownHtml('a $E = mc^2$ b');
+        const onlyE = await renderMarkdownHtml('a $E$ b');
+        const width = (h) => parseFloat(/viewBox="[-\d.]+ [-\d.]+ ([\d.]+)/.exec(h)[1]);
+        expect(width(full)).toBeGreaterThan(width(onlyE) * 2);
+    }, T);
+
     it('renders inline $x^2$ as svg inside the sanitized html', async () => {
         const html = await renderMarkdownHtml('Area is $x^2$ ok');
         expect(html).toContain('<svg');
