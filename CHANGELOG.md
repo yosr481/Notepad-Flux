@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Ticking a task checkbox inside a blockquote or callout (`> - [ ] task`), or on a `+ [ ]` or `1. [ ]` item, now changes the file. Before, the box looked ticked but the file kept `[ ]`, so the tick was lost.
+
 ## [2.0.0] — 2026-11-19
 
 ### Added
