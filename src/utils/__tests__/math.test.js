@@ -17,6 +17,26 @@ const fresh = async () => {
 };
 
 describe('math.renderTex', () => {
+    // Regression: MathJax 4 inline line-breaking split `E = mc^2` into sibling <svg>s at `=`;
+    // only the first ("E") was returned.
+    it('inline E = mc^2 renders the whole formula, not just "E"', async () => {
+        const { renderTex } = await fresh();
+        const whole = await renderTex('E = mc^2', { display: false });
+        const justE = await renderTex('E', { display: false });
+        const width = (s) => parseFloat(/viewBox="[-\d.]+ [-\d.]+ ([\d.]+)/.exec(s)[1]);
+        expect(whole.match(/<svg/g).length).toBe(1);
+        expect(width(whole)).toBeGreaterThan(width(justE) * 2);
+    }, 60000);
+
+    it('inline quadratic formula renders past the first "x"', async () => {
+        const { renderTex } = await fresh();
+        const whole = await renderTex('x = \\frac{-b \\pm \\sqrt{b^2-4ac}}{2a}', { display: false });
+        const justX = await renderTex('x', { display: false });
+        const width = (s) => parseFloat(/viewBox="[-\d.]+ [-\d.]+ ([\d.]+)/.exec(s)[1]);
+        expect(whole.match(/<svg/g).length).toBe(1);
+        expect(width(whole)).toBeGreaterThan(width(justX) * 4);
+    }, 60000);
+
     it('returns <svg markup for valid TeX, without an mjx-container wrapper', async () => {
         const { renderTex } = await fresh();
         const out = await renderTex('x^2', { display: false });

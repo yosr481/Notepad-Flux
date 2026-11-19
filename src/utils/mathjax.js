@@ -34,7 +34,9 @@ RegisterHTMLHandler(adaptor);
 // No 'html' (\href, \class, \style, \cssId, \data), 'require' or 'autoload': they add links,
 // attributes or fetch code. fontCache 'none' keeps glyphs inline, so there is no <use href>.
 const PACKAGES = ['base', 'ams', 'newcommand', 'noundefined', 'boldsymbol', 'color', 'cancel', 'mhchem', 'braket'];
-const output = new SVG({ fontCache: 'none', fontData: MathJaxNewcmFont });
+// linebreaks.inline off: MathJax 4 otherwise splits inline math at operators into several
+// <svg> siblings, and texToSvg returns only the first (so "$E = mc^2$" showed just "E").
+const output = new SVG({ fontCache: 'none', fontData: MathJaxNewcmFont, linebreaks: { inline: false } });
 
 // TeX -> raw <svg> markup (the mjx-container wrapper dropped). Not sanitized here.
 export async function texToSvg(tex, display) {

@@ -966,3 +966,21 @@ describe('Live Preview Extension — link reference definition lines collapse', 
         expect(lineClasses(DOC, { anchor: at })).toEqual([DOC.indexOf('[ref]')]);
     });
 });
+
+describe('Live Preview Extension — task checkbox inside quotes/ordered/plus lists', () => {
+    // The widget must replace exactly the TaskMarker "[ ]" so posAtDOM is the "[" (the toggle relies on it).
+    it.each([
+        '> - [ ] t\n\nx',
+        '> > - [x] t\n\nx',
+        '> [!todo] T\n> - [ ] t\n\nx',
+        '+ [ ] t\n\nx',
+        '1. [ ] t\n\nx',
+    ])('%j: CheckboxWidget replaces exactly the "[?]" range', (doc) => {
+        const from = doc.indexOf('[', doc.includes('[!') ? doc.indexOf('\n') : 0);
+        const state = gfm(doc, { anchor: doc.length });
+        const field = buildDecorations(state, { from: 0, to: doc.length });
+        const vs = decosAt(field, from, from + 3);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeInstanceOf(CheckboxWidget);
+    });
+});
