@@ -176,7 +176,11 @@ const footnoteField = selectionKeyedField({ collect: collectFootnotes, decorate:
 export function footnoteTooltipDom(text) {
     const dom = document.createElement("div");
     dom.className = "cm-tooltip-cursor cm-footnote-tooltip";
-    dom.innerHTML = sanitizeHTML(marked.parseInline(text));
+    // Parsed in an inert <template> and images dropped: an <img> in a note must not fetch on hover.
+    const tpl = document.createElement("template");
+    tpl.innerHTML = sanitizeHTML(marked.parseInline(text));
+    for (const img of tpl.content.querySelectorAll("img")) img.remove();
+    dom.append(tpl.content);
     for (const a of dom.querySelectorAll("a")) {
         const span = document.createElement("span");
         span.className = "cm-link";

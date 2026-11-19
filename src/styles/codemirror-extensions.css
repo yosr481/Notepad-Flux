@@ -220,7 +220,7 @@
 /* A custom title is document text, so the quote highlight (muted italic) reaches it; match the auto title.
    ponytail: also un-italics *emphasis* inside a title; mark Emphasis nodes in callouts.js if that matters. */
 .cm-line.cm-callout .cm-callout-title,
-.cm-line.cm-callout .cm-callout-title span {
+.cm-line.cm-callout .cm-callout-title span:not(.cm-link span) {
     color: var(--text-normal);
     font-style: normal;
 }

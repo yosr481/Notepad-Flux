@@ -25,4 +25,14 @@ describe('sanitizeMermaidSvg: clickable node wrapper', () => {
         d.innerHTML = sanitizeMermaidSvg('<svg><defs><g id="x"/></defs><use href="#x"/></svg>');
         expect(d.querySelector('use')?.getAttribute('href')).toBe('#x');
     });
+
+    it('only transform/class/id/style are copied from the <a>: xlink:actuate, xlink:show, rel are dropped', async () => {
+        const { sanitizeMermaidSvg } = await import('../mermaid');
+        const d = document.createElement('div');
+        d.innerHTML = sanitizeMermaidSvg('<svg><a xlink:actuate="onLoad" xlink:show="new" rel="noopener" class="node-link" transform="translate(1,2)"><g class="node"><rect width="5" height="5"/></g></a></svg>');
+        const g = d.querySelector('g.node-link');
+        expect(g, 'g.node-link wrapper').not.toBeNull();
+        expect(g.getAttribute('transform')).toBe('translate(1,2)');
+        expect([...g.attributes].map((a) => a.name).sort()).toEqual(['class', 'transform']);
+    });
 });

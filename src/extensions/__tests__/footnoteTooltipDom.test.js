@@ -18,4 +18,8 @@ describe('footnoteTooltipDom', () => {
         expect(el.querySelector('script')).toBeNull();
     });
     it('plain note gives its text', () => expect(footnoteTooltipDom('just text').textContent).toBe('just text'));
+    it('no img element at all: no remote fetch from an untrusted note (html or markdown image)', () => {
+        const el = footnoteTooltipDom('see <img src="https://tracker.example/x.png"> and ![alt](https://tracker.example/y.png)');
+        expect(el.querySelector('img')).toBeNull();
+    });
 });

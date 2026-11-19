@@ -31,10 +31,10 @@ export function sanitizeMermaidSvg(svg) {
         RETURN_DOM: true,
     });
     // A `click` node is wrapped in <a> that carries the node's translate(); dropping the <a> moved the node to
-    // the origin. Keep the wrapper as an inert <g> with every attribute but the link ones.
+    // the origin. Keep the wrapper as an inert <g> with only its layout attributes.
     for (const a of body.querySelectorAll('a')) {
         const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-        for (const { name, value } of a.attributes) if (!/href$|^target$/i.test(name)) g.setAttribute(name, value);
+        for (const name of ['transform', 'class', 'id', 'style']) if (a.hasAttribute(name)) g.setAttribute(name, a.getAttribute(name));
         g.append(...a.childNodes);
         a.replaceWith(g);
     }

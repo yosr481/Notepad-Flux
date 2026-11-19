@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A line starting with a callout or a nested quote or list (`> [!note] שלום`, `> - שלום`) now reads right to left when its text is Hebrew or Arabic.
 - The footnote hover shows the note's bold, italic, code and links formatted instead of raw markdown.
 - A file that starts with front matter is named after its first line below the front matter, not `---`, in its tab and as the default export file name.
-- A hidden `[comment]: # (…)` or link definition line no longer leaves an empty row in the editor.
+- A hidden `[comment]: # (…)` or link definition on a line of its own no longer leaves an empty row in the editor.
 
 ## [2.0.0] — 2026-11-19
 
