@@ -1,12 +1,11 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { isCursorTouching } from "./selection";
 import { isClosedBlock, mathSource } from "./mathSyntax";
 import { renderTex } from "../utils/math";
-import { decorationField } from "./decorationField";
+import { selectionKeyedField } from "./decorationField";
 
 // kind: "inline" | "display" ($$..$$ inside a line) | "block" | "preview" (under a block being edited)
-class MathWidget extends WidgetType {
+export class MathWidget extends WidgetType {
     constructor(tex, kind) {
         super();
         this.tex = tex;
@@ -52,42 +51,41 @@ class MathWidget extends WidgetType {
     }
 }
 
-function buildMath(state) {
-    const decorations = [];
-    if (state.doc.length === 0) return Decoration.none;
-    const { selection, doc } = state;
-
+function collectMath(state) {
+    const items = [];
+    const { doc } = state;
     syntaxTree(state).iterate({
         enter: (node) => {
             if (node.name === "InlineMath") {
-                if (!isCursorTouching(selection, node.from, node.to)) {
-                    const display = doc.sliceString(node.from, node.from + 2) === "$$";
-                    decorations.push(Decoration.replace({
-                        widget: new MathWidget(mathSource(doc, node.node), display ? "display" : "inline"),
-                    }).range(node.from, node.to));
-                }
+                const kind = doc.sliceString(node.from, node.from + 2) === "$$" ? "display" : "inline";
+                items.push({ from: node.from, to: node.to, kind, tex: mathSource(doc, node.node) });
                 return false;
             }
             if (node.name === "BlockMath") {
                 if (!isClosedBlock(node.node)) return false;
-                const tex = mathSource(doc, node.node);
                 // Block widgets must cover whole lines (a block inside "> " included).
-                const from = doc.lineAt(node.from).from, to = doc.lineAt(node.to).to;
-                if (!isCursorTouching(selection, from, to)) {
-                    decorations.push(Decoration.replace({ widget: new MathWidget(tex, "block"), block: true }).range(from, to));
-                } else {
-                    decorations.push(Decoration.widget({ widget: new MathWidget(tex, "preview"), block: true, side: 1 }).range(to));
-                }
+                items.push({ from: doc.lineAt(node.from).from, to: doc.lineAt(node.to).to, kind: "block", tex: mathSource(doc, node.node) });
                 return false;
             }
         },
     });
+    return items;
+}
+
+function decorateMath(items, touched) {
+    const decorations = items.map((it, i) => {
+        if (!touched[i]) {
+            return Decoration.replace({ widget: new MathWidget(it.tex, it.kind), block: it.kind === "block" }).range(it.from, it.to);
+        }
+        if (it.kind !== "block") return null;
+        return Decoration.widget({ widget: new MathWidget(it.tex, "preview"), block: true, side: 1 }).range(it.to);
+    }).filter(Boolean);
     return Decoration.set(decorations, true);
 }
 
 // A StateField, not a ViewPlugin: block math replaces line breaks, which only a field may do.
-// Rebuilt on the same triggers as livePreview (the parse is time-sliced, so tree changes count).
-const mathField = decorationField(buildMath);
+// Items are collected on doc/tree changes only (the parse is time-sliced, so tree changes count).
+const mathField = selectionKeyedField({ collect: collectMath, decorate: decorateMath });
 
 const mathTheme = EditorView.baseTheme({
     ".cm-math": { unicodeBidi: "isolate" },
