@@ -506,6 +506,9 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         // Reset baseline to the new tab's content
         savedContentRef.current = initialContent;
       }
+      // setState keeps the old scrollTop; a large offset into another doc breaks CM's measure loop.
+      // Reset here, before the rAF scroll restores below.
+      view.scrollDOM.scrollTop = 0;
 
       currentTabIdRef.current = activeTabId;
 
