@@ -14,6 +14,7 @@ import '@mathjax/src/js/input/tex/cancel/CancelConfiguration.js';
 import '@mathjax/src/js/input/tex/mhchem/MhchemConfiguration.js';
 import '@mathjax/src/js/input/tex/braket/BraketConfiguration.js';
 import { MathJaxNewcmFont } from '@mathjax/mathjax-newcm-font/js/svg.js';
+import { MathJaxMhchemFontExtension } from '@mathjax/mathjax-mhchem-font-extension/js/svg.js';
 
 // The font loads some glyph ranges (\mathbb, fraktur, big delimiters...) on demand.
 // Bundle each as its own lazy chunk and hand MathJax the matching one by file name.
@@ -23,6 +24,9 @@ mathjax.asyncLoad = (file) => {
     const load = rangeByName.get(String(file).split('/').pop());
     return load ? load() : Promise.reject(new Error(`MathJax font range not bundled: ${file}`));
 };
+
+// \ce arrows and bonds are private-use glyphs of a separate font extension (the -mhchem variant).
+MathJaxNewcmFont.addExtension(MathJaxMhchemFontExtension);
 
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);

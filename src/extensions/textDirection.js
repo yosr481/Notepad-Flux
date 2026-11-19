@@ -13,7 +13,8 @@ const RTL_REGEX = /[\u0591-\u07FF\uFB1D-\uFDFD\uFE70-\uFEFC]/;
 // 5. Checkboxes: - [ ]
 // 6. Links/Images/Wikilinks: [, ![
 // 7. Styles: **, *, __, _, ==, ~~, `
-const MD_IGNORE_PATTERN = /^(\s*)(#{1,6}\s+|[-*+]\s+(\[\s?[xX]?\s?\]\s+)?|\d+\.\s+|>\s*|`{3,}|~{3,}|!?\[{1,2}|={2}|~{2}|`+|\*{1,3}|_{1,3})/;
+// A callout marker ([!note], [!tip]-) is listed before the link "[" so it goes as a whole.
+const MD_IGNORE_PATTERN = /^(\s*)(#{1,6}\s+|\[![^\]\s]+\][+-]?\s*|[-*+]\s+(\[\s?[xX]?\s?\]\s+)?|\d+\.\s+|>\s*|`{3,}|~{3,}|!?\[{1,2}|={2}|~{2}|`+|\*{1,3}|_{1,3})/;
 
 const rtlDecoration = Decoration.line({
     attributes: { dir: "rtl" }
@@ -76,7 +77,9 @@ const textDirectionPlugin = ViewPlugin.fromClass(class {
 
                 if (!shouldIgnore) {
                     const text = row.text;
-                    const cleanText = text.replace(MD_IGNORE_PATTERN, "");
+                    // Prefixes stack ("> - [ ] ", "> [!note] "): strip until none is left.
+                    let cleanText = text, m;
+                    while ((m = MD_IGNORE_PATTERN.exec(cleanText)) && m[0].length) cleanText = cleanText.slice(m[0].length);
                     const trimmed = cleanText.trim();
 
                     if (trimmed.length > 0) {

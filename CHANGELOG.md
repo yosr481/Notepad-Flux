@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Chemistry arrows and bonds (`\ce{2H2 + O2 -> 2H2O}`) draw correctly instead of showing an empty box.
+- A Mermaid flowchart with a `click` line keeps the clickable node in place; the link itself stays disabled.
+- Links in tables use the app's link colour, readable in dark mode.
+- A callout with a custom title shows it in the same bold style as a default title, with a gap after the icon.
+- A line starting with a callout or a nested quote or list (`> [!note] שלום`, `> - שלום`) now reads right to left when its text is Hebrew or Arabic.
+- The footnote hover shows the note's bold, italic, code and links formatted instead of raw markdown.
+- A file that starts with front matter is named after its first line below the front matter, not `---`, in its tab and as the default export file name.
+- A hidden `[comment]: # (…)` or link definition line no longer leaves an empty row in the editor.
+
 ## [2.0.0] — 2026-11-19
 
 ### Added

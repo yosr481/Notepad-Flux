@@ -944,3 +944,25 @@ describe('FUTURE-8 — multi-line setext heading underline', () => {
         expect(t7bareReplacesAt(off, ul, ul + 3).length).toBe(1);
     });
 });
+
+describe('Live Preview Extension — link reference definition lines collapse', () => {
+    const lineClasses = (doc, sel) => {
+        const field = buildDecorations(gfm(doc, sel), { from: 0, to: doc.length });
+        const out = [];
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec?.class === 'cm-collapsed-line') out.push(f);
+        });
+        return out;
+    };
+    const DOC = 'text\n\n[comment]: # (hidden)\n\n[ref]: https://x.com\n\nend';
+    it.each([['[comment]: # (hidden)'], ['[ref]: https://x.com']])('cursor elsewhere: %s line gets cm-collapsed-line at its start', (l) => {
+        expect(lineClasses(DOC, { anchor: 0 })).toContain(DOC.indexOf(l));
+    });
+    it('only definition lines are collapsed, not paragraphs', () => {
+        expect(lineClasses(DOC, { anchor: 0 })).toEqual([DOC.indexOf('[comment]'), DOC.indexOf('[ref]')]);
+    });
+    it('cursor on the definition line: no collapse for it', () => {
+        const at = DOC.indexOf('[comment]') + 3;
+        expect(lineClasses(DOC, { anchor: at })).toEqual([DOC.indexOf('[ref]')]);
+    });
+});

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../services/storage';
-import { sanitizeFilename, fileSystem } from '../utils/fileSystem';
+import { fileSystem } from '../utils/fileSystem';
+import { titleFromContent } from '../utils/tabTitle';
 import { detectEol, detectCharset } from '../utils/eol';
 
 const SettingsContext = createContext();
@@ -102,11 +103,7 @@ export const SessionProvider = ({ children }) => {
     currentRecentFilesRef.current = recentFiles;
     currentSettingsRef.current = settings;
 
-    const generateTitle = (content) => {
-        const firstLine = content.split('\n')[0].trim();
-        const title = firstLine ? firstLine.slice(0, 35) : 'Untitled';
-        return sanitizeFilename(title);
-    };
+    const generateTitle = titleFromContent;
 
     const saveTabDebounced = useCallback((tab) => {
         if (!isPrimaryWindow || !isSessionLoaded) return;

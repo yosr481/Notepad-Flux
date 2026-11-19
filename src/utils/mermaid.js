@@ -26,10 +26,18 @@ const cleanCss = (css) => css
 export function sanitizeMermaidSvg(svg) {
     const body = DOMPurify.sanitize(svg, {
         USE_PROFILES: { svg: true },
-        FORBID_TAGS: ['a', 'foreignObject', 'image', 'script'],
+        FORBID_TAGS: ['foreignObject', 'image', 'script'],
         ADD_TAGS: ['style', 'use'],
         RETURN_DOM: true,
     });
+    // A `click` node is wrapped in <a> that carries the node's translate(); dropping the <a> moved the node to
+    // the origin. Keep the wrapper as an inert <g> with every attribute but the link ones.
+    for (const a of body.querySelectorAll('a')) {
+        const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        for (const { name, value } of a.attributes) if (!/href$|^target$/i.test(name)) g.setAttribute(name, value);
+        g.append(...a.childNodes);
+        a.replaceWith(g);
+    }
     for (const el of body.querySelectorAll('*')) {
         if (el.localName === 'style') el.textContent = cleanCss(el.textContent);
         for (const { name, value } of [...el.attributes]) {
