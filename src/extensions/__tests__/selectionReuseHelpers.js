@@ -15,8 +15,9 @@ export const flat = (state) => decoSets(state).flatMap((set) => {
 
 export const mkState = (doc, extensions, anchor = 0, head = anchor) => {
     const state = EditorState.create({ doc, selection: { anchor, head }, extensions });
+    // syntaxTree(state) is a snapshot from create (20 ms parse budget, partial under load); update({}) adopts the finished tree
     ensureSyntaxTree(state, doc.length, 5000);
-    return state;
+    return state.update({}).state;
 };
 
 // Same decorations: from, to, widget class, widget.eq both ways, block/side flags.

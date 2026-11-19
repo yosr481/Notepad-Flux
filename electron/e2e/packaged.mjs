@@ -1,7 +1,7 @@
 // E2E against a PACKAGED Notepad Flux binary (linux-unpacked, .deb payload, AppImage).
 //   DISPLAY=:77 node electron/e2e/packaged.mjs <binary> [--target=<name>] [--smoke] [--no-sandbox]
 // Never touches real app data: every launch uses NOTEPAD_FLUX_USER_DATA=<temp dir>.
-import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, statSync, renameSync } from 'node:fs'
+import { cpSync, realpathSync, mkdtempSync, writeFileSync, readFileSync, mkdirSync, symlinkSync, chmodSync, existsSync, rmSync, readdirSync, lstatSync, linkSync, statSync, renameSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, basename, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -742,6 +742,7 @@ if (want('lp')) try {
         const sorted = [...lat].sort((a, b) => a - b)
         return { size: statSync(big).size, clickMs, median: sorted[Math.floor(sorted.length / 2)], max: sorted.at(-1), avg: Math.round(lat.reduce((a, b) => a + b, 0) / lat.length) }
     }
+    const perfErrs0 = pageErrors.length
     let plainMedian = 0
     await check('PERF-1', 'perf', '1.3 MB plain markdown file opens in a few seconds; typing near the end stays responsive (B11)', async () => {
         const r = await perf('large-plain', Array.from({ length: 16500 }, (_, i) => (i % 40 === 0 ? `## Section ${i}` : `line ${i} - lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor`)))
@@ -767,6 +768,12 @@ if (want('lp')) try {
         const ratio = r.median / Math.max(plainMedian, 1)
         assert(r.median < 2000 && ratio < 40, `typing median ${r.median}ms = ${ratio.toFixed(1)}x the plain-file median ${plainMedian}ms (limits: <2000ms and <40x; pre-fix ~2400ms / ~70x); max ${r.max}ms, open+click ${r.clickMs}ms`)
         return `${r.size} bytes, median ${r.median}ms (${ratio.toFixed(1)}x plain ${plainMedian}ms), max ${r.max}ms, open+click ${r.clickMs}ms`
+    })
+    // B1: opening each big doc switches tab from a tab scrolled to the end (Control+End) and then clicks. The stale scrollTop made CM's measure loop
+    // fail and the click threw "TypeError: Cannot read properties of null (reading 'length')" in scanTile. Editor must reset scrollTop on tab switch.
+    await check('PERF-2c', 'perf', 'no page errors (CM scanTile TypeError) while clicking in the large docs right after a tab switch from a tab scrolled to the bottom', async () => {
+        const pe = pageErrors.slice(perfErrs0); assert(pe.length === 0, 'page errors: ' + JSON.stringify(pe.slice(0, 3)))
+        return 'no page errors through PERF-1 / PERF-2a / PERF-2'
     })
     await win.screenshot({ path: join(shots, `${target}-live-preview.png`) }).catch(() => {})
     await app.close().catch(() => {})
@@ -2444,6 +2451,323 @@ try {
     })
 } finally { await app.close().catch(() => {}) }
 } catch (e) { await scenarioCrashed('updates', e) }
+
+// ---------------------------------------------------------------- scenario: session data path + size + Open folder (S1, Docs/internal/data-path-spec.md)
+if (want('datainfo')) try {
+    const Ud = tmp('nf-di-u-'), Xd = tmp('nf-di-x-'); cleanup.push(Ud, Xd)
+    const { app, win } = await L(Ud)
+    const errs0 = pageErrors.length
+    // du-style: sum of regular-file sizes (lstat, symlinks not followed, unreadable skipped) under the folder
+    const du = (d) => { let n = 0; const go = (p) => { let es; try { es = readdirSync(p, { withFileTypes: true }) } catch { return } for (const e of es) { const f = join(p, e.name); try { if (e.isDirectory()) go(f); else { const s = lstatSync(f); if (s.isFile()) n += s.size } } catch { /* vanished */ } } }; go(d); return n }
+    const UNITS = { B: 1, KB: 1024, MB: 1024 ** 2, GB: 1024 ** 3 }
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+    const closeSettings = () => win.locator('[class*=backButton]').click()
+    const sizeText = async () => { const t = await win.locator('[class*=overlay]').getByText(/^\d+(\.\d)? (B|KB|MB|GB)$|^Size unavailable$|^Calculating…$/).first().innerText({ timeout: 5000 }); return t.trim() }
+    const sizeBytes = (t) => { const m = /^(\d+(?:\.\d)?) (B|KB|MB|GB)$/.exec(t); assert(m, 'not a formatted size: ' + JSON.stringify(t)); return Number(m[1]) * UNITS[m[2]] }
+    const stubOpen = (ret = '') => app.evaluate(({ shell }, r) => { globalThis.__open = []; shell.openPath = async (p) => { globalThis.__open.push(p); return r } }, ret)
+    const opened = () => app.evaluate(() => globalThis.__open)
+    // Raw ipcRenderer in a throwaway hidden window (custom preload written by the test), so the channels can be hit
+    // with arguments / from other pages. The real preload bridge is not reachable from a sub-frame (the mermaid frame
+    // has no electronAPI, see MM-*), so a sub-frame sender cannot be produced; a non-own top frame stands in for it.
+    const rawPreload = join(Xd, 'raw-preload.cjs')
+    writeFileSync(rawPreload, "const { contextBridge, ipcRenderer } = require('electron'); contextBridge.exposeInMainWorld('raw', { invoke: (c, ...a) => ipcRenderer.invoke(c, ...a) })\n")
+    const foreign = join(Xd, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
+    const rawCalls = (url, calls) => app.evaluate(async ({ BrowserWindow }, { preload, url, calls }) => {
+        const w = new BrowserWindow({ show: false, webPreferences: { preload, sandbox: true, contextIsolation: true } })
+        try {
+            await w.loadURL(url)
+            const out = []
+            for (const [ch, ...a] of calls) out.push(await w.webContents.executeJavaScript(`window.raw.invoke(${JSON.stringify(ch)}, ...${JSON.stringify(a)}).then(v => ({ ok: v }), e => ({ err: String((e && e.message) || e) }))`))
+            return out
+        } finally { w.destroy() }
+    }, { preload: rawPreload, url, calls })
+    const ownUrl = (await ui.mainWindows(app)).find(w => /index\.html/.test(w.url)).url.split('#')[0].split('?')[0]
+
+    await check('DATA-1', 'datainfo', 'Settings > Session data shows exactly the NOTEPAD_FLUX_USER_DATA folder in a dir=ltr element, plus an Open folder button; no page error', async () => {
+        await openSettings()
+        const row = win.locator('[class*=overlay] [dir=ltr]').filter({ hasText: Ud })
+        await row.first().waitFor({ timeout: 5000 })
+        const texts = await win.locator('[class*=overlay] [dir=ltr]').allInnerTexts()
+        assert(texts.some(t => t.trim() === Ud), 'no dir=ltr element with exactly ' + Ud + ': ' + JSON.stringify(texts))
+        assert(await win.getByRole('button', { name: /open folder/i }).isVisible(), 'Open folder button not visible')
+        await win.screenshot({ path: join(shots, `${target}-datainfo-settings.png`) }).catch(() => {})
+    }, { smoke: true })
+    await check('DATA-2', 'datainfo', 'the size is above 0 and within 5% (+1 decimal of rounding) of a du-style sum the test computes over that folder', async () => {
+        await waitFor(async () => /^\d/.test(await sizeText()), { what: 'size loaded' })
+        const t = await sizeText()
+        const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+        const lo = Math.min(du(Ud), api.bytes), hi = Math.max(du(Ud), api.bytes)   // the app keeps writing; bracket it
+        assert(api.bytes > 0, 'getDataInfo bytes ' + api.bytes)
+        eq(api.path, Ud, 'getDataInfo path')
+        const shown = sizeBytes(t); const unit = UNITS[t.split(' ')[1]]
+        assert(shown > 0, 'size shown as ' + t)
+        assert(shown >= lo * 0.95 - unit * 0.05 && shown <= hi * 1.05 + unit * 0.05, `shown ${t} (${shown} B) vs du ${lo}..${hi} B`)
+        assert(api.bytes >= lo * 0.95 && api.bytes <= hi * 1.05, `getDataInfo bytes ${api.bytes} vs du ${lo}..${hi}`)
+        return `${t}; du ${lo}..${hi} B`
+    })
+    await check('DATA-3', 'datainfo', 'Open folder calls shell.openPath once with exactly the userData path (stubbed: nothing really opens)', async () => {
+        await stubOpen()
+        await win.getByRole('button', { name: /open folder/i }).click()
+        await waitFor(async () => (await opened()).length === 1, { what: 'openPath call' })
+        await sleep(300)
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+    })
+    await check('DATA-4', 'datainfo', 'reopening Settings asks again: a 3 MB file added to the folder makes the size grow by about 3 MB', async () => {
+        const before = sizeBytes(await sizeText())
+        await closeSettings(); writeFileSync(join(Ud, 'nf-data-grow.bin'), Buffer.alloc(3 * 1024 * 1024, 1))
+        await openSettings()
+        await waitFor(async () => { const t = await sizeText(); return /^\d/.test(t) && sizeBytes(t) - before > 2.5 * 1024 * 1024 }, { what: 'size grew after reopen' })
+        const grew = sizeBytes(await sizeText()) - before
+        assert(grew < 3.6 * 1024 * 1024, 'grew by ' + grew)
+        rmSync(join(Ud, 'nf-data-grow.bin'), { force: true })
+    })
+    await check('DATA-5', 'datainfo', 'preload bridge: openDataFolder drops any argument the page passes (still only userData)', async () => {
+        await stubOpen()
+        const r = await win.evaluate(async () => window.electronAPI.openDataFolder('/etc'))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud]), 'openPath calls')
+        assert(r && r.ok === true, 'result ' + JSON.stringify(r))
+        await win.evaluate(async () => window.electronAPI.getDataInfo('/etc'))   // must not throw either
+    })
+    await check('DATA-6', 'datainfo', 'own page, raw channel: get-data-info returns {path, bytes}; open-data-folder("/etc") (and other junk) still opens only userData; a failed openPath comes back as { ok: false, error: <openPath string> }', async () => {
+        await stubOpen()
+        const [info, o1, o2, o3] = await rawCalls(ownUrl, [['get-data-info'], ['open-data-folder', '/etc'], ['open-data-folder', { path: '/etc' }, '/'], ['open-data-folder']])
+        assert(!info.err && info.ok.path === Ud && info.ok.bytes > 0, 'get-data-info ' + JSON.stringify(info))
+        for (const o of [o1, o2, o3]) assert(!o.err && o.ok && o.ok.ok === true, 'open-data-folder ' + JSON.stringify(o))
+        eq(JSON.stringify(await opened()), JSON.stringify([Ud, Ud, Ud]), 'openPath calls')
+        await stubOpen('Failed to open path')
+        const [bad] = await rawCalls(ownUrl, [['open-data-folder']])
+        eq(JSON.stringify(bad), JSON.stringify({ ok: { ok: false, error: 'Failed to open path' } }), 'openPath error shape { ok: false, error }')
+    })
+    await check('DATA-7', 'datainfo', 'a page that is not the app (data: URL, other local file:) is denied on both channels with "Access denied"; nothing is opened', async () => {
+        await stubOpen()
+        for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {
+            const [a, b] = await rawCalls(url, [['get-data-info'], ['open-data-folder']])
+            assert(a.err && /Access denied/.test(a.err), url + ' get-data-info: ' + JSON.stringify(a))
+            assert(b.err && /Access denied/.test(b.err), url + ' open-data-folder: ' + JSON.stringify(b))
+        }
+        eq((await opened()).length, 0, 'openPath calls from denied senders')
+    })
+    await check('DATA-9', 'datainfo', 'symlinks / junctions inside the folder are not followed: a link to a folder holding a 5 MB file adds (almost) nothing to the size', async () => {
+        const big = tmp('nf-di-big-'); cleanup.push(big); writeFileSync(join(big, 'big.bin'), Buffer.alloc(5 * 1024 * 1024, 2))
+        const link = join(Ud, 'nf-data-link'); symlinkSync(big, link, 'junction')
+        try {
+            const api = await win.evaluate(() => window.electronAPI.getDataInfo())
+            const base = du(Ud)   // du skips links too; the app may write a little meanwhile
+            assert(api.bytes < base + 1024 * 1024, `getDataInfo ${api.bytes} B vs du ${base} B: the link target (5 MB) was followed`)
+        } finally { rmSync(link, { force: true, recursive: false }) }
+    })
+    await check('DATA-10', 'datainfo', '50 concurrent getDataInfo() calls share one in-flight walk: all resolve to the same {path, bytes, truncated}, and main.log gains at most 2 "data-info walk" lines', async () => {
+        const walks = () => (logOf(Ud).match(/data-info walk/g) || []).length
+        await sleep(500); const w0 = walks()
+        const rs = await win.evaluate(() => Promise.all(Array.from({ length: 50 }, () => window.electronAPI.getDataInfo())))
+        await sleep(800)
+        eq(rs.length, 50, 'results')
+        const first = JSON.stringify(rs[0]); assert(rs[0].bytes > 0 && rs[0].path, 'first result ' + first)
+        assert(rs.every(r => JSON.stringify(r) === first), 'results differ: ' + [...new Set(rs.map(r => JSON.stringify(r)))].join(' | '))
+        const n = walks() - w0
+        assert(n >= 1 && n <= 2, n + ' "data-info walk" lines in main.log for 50 concurrent calls (want 1..2)')
+        return n + ' walk(s)'
+    })
+    await check('DATA-11', 'datainfo', 'a hardlink is counted once: a 3 MB file plus a hardlink to it grows the size by about 3 MB, not 6', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const a = join(Ud, 'nf-hard-a.bin'), b = join(Ud, 'nf-hard-b.bin')
+        writeFileSync(a, Buffer.alloc(3 * 1024 * 1024, 3)); linkSync(a, b)
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew > 2.9 * 1024 * 1024, 'grew only ' + grew)
+            assert(grew < 3.5 * 1024 * 1024, 'grew by ' + grew + ' B: the hardlink was counted twice')
+        } finally { rmSync(a, { force: true }); rmSync(b, { force: true }) }
+    })
+    await check('DATA-12', 'datainfo', 'many distinct files are all counted (guards the dev:ino dedupe against id collisions, e.g. NTFS file ids above 2^53): 400 files of 1 KB grow the size by about 400 KB', async () => {
+        const before = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+        const d = join(Ud, 'nf-many'); mkdirSync(d)
+        for (let i = 0; i < 400; i++) writeFileSync(join(d, 'f' + i), Buffer.alloc(1024, i % 251))
+        try {
+            const after = (await win.evaluate(() => window.electronAPI.getDataInfo())).bytes
+            const grew = after - before
+            assert(grew >= 400 * 1024 * 0.97, 'grew only ' + grew + ' B of ' + 400 * 1024 + ': files were skipped (id collision?)')
+            assert(grew < 400 * 1024 + 256 * 1024, 'grew by ' + grew)
+        } finally { rmSync(d, { recursive: true, force: true }) }
+    })
+    await check('DATA-8', 'datainfo', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('datainfo', e) }
+
+// ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
+if (want('changelog')) try {
+    const Uc = tmp('nf-cl-u-'); cleanup.push(Uc)
+    const { app, win } = await L(Uc)
+    const errs0 = pageErrors.length
+    // Independent of the app's helper on purpose: the built version's `## [X] <sep> date` section, straight from the checkout's CHANGELOG.md.
+    const ver = await app.evaluate(({ app: a }) => a.getVersion())
+    const md = readFileSync(join(here, '../../CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n')
+    const esc = ver.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const m = new RegExp('^## \\[' + esc + '\\][ \\t]*[-–—][^\\n]*\\n([\\s\\S]*?)(?=\\n## \\[|(?![\\s\\S]))', 'm').exec(md)
+    const body = m ? m[1].trim() : null
+    const heading = body && (/^###\s+(.+)$/m.exec(body) || [])[1]
+    const link = body && (/\]\((https?:\/\/[^)\s]+)\)/.exec(body) || [])[1]
+    const sec = () => win.locator('[class*=overlay] details').filter({ has: win.locator('summary', { hasText: /What's new in v/ }) })
+    const openSettings = async () => { await win.locator('button[title="Settings"]').click(); await win.getByText('Clear saved session').waitFor({ timeout: 5000 }) }
+
+    await check('CL-1', 'changelog', 'Settings > About: "What\'s new in v<built version>" is closed by default and expands to that version\'s CHANGELOG section (a heading read from CHANGELOG.md); a build with no section shows nothing (the block may vanish on first expand)', async () => {
+        await openSettings()
+        if (body === null) {
+            if (await sec().count()) await sec().locator('summary').click()
+            await waitFor(async () => (await sec().count()) === 0, { what: 'no changelog block for v' + ver })
+            return 'v' + ver + ' has no CHANGELOG section: block absent'
+        }
+        assert(heading, 'CHANGELOG section of v' + ver + ' has no ### heading to compare against')
+        await sec().first().waitFor({ timeout: 5000 })
+        eq(await sec().first().evaluate(d => d.open), false, 'details open by default')
+        eq((await sec().first().locator('summary').innerText()).trim(), "What's new in v" + ver, 'summary text')
+        await sec().first().locator('summary').click()
+        await waitFor(async () => (await sec().count()) === 1 && await sec().first().evaluate(d => d.open), { what: 'section open' })
+        const h = sec().first().locator('h1,h2,h3,h4,h5,h6').filter({ hasText: heading }).first()
+        await h.waitFor({ timeout: 5000 })
+        assert((await sec().first().locator('li').count()) >= 1, 'no list items rendered')
+        assert(!/Couldn't load the changelog/.test(await sec().first().innerText()), 'load failure shown')
+        await win.screenshot({ path: join(shots, `${target}-changelog-settings.png`) }).catch(() => {})
+        return 'v' + ver + ' heading "' + heading + '"'
+    })
+    await check('CL-2', 'changelog', 'clicking an http(s) link inside the section does not navigate the app window: it goes to shell.openExternal (stubbed); every rendered link has target=_blank and rel noopener', async () => {
+        if (body === null) return 'no section for v' + ver + ': nothing to click'
+        const box = sec().first()
+        // Real section may hold no link (1.6.0 has none): add one inside the rendered container so the click still goes through main's handlers.
+        const url = link || 'https://example.org/cl-2'
+        if (!link) await box.evaluate((d, u) => { const a = document.createElement('a'); a.href = u; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = 'cl-2 probe'; (d.querySelector('div') || d).appendChild(a) }, url)
+        await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
+        const wins0 = (await ui.mainWindows(app)).length
+        await box.locator('a[href]').first().waitFor({ timeout: 5000 })
+        const bad = await box.evaluate(d => [...d.querySelectorAll('a[href]')].filter(a => a.target !== '_blank' || !/noopener/.test(a.rel)).map(a => a.outerHTML.slice(0, 120)))
+        eq(bad.length, 0, 'links without target=_blank + rel noopener: ' + JSON.stringify(bad))
+        await box.locator(`a[href="${url}"]`).first().click({ noWaitAfter: true })
+        await waitFor(async () => openedUrl((await app.evaluate(() => globalThis.__ext)), url), { what: 'openExternal for ' + url })
+        await sleep(500)
+        assert(/index\.html/.test(win.url()), 'app window navigated away: ' + win.url())
+        eq((await ui.mainWindows(app)).length, wins0, 'app windows after the click')
+    })
+    await check('CL-3', 'changelog', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('changelog', e) }
+
+// ---------------------------------------------------------------- scenario: keyboard shortcuts (B9)
+// Real key presses prove the wiring; the Hebrew layout cannot be switched here, so a KeyboardEvent {key:'ד', code:'KeyS', ctrlKey} is
+// dispatched from the focused element (it bubbles to the window listener) -- the bug is in that handler, not in the OS layout.
+if (want('keys')) try {
+    const Uk = tmp('nf-k-u-'), Wk = tmp('nf-k-w-'); cleanup.push(Uk, Wk)
+    const { app, win } = await L(Uk)
+    const errs0 = pageErrors.length
+    const nTabs = async () => (await ui.tabsInfo(win)).length
+    const activeIdx = async () => (await ui.tabsInfo(win)).findIndex(t => t.active)
+    const fire = (init) => win.evaluate((i) => (document.activeElement || document.body).dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, cancelable: true, ...i })), init)
+    const DATE = /\d{2}\/\d{2}\/\d{4}, \d{2}:\d{2}:\d{2} (AM|PM)/
+    await ui.focusEditor(win)
+
+    await check('KEYS-1', 'keys', 'Ctrl+N opens a tab, Ctrl+W closes the active one, Ctrl+Tab / Ctrl+Shift+Tab switch next / previous (real key presses)', async () => {
+        const n0 = await nTabs()
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+N new tab' })
+        await win.keyboard.press('Control+n'); await waitFor(async () => (await nTabs()) === n0 + 2, { what: 'second Ctrl+N tab' })
+        eq(await activeIdx(), n0 + 1, 'new tab is active')
+        await win.keyboard.press('Control+Shift+Tab'); await waitFor(async () => (await activeIdx()) === n0, { what: 'Ctrl+Shift+Tab previous' })
+        await win.keyboard.press('Control+Tab'); await waitFor(async () => (await activeIdx()) === n0 + 1, { what: 'Ctrl+Tab next' })
+        await win.keyboard.press('Control+w'); await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Ctrl+W closes a tab' })
+        eq(await nTabs(), n0 + 1, 'tab count after Ctrl+W')
+    })
+
+    await check('KEYS-2', 'keys', 'Ctrl+S on an unsaved tab opens Save As (dialog stubbed) and writes the file; Ctrl+Shift+S also opens Save As', async () => {
+        const dst = join(Wk, 'keys-save.md'), dst2 = join(Wk, 'keys-saveas.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-SAVE')
+        await ui.stubSave(app, dst)
+        await win.keyboard.press('Control+s')
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-SAVE', { what: 'Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+S')
+        await ui.stubSave(app, dst2)
+        await win.keyboard.press('Control+Shift+S')
+        await waitFor(() => existsSync(dst2), { what: 'Ctrl+Shift+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs after Ctrl+Shift+S')
+    })
+
+    await check('KEYS-3', 'keys', 'Ctrl+O (dialog stubbed) opens a file; Ctrl+F shows Find, Ctrl+H shows Replace, Ctrl+G shows Go to Line', async () => {
+        const f = join(Wk, 'keys-open.md'); writeFileSync(f, 'KEYS-OPEN-BODY\nline two\nline three\n')
+        await ui.openViaDialog(app, win, f)
+        await waitFor(async () => (await ui.activeTitle(win)) === 'keys-open.md', { what: 'Ctrl+O opened the file' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+f')
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        assert((await win.locator('input[placeholder="Replace"]').count()) === 0, 'Replace field shown by Ctrl+F')
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'find bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+h')
+        await win.locator('input[placeholder="Replace"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape'); await waitFor(async () => (await win.locator('input[placeholder="Find"]').count()) === 0, { what: 'replace bar closed' })
+        await ui.focusEditor(win); await win.keyboard.press('Control+g')
+        await win.locator('input[type=number]').fill('2'); await win.keyboard.press('Enter')
+        await waitFor(async () => (await win.locator('input[type=number]').count()) === 0, { what: 'Go to Line dialog closed' })
+    })
+
+    await check('KEYS-4', 'keys', 'Ctrl+P calls window.print (stubbed); F5 inserts the date/time at the caret', async () => {
+        await win.evaluate(() => { window.__printed = 0; window.print = () => { window.__printed++ } })
+        await ui.focusEditor(win); await win.keyboard.press('Control+p')
+        await waitFor(async () => (await win.evaluate(() => window.__printed)) >= 1, { what: 'window.print called' })
+        assert(!DATE.test(await ui.editorText(win)), 'date already present before F5')
+        await win.keyboard.press('F5')
+        await waitFor(async () => DATE.test(await ui.editorText(win)), { what: 'F5 inserted the date/time' })
+    })
+
+    await check('KEYS-5', 'keys', 'Hebrew layout (simulated KeyboardEvent key "ד", code KeyS): Ctrl+S on an unsaved tab opens Save As and saves (B9); Hebrew Ctrl+N opens a tab, Ctrl+F shows Find', async () => {
+        const dst = join(Wk, 'keys-hebrew.md')
+        await win.keyboard.press('Control+n'); await sleep(300); await ui.typeAtEnd(win, 'KEYS-HEBREW')
+        await ui.stubSave(app, dst)
+        await fire({ key: 'ד', code: 'KeyS', ctrlKey: true })
+        await waitFor(() => existsSync(dst) && readFileSync(dst, 'utf8') === 'KEYS-HEBREW', { what: 'Hebrew Ctrl+S wrote the file' })
+        eq(await ui.saveCalls(app), 1, 'Save As dialogs')
+        const n0 = await nTabs()
+        await fire({ key: 'מ', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n0 + 1, { what: 'Hebrew Ctrl+N new tab' })
+        await ui.focusEditor(win); await fire({ key: 'כ', code: 'KeyF', ctrlKey: true })
+        await win.locator('input[placeholder="Find"]').waitFor({ timeout: 5000 })
+        await win.keyboard.press('Escape')
+        // Caps Lock: key is uppercase
+        const n1 = await nTabs(); await ui.focusEditor(win); await fire({ key: 'N', code: 'KeyN', ctrlKey: true })
+        await waitFor(async () => (await nTabs()) === n1 + 1, { what: 'Caps Lock Ctrl+N new tab' })
+    })
+
+    await check('KEYS-6', 'keys', 'AltGr (Ctrl+Alt) and Meta combos fire no app shortcut; Ctrl+N held (repeat) opens only the first tab', async () => {
+        await ui.focusEditor(win)
+        const n0 = await nTabs(); await ui.stubSave(app, join(Wk, 'never.md'))
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, altKey: true })
+        await fire({ key: 's', code: 'KeyS', ctrlKey: true, altKey: true })
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true, metaKey: true })
+        await fire({ key: 'w', code: 'KeyW', ctrlKey: true, altKey: true })
+        await sleep(500)
+        eq(await nTabs(), n0, 'tab count after AltGr/Meta combos'); eq(await ui.saveCalls(app), 0, 'save dialog after AltGr+S'); assert(!existsSync(join(Wk, 'never.md')), 'file written')
+        await fire({ key: 'n', code: 'KeyN', ctrlKey: true })
+        for (let i = 0; i < 5; i++) await fire({ key: 'n', code: 'KeyN', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after one press + 5 repeats')
+        for (let i = 0; i < 5; i++) await fire({ key: 'w', code: 'KeyW', ctrlKey: true, repeat: true })
+        await sleep(500)
+        eq(await nTabs(), n0 + 1, 'tab count after 5 Ctrl+W repeats')
+    })
+
+    await check('KEYS-7', 'keys', 'Ctrl+Shift+N (real press) opens a second app window and does not add a tab', async () => {
+        const n0 = await nTabs()
+        await ui.focusEditor(win)
+        const wp = app.waitForEvent('window', { timeout: 15000 })
+        await win.keyboard.press('Control+Shift+N')
+        const w2 = await wp; await w2.waitForLoadState('domcontentloaded')
+        const own = (await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)); eq(own.length, 2, 'app windows after Ctrl+Shift+N')
+        eq(await nTabs(), n0, 'first window tab count')
+    })
+
+    await check('KEYS-8', 'keys', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('keys', e) }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }
