@@ -48,6 +48,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     platform: process.platform,
     // Files passed on the command line: pull the queue, and get told when more arrive.
     takeLaunchFiles: () => ipcRenderer.invoke('take-launch-files'),
+    // Settings > Session data. No arguments are forwarded: the page can't choose what main opens or measures.
+    getDataInfo: () => ipcRenderer.invoke('get-data-info'),
+    openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
     onLaunchFiles: (callback) => {
         const subscription = () => callback();
         ipcRenderer.on('launch-files', subscription);

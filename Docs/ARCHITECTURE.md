@@ -87,7 +87,7 @@ src/
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
-│   ├── entities.js        - Shared HTML entity decoder (`decodeEntity`): EntityWidget, table cells, abbr titles
+│   ├── entities.js        - Shared HTML entity decoder (`decodeEntity`): the entity text span, table cells, abbr titles
 │   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes). callouts, mermaid, frontMatter, subSup, emoji and htmlInline each use their own field (backlog C5)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
@@ -200,6 +200,8 @@ This path is used for window/session metadata, crash dumps, and other runtime da
   3. It checks `SessionContext` for the active tab's `fileHandle`.
   4. If a handle exists, it calls `fileSystem.saveFile`.
   5. If successful, it calls `session.updateTab` to clear the `isDirty` flag.
+
+Global shortcuts are one table in `App.jsx` (`handleKeyDown`), matched on `e.code` (physical key) with exact modifiers, so they work on any keyboard layout and AltGr/Ctrl+Alt never fires them. The `Ctrl+X` labels in `MenuBar.jsx` are display text; keep them in step with the table by hand.
 
 ---
 
