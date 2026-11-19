@@ -16,12 +16,12 @@ describe('sanitizeHTML', () => {
     });
 
     it('should remove unsafe tags', () => {
-        const input = '<div>Safe?</div><script>alert("XSS")</script><img src=x onerror=alert(1)>';
+        const input = '<form>Safe?</form><script>alert("XSS")</script><img src=x onerror=alert(1)>';
         const output = sanitizeHTML(input);
         expect(output).not.toContain('<script>');
         expect(output).not.toContain('onerror');
-        // div is not in ALLOWED_TAGS
-        expect(output).not.toContain('<div>');
+        // form is not in ALLOWED_TAGS (div became allowed in F3 callouts)
+        expect(output).not.toContain('<form');
         expect(output).toContain('Safe?');
     });
 
@@ -163,9 +163,9 @@ describe('sanitizeHTML: footnotes', () => {
         expect(out).toBe('<sup>1</sup><section>s</section>');
     });
 
-    it('does not widen other rules: div still stripped, javascript: href still removed, no id survives', () => {
-        const out = sanitizeHTML('<div id="fn-1">d</div><a id="fn-2" href="javascript:alert(1)">l</a>');
-        expect(out).not.toContain('<div');
+    it('does not widen other rules: form still stripped, javascript: href still removed, no id survives', () => {
+        const out = sanitizeHTML('<form id="fn-1">d</form><a id="fn-2" href="javascript:alert(1)">l</a>');
+        expect(out).not.toContain('<form');
         expect(out).not.toContain('javascript:');
         expect(out).not.toContain('id=');
     });
@@ -175,5 +175,48 @@ describe('sanitizeHTML: footnotes', () => {
         expect(svg).toContain('id="glyph1"');
         expect(svg).toContain('id="r2"');
         expect(DOMPurify.sanitize('<p id="myid">x</p>', { ALLOWED_TAGS: ['p'], ALLOWED_ATTR: ['id'] })).toBe('<p id="myid">x</p>');
+    });
+});
+
+// F3 callouts (Docs/internal/callouts-spec.md "Security"): div, details, summary allowed with class; `open` allowed
+// (on details). Still no style, id, on*, data-*. SVG is NOT allowed: icons are inserted after sanitizing.
+describe('sanitizeHTML: callouts', () => {
+    const el = (html, sel) => { const t = document.createElement('template'); t.innerHTML = sanitizeHTML(html); return t.content.querySelector(sel); };
+
+    it('keeps the plain callout shape', () => {
+        const input = '<div class="callout callout-note"><div class="callout-title"><span class="callout-title-text">T</span></div><div class="callout-content"><p>b</p></div></div>';
+        expect(sanitizeHTML(input)).toBe(input);
+    });
+
+    it('keeps the foldable shape with class on details and summary', () => {
+        const input = '<details class="callout callout-tip"><summary class="callout-title"><span class="callout-title-text">T</span></summary><div class="callout-content"><p>b</p></div></details>';
+        expect(sanitizeHTML(input)).toBe(input);
+    });
+
+    it('keeps the open attribute on details, and its absence', () => {
+        expect(el('<details class="c" open><summary>s</summary>x</details>', 'details').hasAttribute('open')).toBe(true);
+        expect(el('<details class="c"><summary>s</summary>x</details>', 'details').hasAttribute('open')).toBe(false);
+    });
+
+    it.each(['div', 'details', 'summary'])('drops style, id, on* and data-* on <%s> but keeps the element and text', (tag) => {
+        const out = sanitizeHTML(`<${tag} style="color:red" id="x" onclick="alert(1)" ontoggle="alert(2)" onmouseover="alert(3)" data-a="1" class="k">keep</${tag}>`);
+        expect(out).not.toMatch(/style=|id=|onclick|ontoggle|onmouseover|data-/);
+        expect(out).toContain('class="k"');
+        expect(out).toContain('keep');
+        expect(out.startsWith(`<${tag}`)).toBe(true);
+    });
+
+    it('still strips svg (icons are added after sanitizing, never by the sanitizer)', () => {
+        const out = sanitizeHTML('<div><svg onload="alert(1)"><path d="M0 0"/></svg>t</div>');
+        expect(out).not.toContain('<svg');
+        expect(out).not.toContain('<path');
+        expect(out).toContain('t');
+    });
+
+    it('does not widen other rules: script, iframe, javascript: href still removed', () => {
+        const out = sanitizeHTML('<div><script>alert(1)</script><iframe src="x"></iframe><a href="javascript:alert(1)">l</a></div>');
+        expect(out).not.toContain('<script');
+        expect(out).not.toContain('<iframe');
+        expect(out).not.toContain('javascript:');
     });
 });

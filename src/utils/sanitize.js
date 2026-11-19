@@ -2,8 +2,8 @@
 
 export const sanitizeHTML = (html) => {
     return DOMPurify.sanitize(html, {
-        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'code', 'del', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'img', 'hr', 'blockquote', 'span', 'sup', 'section'],
-        ALLOWED_ATTR: ['href', 'title', 'class', 'src', 'alt'],
+        ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'table', 'tr', 'td', 'th', 'thead', 'tbody', 'code', 'del', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'pre', 'img', 'hr', 'blockquote', 'span', 'sup', 'sub', 'section', 'div', 'details', 'summary', 'kbd', 'mark', 'u', 'abbr', 'ins', 'small'],
+        ALLOWED_ATTR: ['href', 'title', 'class', 'src', 'alt', 'open'],
         ALLOW_DATA_ATTR: false,
         ALLOW_UNKNOWN_PROTOCOLS: false
     });

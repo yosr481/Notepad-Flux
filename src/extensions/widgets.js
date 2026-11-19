@@ -1,5 +1,5 @@
 import { WidgetType } from "@codemirror/view";
-import { sanitizeHTML } from '../utils/sanitize';
+import { tableDOM } from './tableCells';
 
 export class BulletWidget extends WidgetType {
     toDOM() {
@@ -74,19 +74,21 @@ export class HRWidget extends WidgetType {
 }
 
 export class TableWidget extends WidgetType {
-    constructor(htmlContent) {
+    // data: see tableCells.js
+    constructor(data) {
         super();
-        this.htmlContent = sanitizeHTML(htmlContent);
+        this.data = data;
+        this.key = JSON.stringify(data);
     }
 
     toDOM(view) {
         const div = document.createElement("div");
         div.className = "cm-table-widget";
-        div.innerHTML = this.htmlContent;
+        div.append(tableDOM(this.data, view));
 
         div.addEventListener("mousedown", (e) => {
             // Allow clicking links inside the table
-            if (e.target.tagName === 'A') return;
+            if (e.target.closest('a')) return;
 
             e.preventDefault();
             const pos = view.posAtDOM(div);
@@ -95,58 +97,37 @@ export class TableWidget extends WidgetType {
                     selection: { anchor: pos, head: pos },
                     scrollIntoView: true
                 });
+                view.focus();
             }
         });
 
         return div;
     }
 
-    eq(other) { return other.htmlContent === this.htmlContent; }
+    eq(other) { return other.key === this.key; }
 
     ignoreEvent() { return true; }
 }
 
-export class EntityWidget extends WidgetType {
-    constructor(ch) {
-        super();
-        this.ch = ch;
-    }
-
-    toDOM() {
-        const span = document.createElement("span");
-        span.className = "cm-entity";
-        span.textContent = this.ch;
-        return span;
-    }
-
-    eq(other) {
-        return other.ch === this.ch;
-    }
-
-    ignoreEvent() {
-        return false;
-    }
-}
-
-export class OrderedMarkerWidget extends WidgetType {
-    constructor(text) {
+export class TextSpanWidget extends WidgetType {
+    constructor(text, className) {
         super();
         this.text = text;
+        this.className = className;
     }
 
     toDOM() {
         const span = document.createElement("span");
-        span.className = "cm-ordered-marker";
+        span.className = this.className;
         span.textContent = this.text;
         return span;
     }
 
     eq(other) {
-        return other.text === this.text;
+        return other.text === this.text && other.className === this.className;
     }
 
     ignoreEvent() {
         return false;
     }
 }
-

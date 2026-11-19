@@ -1,9 +1,8 @@
-import { StateField } from "@codemirror/state";
 import { EditorView, Decoration, WidgetType, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
 import { normalizeLabel } from "./linkDefs";
-import { isCursorTouching } from "./selection";
 import { scanFootnoteDef, numberFootnotes, defText } from "./footnoteSyntax";
+import { selectionKeyedField } from "./decorationField";
 
 const cache = new WeakMap();
 
@@ -137,15 +136,10 @@ class FootnoteWidget extends WidgetType {
     }
 }
 
-function buildFootnotes(state) {
-    const decorations = [];
-    const { selection } = state;
+function collectFootnotes(state) {
+    const items = [];
     const { labelled, inline } = resolveFootnotes(state);
-    const add = (from, to, text, def) => {
-        if (!isCursorTouching(selection, from, to)) {
-            decorations.push(Decoration.replace({ widget: new FootnoteWidget(text, def) }).range(from, to));
-        }
-    };
+    const add = (from, to, text, def) => items.push({ from, to, text, def });
     syntaxTree(state).iterate({
         enter: (node) => {
             if (node.name === 'FootnoteReference') {
@@ -165,20 +159,16 @@ function buildFootnotes(state) {
             }
         },
     });
-    return Decoration.set(decorations, true);
+    return items;
 }
 
-// A StateField like mathField: rebuilt on doc, selection and tree changes (the parse is time-sliced).
-const footnoteField = StateField.define({
-    create: buildFootnotes,
-    update(decorations, tr) {
-        if (tr.docChanged || tr.selection || syntaxTree(tr.startState) !== syntaxTree(tr.state)) {
-            return buildFootnotes(tr.state);
-        }
-        return decorations;
-    },
-    provide: (field) => EditorView.decorations.from(field),
-});
+const decorateFootnotes = (items, touched) => Decoration.set(
+    items.flatMap((it, i) => touched[i] ? [] : [Decoration.replace({ widget: new FootnoteWidget(it.text, it.def) }).range(it.from, it.to)]),
+    true,
+);
+
+// A StateField like mathField: items collected on doc and tree changes (the parse is time-sliced).
+const footnoteField = selectionKeyedField({ collect: collectFootnotes, decorate: decorateFootnotes });
 
 const footnoteTooltip = hoverTooltip((view, pos) => {
     const text = footnoteTooltipText(view.state, pos);

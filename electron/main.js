@@ -3,7 +3,7 @@ import { autoUpdater } from 'electron-updater'
 import log from 'electron-log'
 import { join, resolve, dirname, basename, isAbsolute } from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { open, readFile, writeFile } from 'node:fs/promises'
+import { open, readFile, writeFile, opendir, lstat, stat } from 'node:fs/promises'
 import { realpathSync, existsSync, readFileSync, writeFileSync, renameSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { platform } from 'node:process'
@@ -327,6 +327,59 @@ safeHandle('take-launch-files', async (event) => {
     // The window that took the files shows them, whichever window main notified.
     if (out.length) BrowserWindow.fromWebContents(event.sender)?.focus()
     return out
+})
+
+// Settings > Session data. Neither channel reads or grants a file for the page, and neither takes an argument:
+// the page can't choose what gets measured or opened.
+const MAX_WALK_ENTRIES = 100_000
+const dataFolderWalk = async (root) => {
+    let bytes = 0, seen = 0, truncated = false
+    const inodes = new Set()   // a hardlink is one file on disk: count it once (bigint stat: NTFS file ids can exceed 2^53)
+    const dirs = [root]
+    walk: while (dirs.length) {
+        const dir = dirs.pop()
+        let d
+        try { d = await opendir(dir) } catch { continue }
+        try {
+            for await (const e of d) {
+                if (++seen > MAX_WALK_ENTRIES) { truncated = true; break walk }
+                const p = join(dir, e.name)
+                if (e.isDirectory()) { dirs.push(p); continue }
+                try {
+                    const st = await lstat(p, { bigint: true })
+                    if (!st.isFile()) continue
+                    const id = `${st.dev}:${st.ino}`
+                    if (inodes.has(id)) continue
+                    inodes.add(id)
+                    bytes += Number(st.size)
+                } catch { /* vanished or unreadable */ }
+            }
+        } catch { /* unreadable mid-listing: keep what was counted */ }
+    }
+    return { bytes, truncated }
+}
+// One walk at a time: concurrent callers share the in-flight one.
+let dataWalk = null
+const requireOwnTopFrame = (event) => {
+    if (event.senderFrame !== event.sender.mainFrame || !isOwnPage(event.senderFrame.url)) {
+        throw new Error('Access denied.')
+    }
+}
+safeHandle('get-data-info', async (event) => {
+    requireOwnTopFrame(event)
+    const path = app.getPath('userData')
+    dataWalk ??= (async () => {
+        log.info('data-info walk')
+        try { return await dataFolderWalk(path) } finally { dataWalk = null }
+    })()
+    return { path, ...(await dataWalk) }
+})
+safeHandle('open-data-folder', async (event) => {
+    requireOwnTopFrame(event)
+    const path = app.getPath('userData')
+    if (!(await stat(path).catch(() => null))?.isDirectory()) return { ok: false, error: 'Not a folder' }
+    const error = await shell.openPath(path)
+    return error === '' ? { ok: true } : { ok: false, error }
 })
 
 // Existence probe for restored tabs (QA finding 12). Only answers for granted

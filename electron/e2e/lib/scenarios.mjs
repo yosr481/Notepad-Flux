@@ -1,5 +1,6 @@
 // Round-4 scenarios shared by packaged.mjs (Linux) and packaged-win.mjs (Windows).
 // ctx = { L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, isWin }
+import { diag, killApp } from './harness.mjs'
 const mainCount = (app) => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).length)
 
 export async function multiWindow(ctx) {
@@ -100,11 +101,17 @@ export async function multiWindow(ctx) {
             assert(t.some(x => x.includes('EXIT-PRIMARY')), "the primary window's tab did not reach the survivor: " + JSON.stringify(t))
         })
         await app.evaluate(() => { globalThis.__choice = 0 })        // Discard
+        const t0 = Date.now()
         await w2.getByText('File', { exact: true }).first().click(); await w2.getByText('Exit', { exact: true }).click()
-        await waitFor(() => st.exited, { timeout: 12000, what: 'exit after Discard' }).catch(() => {})
+        await waitFor(() => st.exited, { timeout: 20000, what: 'exit after Discard' }).catch(() => {})   // > main's 15 s CLOSE_ASK_AFTER_MS, plus margin
+        const quitMs = Date.now() - t0
         await check('EXIT-2', 'window', 'File > Exit again with "Discard changes and close": the app ends', async () => {
             assert(st.exited, 'app still running after Exit + Discard')
+            assert(quitMs <= 12000, `slow quit ${quitMs} ms (the 20 s wait only keeps the app from leaking into the next scenario; > 12 s means the stuck-save path ran)`)
+            return `quit in ${quitMs} ms`
         })
+        if (!st.exited || quitMs > 12000) diag(st.exited ? `EXIT-2 slow quit ${quitMs} ms` : 'EXIT-2 app still running', { userData: U, app })
+        if (!st.exited) killApp(app)   // so it cannot spoil the next scenario
         await app.close().catch(() => {})
     }
     }

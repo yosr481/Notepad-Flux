@@ -7,6 +7,7 @@ export default defineConfig({
         globals: true,
         environment: 'jsdom',
         setupFiles: './src/test/setup.js',
+        css: { include: [/calloutExport\.css/] }, // vitest blanks plain css (also ?raw) unless included
         coverage: {
             provider: 'v8',
             reporter: ['text', 'json', 'html'],

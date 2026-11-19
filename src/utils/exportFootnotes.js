@@ -4,7 +4,7 @@ import { scanFootnoteDef, scanFootnoteRef, scanInlineFootnote, footnoteDefEnd, n
 // Footnotes for marked: same rules as the editor (footnoteSyntax). marked lexes every block before any
 // inline text, so definitions (registered while lexing blocks, first per label wins) are known when
 // refs are tokenized. Refs and inline notes are recorded in document order, numbered by numberFootnotes.
-// Ids are emitted as marker classes `${mark}fn-1`; export.js turns them into ids after sanitizing (see there).
+// Ids are emitted as marker classes `${mark}fn-1`; finish turns them into ids after sanitizing.
 const footnoteExtension = (state, mark) => ({
     extensions: [
         {
@@ -104,7 +104,7 @@ export const createFootnotes = (mark) => {
         return cached.value;
     };
     // Call with the Marked instance that rendered the body, after parsing; returns html plus the notes section.
-    const finish = (m, html) => {
+    const appendSection = (m, html) => {
         if (!state.events.length) return html;
 
         const { notes, counts } = state.numbered();
@@ -120,6 +120,15 @@ export const createFootnotes = (mark) => {
         });
         return `${html}<section class="footnotes">\n<ol>\n${items.join('')}</ol>\n</section>\n`;
     };
-    return { extension: footnoteExtension(state, mark), finish };
+    // Post-sanitize DOM pass: marker classes become ids, so raw HTML in the document can never produce an id.
+    const finish = (root) => {
+        for (const el of root.querySelectorAll(`[class*="${mark}"]`)) {
+            const cls = [...el.classList].find((c) => c.startsWith(mark));
+            el.classList.remove(cls);
+            el.id = cls.slice(mark.length);
+            if (!el.classList.length) el.removeAttribute('class');
+        }
+    };
+    return { extension: footnoteExtension(state, mark), appendSection, finish };
 };
 
