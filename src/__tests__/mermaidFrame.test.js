@@ -94,7 +94,7 @@ describe('mermaid-frame.html and the build', () => {
         expect(scripts).toHaveLength(1);
         expect(scripts[0]).toMatch(/type=["']module["']/);
         expect(scripts[0]).toMatch(/src=["'][^"']*src\/mermaidFrame\.js["']/);
-        expect(html).not.toMatch(/<script\b[^>]*>[^<]*\S[^<]*<\/script>/); // nothing but whitespace between <script> and </script>
+        expect(html).not.toMatch(/<script\b[^>]*>[^<]*\S[^<]*<\/script>/i); // nothing but whitespace between <script> and </script>
     });
 
     it('vite.config.js builds mermaid-frame.html as a second input next to index.html', () => {

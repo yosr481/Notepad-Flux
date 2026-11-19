@@ -48,7 +48,9 @@ describe('export front matter: stripped, nothing appears', () => {
     it('a document that is only front matter renders to no hr/h2/text', async () => {
         const html = await render(FM);
         expect(html).not.toMatch(/<hr|<h2|title|Hello|tags/);
-        expect(html.replace(/<[^>]*>/g, '').trim()).toBe('');
+        const d = document.createElement('div');
+        d.innerHTML = html;
+        expect(d.textContent.trim()).toBe('');
     });
 
     it('plain paragraph', async () => { await same(FM, 'Just a paragraph.\n'); });

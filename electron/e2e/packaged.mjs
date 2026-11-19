@@ -1528,7 +1528,6 @@ if (want('tablecells')) try {
         try { await waitFor(async () => (await tbl.count()) === 1 && (await tbl.locator('svg').count()) > 0, { timeout: 30000, what: 'table widget with the MathJax svg' }) }
         catch (e) { throw new Error(e.message + ' | ' + await win.evaluate(() => JSON.stringify({ widgets: document.querySelectorAll('.cm-table-widget').length, svg: document.querySelectorAll('.cm-table-widget svg').length, math: [...document.querySelectorAll('.cm-table-widget .cm-math')].map(m => m.className + ' ' + m.innerHTML.slice(0, 80)), lines: [...document.querySelectorAll('.cm-content .cm-line')].map(l => l.innerText).slice(0, 14) }))) }
     }
-    const cellOf = (re) => win.evaluate((s) => { const c = [...document.querySelectorAll('.cm-table-widget td')].find(x => new RegExp(s).test(x.textContent)); return c ? c.textContent : null }, re.source)
     const lum = (c) => { const v = c.map(x => { x /= 255; return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4 }); return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2] }
     const ratio = (a, b) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05) }
     const setTheme = async (t) => {   // Settings > App theme (nativeTheme does not flip prefers-color-scheme under Xephyr)
