@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- HTML export, PDF export and Print now show `==highlights==` as highlighted text instead of the raw `==` marks, keep table column alignment (`:---:`, `---:`), draw table borders, and right-align Hebrew and Arabic paragraphs.
+
 ## [2.0.0] — 2026-11-19
 
 ### Added

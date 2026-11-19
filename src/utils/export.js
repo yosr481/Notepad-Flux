@@ -5,10 +5,12 @@ import { createMath } from './exportMath';
 import { createFootnotes } from './exportFootnotes';
 import { subSupExtension } from './exportSubSup';
 import { emojiExtension } from './exportEmoji';
+import { highlightExtension } from './exportHighlight';
 import { createCallouts } from './exportCallouts';
 import { createMermaid } from './exportMermaid';
 import { scanFrontMatter } from '../extensions/frontMatterSyntax';
 import calloutCss from '../styles/calloutExport.css?raw';
+import baseCss from '../styles/exportBase.css?raw';
 
 const escapeHtml = (s) => {
     return s.replace(/[&<>"']/g, (c) => ({
@@ -18,6 +20,16 @@ const escapeHtml = (s) => {
         '"': '&quot;',
         "'": '&#39;',
     }[c]));
+};
+
+// Column alignment as a class: the sanitizer drops marked's align="" attribute.
+const tableAlign = {
+    renderer: {
+        tablecell({ tokens, header, align }) {
+            const tag = header ? 'th' : 'td';
+            return `<${tag}${align ? ` class="align-${align}"` : ''}>${this.parser.parseInline(tokens)}</${tag}>\n`;
+        },
+    },
 };
 
 export const markdownToHtml = (markdown) => {
@@ -35,7 +47,7 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
     // marked tries the last-registered inline extension first: footnotes must come after subSup so `^[note]` stays a footnote.
-    const m = new Marked(math.extension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
+    const m = new Marked(tableAlign, math.extension, highlightExtension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
     const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 
@@ -69,11 +81,12 @@ export const exportToHtml = async (title, markdown) => {
                 .footnotes { font-size: 0.875rem; color: #444; border-top: 1px solid #ccc; margin-top: 2rem; padding-top: 0.5rem; }
                 kbd { font-family: monospace; font-size: 0.9em; padding: 1px 5px; color: #1e293b; background-color: #f1f5f9; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; }
                 mark { color: #1e293b; background-color: #ede9fe; padding: 2px 4px; border-radius: 4px; }
+                ${baseCss}
                 ${calloutCss}
                 .math svg { vertical-align: middle; }
             </style>
         </head>
-        <body>
+        <body class="nf-export">
             ${htmlContent}
         </body>
         </html>
