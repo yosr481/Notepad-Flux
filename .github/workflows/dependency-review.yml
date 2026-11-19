@@ -20,3 +20,10 @@ jobs:
             MIT, ISC, Apache-2.0, BSD-2-Clause, BSD-3-Clause, 0BSD,
             BlueOak-1.0.0, CC0-1.0, CC-BY-3.0, CC-BY-4.0, Python-2.0,
             Zlib, WTFPL
+          # Named exceptions, reviewed 2026-11-19 (Yossi), both pulled in by mermaid:
+          # - elkjs: EPL-2.0 OR GPL-3.0-or-later. Shipped unmodified as a lazy chunk; EPL-2.0
+          #   allows that inside an MIT app.
+          # - robust-predicates (via d3-delaunay): public domain + Unlicense.
+          # Exceptions are per package, so a new dependency with these licences still fails.
+          allow-dependencies-licenses: >-
+            pkg:npm/elkjs, pkg:npm/robust-predicates
