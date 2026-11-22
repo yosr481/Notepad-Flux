@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Link destinations in the editor now match export: `<...>` destinations (including reference definitions) lose their brackets, entities like `&amp;` are decoded, and `<a@b.test>` in a table cell links to `mailto:`. Ctrl+click opens the same address.
 - Link text outside tables now shows subscript, superscript, emoji, inline math, footnote references and highlight formatted, as it already did inside table cells.
 - Text after a footnote-like `[^1]:` in the middle of a line (`a[^1]:x`) is no longer dropped from HTML export, PDF export and Print; same for `$$` in the middle of a line.
 - Chemistry arrows and bonds (`\ce{2H2 + O2 -> 2H2O}`) draw correctly instead of showing an empty box.

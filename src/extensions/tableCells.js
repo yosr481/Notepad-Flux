@@ -3,7 +3,7 @@ import { normalizeLabel } from "./linkDefs";
 import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
-import { resolveReference } from "./linkDefs";
+import { resolveReference, normalizeDestination } from "./linkDefs";
 import { resolveFootnotes } from "./footnotes";
 import { decodeEntity } from "./entities";
 import { syntaxTree } from "@codemirror/language";
@@ -109,14 +109,16 @@ function inlineWalker(state, footnotes) {
             case "Entity": return [decodeEntity(text(n.from, n.to)) ?? text(n.from, n.to)];
             case "Autolink": {
                 const url = n.node.getChild("URL");
-                return url ? [{ k: "a", href: text(url.from, url.to), c: [text(url.from, url.to)] }] : raw(n);
+                if (!url) return raw(n);
+                const label = text(url.from, url.to);
+                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? normalizeDestination(label) : "mailto:" + label, c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");
                 const marks = n.node.getChildren("LinkMark");
                 if (marks.length < 2) return raw(n);
                 let href;
-                if (url) href = text(url.from, url.to).replace(/^<(.*)>$/, "$1").replace(/\\([!-/:-@[-`{-~])/g, "$1");
+                if (url) href = normalizeDestination(text(url.from, url.to));
                 else {
                     const def = resolveReference(n.node, state);
                     if (!def) return raw(n);

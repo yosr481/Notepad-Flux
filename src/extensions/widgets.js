@@ -78,7 +78,7 @@ export class TableWidget extends WidgetType {
     toDOM(view) {
         const div = document.createElement("div");
         div.className = "cm-table-widget";
-        div.append(tableDOM(this.data, view));
+        if (this.data) div.append(tableDOM(this.data, view));
 
         // Links open on Ctrl/Cmd+click only, like outside tables; a plain click edits the table.
         const opensLink = (e) => (e.ctrlKey || e.metaKey) && e.target.closest('a');

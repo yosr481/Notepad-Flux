@@ -3,7 +3,7 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
-import { resolveReference, getVisibleTextBetweenMarks } from "./linkDefs";
+import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination } from "./linkDefs";
 import { isSafeExternalUrl } from "./linkHandler";
 import { linkLabelParts, appendParts } from "./tableCells";
 import { resolveFootnotes } from "./footnotes";
@@ -112,14 +112,11 @@ function computeLinkDecorations(view) {
                 // Ignore image links which start with !
                 if (textContentFull.startsWith("!")) return;
 
-                const match = textContentFull.match(/^\[(.*?)\]\(([^"\s)]+)(?:\s+"(.*?)")?\)/);
+                const urlNode = node.node.getChild("URL");
 
-                if (match) {
-                    // double check with urlNode if it exists to be precise?
-                    // Actually the replacement range is [from, to] so regex matching the whole slice is correct.
-
-                    const linkText = match[1];
-                    const linkUrl = match[2];
+                if (urlNode) {
+                    const linkText = getVisibleTextBetweenMarks(node.node, doc);
+                    const linkUrl = normalizeDestination(doc.sliceString(urlNode.from, urlNode.to));
 
                     builder.add(from, to, Decoration.replace({
                         widget: new LinkWidget(linkText, linkUrl, { bold, italic }, partsOf(node.node, linkText)),
