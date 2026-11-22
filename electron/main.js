@@ -365,6 +365,10 @@ const requireOwnTopFrame = (event) => {
         throw new Error('Access denied.')
     }
 }
+safeHandle('print-to-pdf', async (event) => {
+    requireOwnTopFrame(event)
+    return await event.sender.printToPDF({ pageSize: 'A4', printBackground: true, preferCSSPageSize: true })
+})
 safeHandle('get-data-info', async (event) => {
     requireOwnTopFrame(event)
     const path = app.getPath('userData')

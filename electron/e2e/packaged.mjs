@@ -2595,6 +2595,61 @@ if (want('datainfo')) try {
     await app.close().catch(() => {})
 } catch (e) { await scenarioCrashed('datainfo', e) }
 
+// ---------------------------------------------------------------- scenario: pdf (P1, BACKLOG row P1)
+// Export to PDF goes through main's print-to-pdf (webContents.printToPDF): a long doc must export, small, with selectable text.
+if (want('pdf')) try {
+    const Up = tmp('nf-pdf-u-'), Wp = tmp('nf-pdf-w-'); cleanup.push(Up, Wp)
+    const { app, win } = await L(Up)
+    const errs0 = pageErrors.length
+    const MARK = 'PDFENDMARKER7Q4Z'
+    const parts = []
+    for (let i = 1; i <= 120; i++) {
+        parts.push(`## Section ${i}\n`, `Paragraph ${i}: ` + 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor. '.repeat(5) + '\n')
+        if (i === 60) parts.push('| Name | Value |\n| --- | --- |\n| alpha | 1 |\n| beta | 2 |\n', 'זוהי פסקה בעברית כדי לבדוק כיוון טקסט בקובץ ה-PDF שנוצר.\n')
+    }
+    parts.push(`last line ${MARK}\n`)
+    const md = parts.join('\n')
+    assert(Buffer.byteLength(md) >= 40 * 1024, 'fixture too small: ' + Buffer.byteLength(md))
+    const f = join(Wp, 'long.md'); writeFileSync(f, md)
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'long.md', { what: 'tab long.md' })
+    // Raw ipcRenderer in a throwaway hidden window (see DATA-*): the real bridge is not reachable from a foreign page.
+    const rawPreload = join(Wp, 'raw-preload.cjs')
+    writeFileSync(rawPreload, "const { contextBridge, ipcRenderer } = require('electron'); contextBridge.exposeInMainWorld('raw', { invoke: (c, ...a) => ipcRenderer.invoke(c, ...a) })\n")
+    const rawCall = (url, ch) => app.evaluate(async ({ BrowserWindow }, { preload, url, ch }) => {
+        const w = new BrowserWindow({ show: false, webPreferences: { preload, sandbox: true, contextIsolation: true } })
+        try {
+            await w.loadURL(url)
+            return await w.webContents.executeJavaScript(`window.raw.invoke(${JSON.stringify(ch)}).then(v => ({ ok: true }), e => ({ err: String((e && e.message) || e) }))`)
+        } finally { w.destroy() }
+    }, { preload: rawPreload, url, ch })
+
+    await check('PDF-1', 'pdf', 'a >= 40 KB doc (headings, table, Hebrew, marker on the last line) exported via File > Export to PDF: file starts %PDF, < 5 MB, pdftotext finds the last-line marker (selectable text, not a raster)', async () => {
+        const dst = join(Wp, 'long-out.pdf'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to PDF', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 90000, what: 'Export to PDF file' })
+        await sleep(500)
+        const b = readFileSync(dst)
+        eq(b.subarray(0, 4).toString('latin1'), '%PDF', 'magic')
+        assert(b.length < 5 * 1024 * 1024, 'PDF is ' + b.length + ' B, expected < 5 MB')
+        const txt = execFileSync('pdftotext', [dst, '-']).toString('utf8')
+        assert(txt.includes(MARK), 'last-line marker missing from pdftotext output (' + txt.length + ' chars)')
+        assert(txt.includes('Section 1') && txt.includes('Section 120'), 'first/last section headings missing')
+        assert((await win.locator('#print-container').count()) === 0, '#print-container left mounted')
+    })
+    await check('PDF-2', 'pdf', 'a page that is not the app (data: URL, other local file:) is denied on print-to-pdf with "Access denied"', async () => {
+        const foreign = join(Wp, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
+        for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {
+            const r = await rawCall(url, 'print-to-pdf')
+            assert(r.err && /Access denied/.test(r.err), url + ': ' + JSON.stringify(r))
+        }
+    })
+    await check('PDF-3', 'pdf', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('pdf', e) }
+
 // ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
 if (want('changelog')) try {
     const Uc = tmp('nf-cl-u-'); cleanup.push(Uc)

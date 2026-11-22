@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Export to PDF works for long documents, keeps the text selectable and makes a far smaller file (desktop). In the web version it opens the browser print dialog (choose Save as PDF) instead of downloading a file.
 - Chemistry arrows and bonds (`\ce{2H2 + O2 -> 2H2O}`) draw correctly instead of showing an empty box.
 - A Mermaid flowchart with a `click` line keeps the clickable node in place; the link itself stays disabled.
 - Links in tables use the app's link colour, readable in dark mode.

@@ -49,24 +49,6 @@ vi.mock('../../components/Print/PrintDocument', () => ({
     default: () => null,
 }));
 
-const html2canvasMock = vi.fn(async () => ({
-    toDataURL: () => 'data:image/png;base64,AAAA',
-    width: 100,
-    height: 200,
-}));
-vi.mock('html2canvas', () => ({ default: (...a) => html2canvasMock(...a) }));
-
-vi.mock('jspdf', () => ({
-    default: class {
-        constructor() {
-            this.internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
-        }
-        addImage() {}
-        addPage() {}
-        output() { return new Blob(['pdf'], { type: 'application/pdf' }); }
-    },
-}));
-
 const makeSession = () => {
     const tabState = {
         tabs: [{ id: '1', title: 'Doc One', content: '# hello', isDirty: false }],
@@ -167,14 +149,15 @@ describe('exportToPDF() — uses nextPaint', () => {
         const { tabState, actions } = makeSession();
         SessionContext.useTabState.mockReturnValue(tabState);
         SessionContext.useSessionActions.mockReturnValue(actions);
-        html2canvasMock.mockClear();
+        window.electronAPI = { printToPdf: vi.fn(async () => new Uint8Array([0x25, 0x50, 0x44, 0x46])) };
     });
 
     afterEach(() => {
+        delete window.electronAPI;
         document.getElementById('print-container')?.remove();
     });
 
-    it('runs to html2canvas without throwing when requestIdleCallback is undefined', async () => {
+    it('runs to printToPdf without throwing when requestIdleCallback is undefined', async () => {
         const saved = window.requestIdleCallback;
         // eslint-disable-next-line no-undef
         delete window.requestIdleCallback;
@@ -185,7 +168,7 @@ describe('exportToPDF() — uses nextPaint', () => {
                 await result.current.exportToPDF();
             });
 
-            expect(html2canvasMock).toHaveBeenCalledTimes(1);
+            expect(window.electronAPI.printToPdf).toHaveBeenCalledTimes(1);
         } finally {
             if (saved) window.requestIdleCallback = saved;
         }
