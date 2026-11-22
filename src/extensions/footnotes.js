@@ -3,6 +3,8 @@ import { syntaxTree } from "@codemirror/language";
 import { normalizeLabel } from "./linkDefs";
 import { scanFootnoteDef, numberFootnotes, defText } from "./footnoteSyntax";
 import { selectionKeyedField } from "./decorationField";
+import { marked } from "marked";
+import { sanitizeHTML } from "../utils/sanitize";
 
 const cache = new WeakMap();
 
@@ -170,6 +172,24 @@ const decorateFootnotes = (items, touched) => Decoration.set(
 // A StateField like mathField: items collected on doc and tree changes (the parse is time-sliced).
 const footnoteField = selectionKeyedField({ collect: collectFootnotes, decorate: decorateFootnotes });
 
+// The note's inline markdown, sanitized. Links show as link-styled text: a hover must not navigate.
+export function footnoteTooltipDom(text) {
+    const dom = document.createElement("div");
+    dom.className = "cm-tooltip-cursor cm-footnote-tooltip";
+    // Parsed in an inert <template> and images dropped: an <img> in a note must not fetch on hover.
+    const tpl = document.createElement("template");
+    tpl.innerHTML = sanitizeHTML(marked.parseInline(text));
+    for (const img of tpl.content.querySelectorAll("img")) img.remove();
+    dom.append(tpl.content);
+    for (const a of dom.querySelectorAll("a")) {
+        const span = document.createElement("span");
+        span.className = "cm-link";
+        span.append(...a.childNodes);
+        a.replaceWith(span);
+    }
+    return dom;
+}
+
 const footnoteTooltip = hoverTooltip((view, pos) => {
     const text = footnoteTooltipText(view.state, pos);
     if (text === null) return null;
@@ -179,10 +199,7 @@ const footnoteTooltip = hoverTooltip((view, pos) => {
         end: node.to,
         above: true,
         create() {
-            const dom = document.createElement("div");
-            dom.className = "cm-tooltip-cursor cm-footnote-tooltip";
-            dom.textContent = text;
-            return { dom };
+            return { dom: footnoteTooltipDom(text) };
         },
     };
 });

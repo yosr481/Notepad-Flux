@@ -14,6 +14,7 @@ import '@mathjax/src/js/input/tex/cancel/CancelConfiguration.js';
 import '@mathjax/src/js/input/tex/mhchem/MhchemConfiguration.js';
 import '@mathjax/src/js/input/tex/braket/BraketConfiguration.js';
 import { MathJaxNewcmFont } from '@mathjax/mathjax-newcm-font/js/svg.js';
+import { MathJaxMhchemFontExtension } from '@mathjax/mathjax-mhchem-font-extension/js/svg.js';
 
 // The font loads some glyph ranges (\mathbb, fraktur, big delimiters...) on demand.
 // Bundle each as its own lazy chunk and hand MathJax the matching one by file name.
@@ -24,13 +25,18 @@ mathjax.asyncLoad = (file) => {
     return load ? load() : Promise.reject(new Error(`MathJax font range not bundled: ${file}`));
 };
 
+// \ce arrows and bonds are private-use glyphs of a separate font extension (the -mhchem variant).
+MathJaxNewcmFont.addExtension(MathJaxMhchemFontExtension);
+
 const adaptor = liteAdaptor();
 RegisterHTMLHandler(adaptor);
 
 // No 'html' (\href, \class, \style, \cssId, \data), 'require' or 'autoload': they add links,
 // attributes or fetch code. fontCache 'none' keeps glyphs inline, so there is no <use href>.
 const PACKAGES = ['base', 'ams', 'newcommand', 'noundefined', 'boldsymbol', 'color', 'cancel', 'mhchem', 'braket'];
-const output = new SVG({ fontCache: 'none', fontData: MathJaxNewcmFont });
+// linebreaks.inline off: MathJax 4 otherwise splits inline math at operators into several
+// <svg> siblings, and texToSvg returns only the first (so "$E = mc^2$" showed just "E").
+const output = new SVG({ fontCache: 'none', fontData: MathJaxNewcmFont, linebreaks: { inline: false } });
 
 // TeX -> raw <svg> markup (the mjx-container wrapper dropped). Not sanitized here.
 export async function texToSvg(tex, display) {
