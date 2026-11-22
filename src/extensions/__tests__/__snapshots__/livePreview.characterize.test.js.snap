@@ -1498,6 +1498,13 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > image-refer
     "to": 11,
   },
   {
+    "class": "cm-collapsed-line",
+    "endSide": -200000000,
+    "from": 17,
+    "startSide": -200000000,
+    "to": 17,
+  },
+  {
     "endSide": -599999999,
     "from": 17,
     "replace": true,
@@ -1509,6 +1516,13 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > image-refer
 
 exports[`buildDecorations characterization (pre-refactor snapshot) > image-reference: cursor touching 1`] = `
 [
+  {
+    "class": "cm-collapsed-line",
+    "endSide": -200000000,
+    "from": 17,
+    "startSide": -200000000,
+    "to": 17,
+  },
   {
     "endSide": -599999999,
     "from": 17,
@@ -1762,6 +1776,13 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > link-in-str
 
 exports[`buildDecorations characterization (pre-refactor snapshot) > link-ref-definition: cursor outside 1`] = `
 [
+  {
+    "class": "cm-collapsed-line",
+    "endSide": -200000000,
+    "from": 6,
+    "startSide": -200000000,
+    "to": 6,
+  },
   {
     "endSide": -599999999,
     "from": 6,
@@ -2403,6 +2424,13 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > reference-r
     "to": 25,
   },
   {
+    "class": "cm-collapsed-line",
+    "endSide": -200000000,
+    "from": 32,
+    "startSide": -200000000,
+    "to": 32,
+  },
+  {
     "endSide": -599999999,
     "from": 32,
     "replace": true,
@@ -2427,6 +2455,13 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > reference-r
     "replace": true,
     "startSide": 499999999,
     "to": 25,
+  },
+  {
+    "class": "cm-collapsed-line",
+    "endSide": -200000000,
+    "from": 32,
+    "startSide": -200000000,
+    "to": 32,
   },
   {
     "endSide": -599999999,
@@ -2910,7 +2945,7 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > table-escap
     "widget": {
       "eqAnyFieldChangeIsUnequal": false,
       "eqEqualTwin": true,
-      "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>x|y</td><td><a href="http://e.com" target="_blank" rel="noopener noreferrer">l</a></td></tr></tbody></table></div>",
+      "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>x|y</td><td><a class="cm-link" href="http://e.com" target="_blank" rel="noopener noreferrer">l</a></td></tr></tbody></table></div>",
       "ignoreEvent": true,
     },
   },

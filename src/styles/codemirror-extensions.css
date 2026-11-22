@@ -217,6 +217,17 @@
 
 .cm-callout-title { font-weight: 600; }
 
+/* A custom title is document text, so the quote highlight (muted italic) reaches it; match the auto title.
+   ponytail: also un-italics *emphasis* inside a title; mark Emphasis nodes in callouts.js if that matters. */
+.cm-line.cm-callout .cm-callout-title,
+.cm-line.cm-callout .cm-callout-title span:not(.cm-link span) {
+    color: var(--text-normal);
+    font-style: normal;
+}
+
+/* The header widget ends at the icon when the title is document text: keep the auto title's gap. */
+.cm-callout-header { margin-inline-end: 0.4em; }
+
 .cm-callout-note { --callout-rgb: 8,100,220; }
 .cm-callout-abstract { --callout-rgb: 0,120,150; }
 .cm-callout-info { --callout-rgb: 0,115,160; }
@@ -482,4 +493,12 @@
 
 .cm-emoji {
     font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+}
+
+/* A line holding only a hidden link definition or [comment]: # (...) takes no space (livePreview linkReference). */
+.cm-line.cm-collapsed-line {
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    overflow: hidden;
 }

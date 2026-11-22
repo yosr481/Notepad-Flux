@@ -210,7 +210,7 @@ function appendParts(parent, parts, view) {
             case "sub": e = el("span", "cm-subscript"); break;
             case "sup": e = el("span", "cm-superscript"); break;
             case "a":
-                e = el("a");
+                e = el("a", "cm-link");
                 if (isSafeExternalUrl(p.href)) {
                     e.setAttribute("href", p.href);
                     e.setAttribute("target", "_blank");
