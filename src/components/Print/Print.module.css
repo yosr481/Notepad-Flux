@@ -38,11 +38,6 @@
     color: #666;
 }
 
-.header,
-.footer {
-    display: none;
-}
-
 @media print {
     body * {
         visibility: hidden;
@@ -60,38 +55,21 @@
         width: 100%;
     }
 
-    .header,
-    .footer {
-        display: block;
-        position: fixed;
-        width: 100%;
-        padding: 1rem;
-    }
-
-    .header {
-        top: 0;
-        text-align: center;
-    }
-
-    .footer {
-        bottom: 0;
-        text-align: right;
-    }
-
-    .content {
-        margin: 4rem 2rem;
-    }
-
-    .pageNumber::after {
-        counter-increment: page;
-        content: "Page " counter(page);
+    .content,
+    .printContainer > h1 {
+        margin-left: 2rem;
+        margin-right: 2rem;
     }
 
     @page {
         margin: 1in;
-        margin-top: 2in;
-        margin-bottom: 2in;
-        counter-reset: page 1;
+
+        @bottom-right {
+            content: "Page " counter(page) " of " counter(pages);
+            font-family: sans-serif;
+            font-size: 9pt;
+            color: #555;
+        }
     }
 }
 .content :global(.math-block),

@@ -2637,6 +2637,40 @@ if (want('pdf')) try {
         assert(txt.includes('Section 1') && txt.includes('Section 120'), 'first/last section headings missing')
         assert((await win.locator('#print-container').count()) === 0, '#print-container left mounted')
     })
+    // P2: one export, reused by PDF-4..6. Print itself calls window.print (native dialog), so these checks on the shared Print page stand in for it.
+    const dst2 = join(Wp, 'layout-out.pdf')
+    let pages = 0
+    const pageTxt = (k) => execFileSync('pdftotext', ['-f', String(k), '-l', String(k), dst2, '-']).toString('utf8')
+    await check('PDF-4', 'pdf', 'every page k of the exported long doc shows "Page k of M" (M = pdfinfo page count, margin-box counter)', async () => {
+        await ui.stubSave(app, dst2)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to PDF', { exact: true }).click()
+        await waitFor(() => existsSync(dst2) && readFileSync(dst2).length > 100, { timeout: 90000, what: 'Export to PDF file (layout)' })
+        await sleep(500)
+        pages = Number(/^Pages:\s+(\d+)/m.exec(execFileSync('pdfinfo', [dst2]).toString('utf8'))[1])
+        assert(pages > 1, 'expected a multi-page PDF, got ' + pages)
+        for (let k = 1; k <= pages; k++) assert(pageTxt(k).includes(`Page ${k} of ${pages}`), `page ${k} lacks "Page ${k} of ${pages}": ` + JSON.stringify(pageTxt(k).slice(-80)))
+    })
+    await check('PDF-5', 'pdf', 'the tab title "long.md" appears exactly once in the whole PDF text, on page 1 (not repeated per page)', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const all = execFileSync('pdftotext', [dst2, '-']).toString('utf8')
+        eq(all.split('long.md').length - 1, 1, 'occurrences of the title in the PDF')
+        assert(pageTxt(1).includes('long.md'), 'title not on page 1')
+    })
+    await check('PDF-6', 'pdf', 'on page 1 the title box overlaps no other word box (header not drawn over body text)', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const xml = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', dst2, '-']).toString('utf8')
+        const words = [...xml.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)].map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }))
+        const title = words.filter((w) => w.t.includes('long.md'))
+        eq(title.length, 1, 'title word boxes on page 1')
+        const T = title[0]
+        const hit = words.filter((w) => w !== T && w.x0 < T.x1 && w.x1 > T.x0 && w.y0 < T.y1 && w.y1 > T.y0)
+        assert(hit.length === 0, 'title overlaps: ' + hit.map((w) => w.t).join(' '))
+    })
+    await check('PDF-7', 'pdf', 'no app UI text in the exported PDF: the "Exporting to PDF..." toast (fixed, .toast.show visibility:visible beats `body *` hidden) is not printed on any page', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const all = execFileSync('pdftotext', [dst2, '-']).toString('utf8')
+        assert(!/Exporting\s+to\s+PDF/.test(all), 'toast text "Exporting to PDF" found in PDF (' + (all.match(/Exporting\s+to\s+PDF/g) || []).length + ' times)')
+    })
     await check('PDF-2', 'pdf', 'a page that is not the app (data: URL, other local file:) is denied on print-to-pdf with "Access denied"', async () => {
         const foreign = join(Wp, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
         for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {

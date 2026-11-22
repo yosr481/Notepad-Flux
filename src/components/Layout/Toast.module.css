@@ -25,6 +25,13 @@
   animation: fadein 0.5s;
 }
 
+/* .toast.show visibility beats the print rule hiding body *; fixed, it would print on every page. */
+@media print {
+  .toast {
+    display: none;
+  }
+}
+
 .progressBar {
   position: absolute;
   bottom: 0;

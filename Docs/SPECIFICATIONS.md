@@ -225,7 +225,7 @@ Once min width is reached, further tabs trigger **horizontal scrolling**:
 
 7. **Export to PDF**
    - Operates on the **active tab's current content**:
-     - Opens "Export to PDF" dialog (path selection).
+     - Opens "Export to PDF" dialog (path selection); desktop only, the web version opens the browser print dialog (Save as PDF).
      - Generates a PDF from the tab's content.
      - **Does not** change `FilePath` or `IsDirty` of the tab itself (export is a one-way operation).
 
