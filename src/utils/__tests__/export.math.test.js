@@ -45,6 +45,19 @@ describe('renderMarkdownHtml: math', () => {
         expect(html).toContain('costs $5 and $10');
     }, T);
 
+    it('mid-line $$ is inline display math, same as the editor: a$$b$$ and a $$x$$ c keep all text (B13 class)', async () => {
+        // marked hands block start() the source minus its first char, so a ^-anchored start used to cut here and lose "b$$".
+        for (const [md, before, after] of [['a$$b$$', 'a', ''], ['a $$x$$ c', 'a ', ' c']]) {
+            const html = await renderMarkdownHtml(md);
+            expect(count(html, '<svg')).toBe(1);
+            expect(html).not.toContain('$$');
+            const d = new DOMParser().parseFromString(html, 'text/html');
+            expect(d.querySelectorAll('p')).toHaveLength(1);
+            expect(d.querySelector('p').firstChild.textContent).toBe(before);
+            if (after) expect(d.querySelector('p').lastChild.textContent).toBe(after);
+        }
+    }, T);
+
     it('unclosed $$ block is never rendered and stays raw text', async () => {
         const html = await renderMarkdownHtml('$$\nx^2\n\nmore text');
         expect(html).not.toContain('<svg');

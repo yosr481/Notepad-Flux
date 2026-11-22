@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Text after a footnote-like `[^1]:` in the middle of a line (`a[^1]:x`) is no longer dropped from HTML export, PDF export and Print; same for `$$` in the middle of a line.
 - Chemistry arrows and bonds (`\ce{2H2 + O2 -> 2H2O}`) draw correctly instead of showing an empty box.
 - A Mermaid flowchart with a `click` line keeps the clickable node in place; the link itself stays disabled.
 - Links in tables use the app's link colour, readable in dark mode.

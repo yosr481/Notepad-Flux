@@ -10,7 +10,7 @@ const footnoteExtension = (state, mark) => ({
         {
             name: 'footnoteDef',
             level: 'block',
-            start: (src) => src.match(/^ {0,3}\[\^[^\s[\]]{1,999}\]:/m)?.index,
+            start: (src) => src.match(/\n {0,3}\[\^[^\s[\]]{1,999}\]:/)?.index, // real line starts only: marked passes src minus its first char, so ^ would match mid-line
             tokenizer(src) {
                 const eol = src.indexOf('\n');
                 const def = scanFootnoteDef(eol < 0 ? src : src.slice(0, eol));
