@@ -19,7 +19,8 @@ import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 const CONTAINERS = { StrongEmphasis: "strong", Emphasis: "em", Strikethrough: "del", Subscript: "sub", Superscript: "sup" };
 const unpipe = (s) => s.replace(/\\\|/g, "|"); // GFM: `\|` in a cell is a literal pipe, even in code and math
 
-function cellParts(state, cell, footnotes) {
+// The inline walker shared by table cells and link labels outside tables (linkPreview.js).
+function inlineWalker(state, footnotes) {
     const doc = state.doc;
     const text = (a, b) => doc.sliceString(a, b);
     // ponytail: `==h==` is found per text run, so a pair split by other markup (==**b**==) stays literal.
@@ -127,7 +128,15 @@ function cellParts(state, cell, footnotes) {
         }
     }
 
-    return walk(cell, cell.from, cell.to);
+    return walk;
+}
+
+const cellParts = (state, cell, footnotes) => inlineWalker(state, footnotes)(cell, cell.from, cell.to);
+
+// Parts of an inline Link's label (between its first two LinkMarks), or null when it has no two marks.
+export function linkLabelParts(state, link, footnotes) {
+    const marks = link.getChildren("LinkMark");
+    return marks.length < 2 ? null : inlineWalker(state, footnotes)(link, marks[0].to, marks[1].from);
 }
 
 const ALIGN = (s) => {
@@ -185,7 +194,7 @@ const el = (tag, cls) => {
     return e;
 };
 
-function appendParts(parent, parts, view) {
+export function appendParts(parent, parts, view) {
     for (const p of parts) {
         if (typeof p === "string") { parent.append(p); continue; }
         let e;
