@@ -1,12 +1,11 @@
 import { syntaxTree } from "@codemirror/language";
-import { decodeEntity } from "./entities";
+import { decodeAttrEntities } from "./entities";
 
 // Raw link destination -> the url the editor renders and opens (same steps as marked):
 // strip <>, backslash-unescape, decode entities. Callers still check isSafeExternalUrl.
-export const normalizeDestination = (raw) => raw
+export const normalizeDestination = (raw) => decodeAttrEntities(raw
     .replace(/^<(.*)>$/, "$1")
-    .replace(/\\([!-/:-@[-`{-~])/g, "$1")
-    .replace(/&[^&;\s]*;/g, (e) => decodeEntity(e) ?? e);
+    .replace(/\\([!-/:-@[-`{-~])/g, "$1"));
 
 // Memoization cache
 const cache = new WeakMap();

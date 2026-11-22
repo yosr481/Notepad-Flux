@@ -5,7 +5,7 @@ import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
 import { resolveReference, normalizeDestination } from "./linkDefs";
 import { resolveFootnotes } from "./footnotes";
-import { decodeEntity } from "./entities";
+import { decodeEntity, decodeAttrEntities } from "./entities";
 import { syntaxTree } from "@codemirror/language";
 import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 
@@ -111,7 +111,8 @@ function inlineWalker(state, footnotes) {
                 const url = n.node.getChild("URL");
                 if (!url) return raw(n);
                 const label = text(url.from, url.to);
-                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? normalizeDestination(label) : "mailto:" + label, c: [label] }];
+                // autolinks: entities decode, backslash stays literal (CommonMark) as %5C since the browser reads a raw one as "/"
+                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? decodeAttrEntities(label).replace(/\\/g, "%5C") : "mailto:" + label, c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");

@@ -207,6 +207,22 @@ describe('email autolink in a table cell', () => {
     });
 });
 
+describe('autolink in a table cell: backslash stays literal, entities decode (CommonMark)', () => {
+    it('<https://e.com/a\\_b> keeps the backslash, equals export', async () => {
+        const a = cellLink(mkView(cellDoc('<https://e.com/a\\_b>')));
+        expect(a.href).toBe((await exportLink('<https://e.com/a\\_b>')).href);
+        expect(a.href).toContain('%5C');
+    });
+    it('<https://e.com/?a=1&amp;b=2> still decodes entities, equals export', async () => {
+        const a = cellLink(mkView(cellDoc('<https://e.com/?a=1&amp;b=2>')));
+        expect(a.getAttribute('href')).toBe('https://e.com/?a=1&b=2');
+        expect(a.href).toBe((await exportLink('<https://e.com/?a=1&amp;b=2>')).href);
+    });
+    it('email autolink still gets mailto:', () => {
+        expect(cellLink(mkView(cellDoc('<a@b.test>'))).getAttribute('href')).toBe('mailto:a@b.test');
+    });
+});
+
 describe('entities in an inline link inside a table cell (cell-only forms)', () => {
     it('[t](url?a=1&amp;b=2) in a cell: decoded', () => {
         expect(cellLink(mkView(cellDoc('[t](https://e.com/?a=1&amp;b=2)'))).getAttribute('href')).toBe('https://e.com/?a=1&b=2');
