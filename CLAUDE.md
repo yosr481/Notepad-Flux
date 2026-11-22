@@ -25,7 +25,7 @@ One window holds a Web Lock and is the primary window that persists the session;
 
 ## Build and packaging
 
-The sandboxed preload must be CommonJS, so `vite.config.js` builds `electron/preload.js` to `dist-electron/preload.cjs` and bypasses lib mode on purpose. `prebuild` writes `release-notes.md` from `CHANGELOG.md`; never commit that file.
+The sandboxed preload must be CommonJS, so `vite.config.js` builds `electron/preload.js` to `dist-electron/preload.cjs` and bypasses lib mode on purpose. `prebuild` writes `release-notes.md` from `CHANGELOG.md`; never commit that file. <!-- no-path -->
 
 Linux file associations go in `build.linux.mimeTypes`, and `fileAssociations` stay under `build.win`. A top-level `fileAssociations` makes electron-builder ship a broken MIME XML on Linux that also overrides system `text/plain`. `scripts/__tests__/file-associations.test.js` guards this.
 
