@@ -272,9 +272,16 @@ const entity = (node, { doc, selection, decorations }) => {
     }
 };
 
-const linkReference = (node, { selection, decorations }) => {
+const collapsedLine = Decoration.line({ class: "cm-collapsed-line" });
+
+const linkReference = (node, { doc, selection, decorations }) => {
     if (!isCursorTouching(selection, node.from, node.to)) {
         decorations.push({ from: node.from, to: node.to, value: Decoration.replace({}) });
+        // A line holding only the definition ([comment]: # (...)) would stay as an empty row: fold it away.
+        const line = doc.lineAt(node.from);
+        if (line.from === node.from && line.text.trimEnd().length === node.to - line.from) {
+            decorations.push({ from: line.from, to: line.from, value: collapsedLine });
+        }
     }
 };
 

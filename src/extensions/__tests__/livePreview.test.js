@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { forceParsing } from '@codemirror/language';
+import { forceParsing, ensureSyntaxTree } from '@codemirror/language';
 import { livePreview, buildDecorations } from '../livePreview';
 import * as lp from '../livePreview';
 import { TableWidget, CheckboxWidget, TextSpanWidget, HRWidget } from '../widgets';
@@ -10,12 +10,17 @@ import { createEditor } from '../../test/utils';
 
 // GFM parser (tables, strikethrough, task lists) — bare markdown() in test utils
 // is CommonMark only, which does not emit a `Table` node.
-const gfm = (doc, selection) =>
-    EditorState.create({
+// The parse is time-sliced: without forcing it, a loaded machine can stop before later lines and the
+// decoration tests would see a partial tree. Force the full tree so results never depend on timing.
+const gfm = (doc, selection) => {
+    const state = EditorState.create({
         doc,
         selection,
         extensions: [markdown({ base: markdownLanguage }), livePreview],
     });
+    ensureSyntaxTree(state, state.doc.length, 5000);
+    return state;
+};
 
 // Count decoration ranges overlapping [from, to).
 const countDecos = (field, from, to) => {
@@ -942,5 +947,45 @@ describe('FUTURE-8 — multi-line setext heading underline', () => {
         expect(t7bareReplacesAt(on, ul, ul + 3).length).toBe(0);
         const off = buildDecorations(gfm(doc, { anchor: 0 }), t7full(doc));
         expect(t7bareReplacesAt(off, ul, ul + 3).length).toBe(1);
+    });
+});
+
+describe('Live Preview Extension — link reference definition lines collapse', () => {
+    const lineClasses = (doc, sel) => {
+        const field = buildDecorations(gfm(doc, sel), { from: 0, to: doc.length });
+        const out = [];
+        field.between(0, doc.length, (f, t, v) => {
+            if (v.spec?.class === 'cm-collapsed-line') out.push(f);
+        });
+        return out;
+    };
+    const DOC = 'text\n\n[comment]: # (hidden)\n\n[ref]: https://x.com\n\nend';
+    it.each([['[comment]: # (hidden)'], ['[ref]: https://x.com']])('cursor elsewhere: %s line gets cm-collapsed-line at its start', (l) => {
+        expect(lineClasses(DOC, { anchor: 0 })).toContain(DOC.indexOf(l));
+    });
+    it('only definition lines are collapsed, not paragraphs', () => {
+        expect(lineClasses(DOC, { anchor: 0 })).toEqual([DOC.indexOf('[comment]'), DOC.indexOf('[ref]')]);
+    });
+    it('cursor on the definition line: no collapse for it', () => {
+        const at = DOC.indexOf('[comment]') + 3;
+        expect(lineClasses(DOC, { anchor: at })).toEqual([DOC.indexOf('[ref]')]);
+    });
+});
+
+describe('Live Preview Extension — task checkbox inside quotes/ordered/plus lists', () => {
+    // The widget must replace exactly the TaskMarker "[ ]" so posAtDOM is the "[" (the toggle relies on it).
+    it.each([
+        '> - [ ] t\n\nx',
+        '> > - [x] t\n\nx',
+        '> [!todo] T\n> - [ ] t\n\nx',
+        '+ [ ] t\n\nx',
+        '1. [ ] t\n\nx',
+    ])('%j: CheckboxWidget replaces exactly the "[?]" range', (doc) => {
+        const from = doc.indexOf('[', doc.includes('[!') ? doc.indexOf('\n') : 0);
+        const state = gfm(doc, { anchor: doc.length });
+        const field = buildDecorations(state, { from: 0, to: doc.length });
+        const vs = decosAt(field, from, from + 3);
+        expect(vs.length).toBe(1);
+        expect(vs[0].spec.widget).toBeInstanceOf(CheckboxWidget);
     });
 });
