@@ -1095,7 +1095,7 @@ if (want('callouts')) try {
         const h = readFileSync(dst, 'utf8')
         assert(/<div class="callout callout-warning"/.test(h), 'no div.callout.callout-warning')
         assert(/<details class="callout callout-note"(?![^>]*\bopen)[^>]*>/.test(h), 'no closed details.callout for [!note]-')
-        const b = h.slice(h.indexOf('<body')), i = b.indexOf('callout-info'), j = b.indexOf('callout-danger')
+        const b = h.slice(h.indexOf('</head>')), i = b.indexOf('callout-info'), j = b.indexOf('callout-danger')
         assert(i >= 0 && j > i && b.slice(i, j).includes('callout-content'), 'danger callout not nested in the info content: ' + b.slice(Math.max(i, 0), Math.max(i, 0) + 700).replace(/\s+/g, ' '))
         const titles = h.match(/<(?:div|summary) class="callout-title">/g) || []
         const withSvg = h.match(/<(?:div|summary) class="callout-title">\s*<svg/g) || []
@@ -1620,22 +1620,21 @@ if (want('tablecells')) try {
         for (const k of ['math', 'emoji', 'hl']) assert(r[k] <= r.plain * 1.3, `${k} row more than 30% taller than the plain row: ` + info)
         return info
     })
-    await check('TC-3', 'tablecells', 'plain click on the <em> inside the cell link: no raw table (widget stays, caret not in the table), the link is followed (openExternal https://example.com); a plain cell click shows the raw table', async () => {
+    await check('TC-3', 'tablecells', 'table-cell links open on Ctrl/Cmd+click only (#131): a plain click on the <em> inside the cell link puts the caret in the table (raw table shown) and does not call openExternal; after the widget returns, Ctrl+click opens https://example.com', async () => {
         await tableReady()
         await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
         const a = tbl.locator('a'); eq(await a.count(), 1, 'link count'); eq(await a.getAttribute('href'), 'https://example.com', 'link href')
         const em = tbl.locator('a em'); eq(await em.count(), 1, 'em inside the link')
         await em.click(); await sleep(700)
+        const plain = await app.evaluate(() => globalThis.__ext)
+        eq(plain.length, 0, 'plain click must not call openExternal, got ' + JSON.stringify(plain))
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table (caret in the table) after a plain click on the em' })
+        // control: a plain cell click also shows the raw table; then restore the widget
+        await caretFar(); await tableReady()
+        await tbl.locator('a em').click({ modifiers: ['Control'] })
+        await waitFor(async () => openedUrl(await app.evaluate(() => globalThis.__ext), 'https://example.com'), { what: 'Ctrl+click opens https://example.com' })
         const ext = await app.evaluate(() => globalThis.__ext)
-        assert(openedUrl(ext, 'https://example.com'), 'link not followed, openExternal got: ' + JSON.stringify(ext))
-        eq(await tbl.count(), 1, 'table widget gone after clicking the em (raw table shown)')
-        const raw = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |')))
-        assert(!raw, 'raw table lines visible after clicking the em')
-        // control: a plain cell shows the raw table
-        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
-        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
-        await tableReady()
-        return 'openExternal ' + JSON.stringify(ext)
+        return 'plain ' + JSON.stringify(plain) + ', ctrl ' + JSON.stringify(ext)
     })
     await check('TC-4', 'tablecells', 'type a new ref [^c] in the paragraph and its definition at the end: with the caret off the table its footnote numbers shift to 3 and 4 and the paragraph numbers are 1 and 2', async () => {
         await tableReady()
