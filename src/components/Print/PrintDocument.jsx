@@ -9,13 +9,8 @@ const PrintDocument = ({ title, html }) => {
 
     return (
         <div className={styles.printContainer}>
-            <div className={styles.header}>
-                <h1>{title}</h1>
-            </div>
+            <h1>{title}</h1>
             <div className={`${styles.content} nf-export`} dangerouslySetInnerHTML={{ __html: htmlContent }} />
-            <div className={styles.footer}>
-                <span className={styles.pageNumber}></span>
-            </div>
         </div>
     );
 };

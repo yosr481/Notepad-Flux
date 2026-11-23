@@ -6,14 +6,32 @@ import { exportToHtml, renderMarkdownHtml } from '../utils/export';
 import { normalizeEol, applyCharset } from '../utils/eol';
 import { openIntoTab } from '../utils/openIntoTab';
 import { createRoot } from 'react-dom/client';
+import { flushSync } from 'react-dom';
 import PrintDocument from '../components/Print/PrintDocument';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 const nextPaint = () => new Promise(resolve => {
     const raf = typeof requestAnimationFrame === 'function' ? requestAnimationFrame : (cb => setTimeout(cb, 16));
     raf(() => raf(resolve));
 });
+
+// Mounts the print page; the returned function removes it.
+const mountPrintDocument = (title, html) => {
+    const printContainer = document.createElement('div');
+    printContainer.id = 'print-container';
+    document.body.appendChild(printContainer);
+    const root = createRoot(printContainer);
+    try {
+        flushSync(() => root.render(React.createElement(PrintDocument, { title, html })));
+    } catch (error) {
+        root.unmount();
+        document.body.removeChild(printContainer);
+        throw error;
+    }
+    return () => {
+        root.unmount();
+        document.body.removeChild(printContainer);
+    };
+};
 
 const canSaveInPlace = () => !!window.electronAPI || fileSystem.isSupported();
 
@@ -258,85 +276,6 @@ export const useCommands = (showToast, editorRef) => {
         }
     }, [createTab, addRecentFile, removeRecentFile, showToast]);
 
-    const exportToPDF = useCallback(async () => {
-        const activeTab = tabs.find(t => t.id === activeTabId);
-        if (!activeTab) return;
-
-        showToast('Exporting to PDF...');
-
-        // Before the container exists, so a failure here leaves nothing mounted.
-        let html;
-        try {
-            html = await renderMarkdownHtml(activeTab.content, { expandFolds: true });
-        } catch (error) {
-            console.error('PDF export failed:', error);
-            showToast('Could not export to PDF.');
-            return;
-        }
-        const printContainer = document.createElement('div');
-        printContainer.id = 'print-container';
-        document.body.appendChild(printContainer);
-
-        const root = createRoot(printContainer);
-        const content = React.createElement(PrintDocument, { title: activeTab.title, html });
-        root.render(content);
-
-        await nextPaint();
-
-        try {
-            const canvas = await html2canvas(printContainer, {
-                scale: 2, // Higher resolution
-            });
-            const imgData = canvas.toDataURL('image/png');
-
-            const pdf = new jsPDF({
-                orientation: 'p',
-                unit: 'mm',
-                format: 'a4',
-            });
-
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = pdf.internal.pageSize.getHeight();
-            const canvasWidth = canvas.width;
-            const canvasHeight = canvas.height;
-            const ratio = canvasWidth / canvasHeight;
-            const imgWidth = pdfWidth;
-            const imgHeight = imgWidth / ratio;
-            let heightLeft = imgHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pdfHeight;
-
-            while (heightLeft > 0) {
-                position = heightLeft - imgHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                heightLeft -= pdfHeight;
-            }
-
-            const pdfBlob = pdf.output('blob');
-            const success = await fileSystem.exportFile(pdfBlob, `${activeTab.title.replace(/\s/g, '_')}.pdf`, [
-                {
-                    description: 'PDF Document',
-                    accept: { 'application/pdf': ['.pdf'] },
-                },
-            ]);
-
-            if (success) {
-                showToast('Exported to PDF successfully!');
-            } else {
-                showToast('Export to PDF cancelled.');
-            }
-        } catch (error) {
-            console.error("Failed to export to PDF", error);
-            showToast('Failed to export to PDF.');
-        } finally {
-            root.unmount();
-            document.body.removeChild(printContainer);
-        }
-    }, [tabs, activeTabId, showToast]);
-
     const exportToHTML = useCallback(async () => {
         const activeTab = tabs.find(t => t.id === activeTabId);
         if (!activeTab) return;
@@ -368,21 +307,50 @@ export const useCommands = (showToast, editorRef) => {
             showToast('Could not prepare the document for printing.');
             return;
         }
-        const printContainer = document.createElement('div');
-        printContainer.id = 'print-container';
-        document.body.appendChild(printContainer);
+        const unmount = mountPrintDocument(activeTab.title, html);
 
-        const root = createRoot(printContainer);
-        root.render(
-            React.createElement(PrintDocument, { title: activeTab.title, html })
-        );
-
-        nextPaint().then(() => {
-            window.print();
-            root.unmount();
-            document.body.removeChild(printContainer);
-        });
+        await nextPaint();
+        window.print();
+        unmount();
     }, [tabs, activeTabId, showToast]);
+
+    const exportToPDF = useCallback(async () => {
+        if (!window.electronAPI?.printToPdf) return print();
+        const activeTab = tabs.find(t => t.id === activeTabId);
+        if (!activeTab) return;
+
+        showToast('Exporting to PDF...');
+
+        // Before the container exists, so a failure here leaves nothing mounted.
+        let html;
+        try {
+            html = await renderMarkdownHtml(activeTab.content, { expandFolds: true });
+        } catch (error) {
+            console.error('PDF export failed:', error);
+            showToast('Could not export to PDF.');
+            return;
+        }
+        try {
+            const unmount = mountPrintDocument(activeTab.title, html);
+            let bytes;
+            try {
+                await nextPaint();
+                bytes = await window.electronAPI.printToPdf();
+            } finally {
+                unmount();
+            }
+            const success = await fileSystem.exportFile(new Blob([bytes], { type: 'application/pdf' }), `${activeTab.title.replace(/\s/g, '_')}.pdf`, [
+                {
+                    description: 'PDF Document',
+                    accept: { 'application/pdf': ['.pdf'] },
+                },
+            ]);
+            showToast(success ? 'Exported to PDF successfully!' : 'Export to PDF cancelled.');
+        } catch (error) {
+            console.error('Failed to export to PDF', error);
+            showToast('Failed to export to PDF.');
+        }
+    }, [tabs, activeTabId, showToast, print]);
 
     const closeWindow = useCallback(async ({ quit = false } = {}) => {
         if (!isPrimaryWindow) {
