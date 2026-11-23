@@ -181,13 +181,18 @@ describe('renderMarkdownHtml: formulas inside attributes and pathological input'
         expect(host.querySelectorAll('svg')).toHaveLength(1);
     }, T);
 
-    it('a 300 KB line of "$a " repeated exports in well under 10 s (used to take ~20 s)', async () => {
-        const md = '$a '.repeat(100000);
-        const t = Date.now();
-        const html = await renderMarkdownHtml(md);
-        expect(Date.now() - t).toBeLessThan(10000);
+    it('a 300 KB line of "$a " repeated exports in linear time (used to be quadratic: ~20 s)', async () => {
+        // Load-tolerant: compare against a 4x smaller run in the same test. Linear growth is ~4x, the old quadratic path ~16x; the bound is 10x.
+        await renderMarkdownHtml('$a '); // warm up lazy imports
+        let t = Date.now();
+        await renderMarkdownHtml('$a '.repeat(25000));
+        const small = Math.max(Date.now() - t, 100);
+        t = Date.now();
+        const html = await renderMarkdownHtml('$a '.repeat(100000));
+        const big = Date.now() - t;
+        expect(big, `300 KB took ${big} ms, 75 KB took ${small} ms`).toBeLessThan(small * 10);
         expect(typeof html).toBe('string');
-    }, 60000);
+    }, 120000);
 
     it('an inline formula over 1000 characters is not math in the export', async () => {
         const html = await renderMarkdownHtml('$' + 'a'.repeat(1001) + '$');
