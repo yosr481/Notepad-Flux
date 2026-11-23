@@ -1,6 +1,6 @@
 // Round-4 scenarios shared by packaged.mjs (Linux) and packaged-win.mjs (Windows).
 // ctx = { L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, isWin }
-import { diag, killApp, note } from './harness.mjs'
+import { diag, killApp, note, procOf } from './harness.mjs'
 import { readFileSync } from 'node:fs'
 // main.js's close-handshake wait before it asks the user (read, never changed here); a Discard-closed secondary can take this long.
 const closeAskMs = (() => { try { return +/CLOSE_ASK_AFTER_MS\s*=\s*([\d_]+)/.exec(readFileSync(new URL('../../main.js', import.meta.url), 'utf8'))[1].replaceAll('_', '') } catch { note('CLOSE_ASK_AFTER_MS not found in main.js: using the 15000 fallback'); return 15000 } })()
@@ -114,7 +114,7 @@ export async function multiWindow(ctx) {
             return `quit in ${quitMs} ms`
         })
         if (!st.exited || quitMs > 12000) diag(st.exited ? `EXIT-2 slow quit ${quitMs} ms` : 'EXIT-2 app still running', { userData: U, app })
-        if (!st.exited) { killApp(app); note('EXIT-2: killed the leftover app, ' + app.process().pid) }   // so it cannot spoil the next scenario
+        if (!st.exited) { killApp(app); note('EXIT-2: killed the leftover app, ' + procOf(app)?.pid) }   // so it cannot spoil the next scenario
         await app.close().catch(() => {})
     }
     }

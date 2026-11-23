@@ -78,8 +78,10 @@ export const setDiagFile = (f) => {
 // Things the harness did on its own (a leftover app killed...). Written into the results meta by writeResults.
 export const events = []
 export const note = (msg) => { events.push(msg); console.log('NOTE ' + msg); addDiag(`[note] ${msg}\n`) }
+// ElectronApplication.process() THROWS once the app's connection is disposed (app already closed or crashed): null means gone.
+export const procOf = (a) => { try { return a?.process?.() ?? null } catch { return null } }
 // Is the tracked app process still alive, and its pid and command line as Playwright spawned it.
-export const procInfo = (app) => { const p = app?.process?.(); return p ? `pid=${p.pid} alive=${p.exitCode === null && p.signalCode === null} cmd=${[p.spawnfile, ...(p.spawnargs ?? []).slice(1)].join(' ').slice(0, 300)}` : '(no process)' }
+export const procInfo = (app) => { const p = procOf(app); return p ? `pid=${p.pid} alive=${p.exitCode === null && p.signalCode === null} cmd=${[p.spawnfile, ...(p.spawnargs ?? []).slice(1)].join(' ').slice(0, 300)}` : '(no process)' }
 // Evidence for a launch or exit failure that otherwise leaves nothing to look at (B17): the app's own log, its stderr/stdout
 // (buffered by launch.mjs on app._nfStderr) and which Notepad Flux processes are alive. preload = text from launch.mjs about the
 // preload path the app was given. The console block is bounded to ~4 KB; the diag file gets the full tails (main.log 200 lines).
@@ -109,7 +111,7 @@ function dumpLaunched(label) {
 }
 // Kill an app that will not close, by pid (the process tree via /T on Windows, via killAppsOf(userData) on Linux), so it cannot hold a lock or a window into the next scenario.
 export function killApp(app) {
-    const pid = app?.process?.().pid
+    const pid = procOf(app)?.pid
     if (!pid) return
     try {
         if (process.platform === 'win32') execFileSync('taskkill', ['/F', '/T', '/PID', String(pid)], { stdio: 'ignore', timeout: 5000 })
@@ -122,7 +124,7 @@ export const launched = new Set()
 // Kill it by pid (tree), record which one, and drop it from launched.
 export async function reap(scenario) {
     for (const a of [...launched]) {
-        const p = a.process?.()
+        const p = procOf(a)
         if (!p || p.exitCode !== null || p.signalCode !== null) { launched.delete(a); continue }
         const info = procInfo(a)
         diag(`scenario "${scenario}" ended with an app still running; killing it`, { userData: a._nfUserData, app: a })
