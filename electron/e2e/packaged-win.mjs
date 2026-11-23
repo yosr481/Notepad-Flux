@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
-import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
+import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, reap, setDiagFile, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 // exact URL match on the openExternal log (array of URLs), not a substring test
 const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
@@ -82,6 +82,7 @@ const dotted = join(W, 'notes..md'); writeFileSync(dotted, 'dotted body\r\n'); c
 // LEGACY format (bare path strings, as written before 5edfcb1): main must migrate it to [{path, real}] on first load.
 writeFileSync(join(U1, 'authorized-paths.json'), JSON.stringify([granted, gdir, swapped, join(linkdir, 'n.md')]))
 
+setDiagFile(join(here, '../../Docs/internal/e2e/diag-windows.log'))
 let app, win
 if (want('core')) try {
 try {
@@ -593,7 +594,7 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
     })
     await win.screenshot({ path: join(shots, `win-core.jpg`) }).catch(() => {})
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('core', e) } // end core
+} catch (e) { await scenarioCrashed('core', e) } finally { await reap('core') } // end core
 if (want('core') || want('nav')) try {
 // A cancelled navigation leaves Playwright 'waiting for navigation', so this runs in its own throwaway launch.
 {
@@ -607,7 +608,7 @@ if (want('core') || want('nav')) try {
     })
     await r.app.close().catch(() => {})
 }
-} catch (e) { await scenarioCrashed('core', e) }
+} catch (e) { await scenarioCrashed('core', e) } finally { await reap('core') }
 
 // ---------------------------------------------------------------- scenario: live preview
 const walk = (d, out = []) => { for (const n of readdirSync(d, { withFileTypes: true })) { const f = join(d, n.name); n.isDirectory() ? walk(f, out) : out.push(f) } return out }
@@ -817,7 +818,7 @@ if (want('lp')) try {
     })
     await win.screenshot({ path: join(shots, `win-live-preview.jpg`) }).catch(() => {})
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('lp', e) }
+} catch (e) { await scenarioCrashed('lp', e) } finally { await reap('lp') }
 
 // ---------------------------------------------------------------- scenario: math rendering (F1, Docs/internal/math-spec.md)
 // Only the packaged build proves the lazy MathJax chunk and the runtime font ranges load from app.asar.
@@ -891,7 +892,7 @@ if (want('math')) try {
         eq(r.text, 'costs $5 and $10'); eq(r.math, 0, 'widgets on the dollar line')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('math', e) }
+} catch (e) { await scenarioCrashed('math', e) } finally { await reap('math') }
 
 // ---------------------------------------------------------------- scenario: footnotes (F2, Docs/internal/footnotes-spec.md)
 // Real hover / Ctrl+click / the export path: what jsdom cannot cover. The doc is opened from a file (typing `[^` would hit bracket auto-close).
@@ -973,7 +974,7 @@ if (want('footnotes')) try {
         assert(consoleErrs.length === 0, 'console errors: ' + JSON.stringify(consoleErrs.slice(0, 3)))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('footnotes', e) }
+} catch (e) { await scenarioCrashed('footnotes', e) } finally { await reap('footnotes') }
 
 // ---------------------------------------------------------------- scenario: callouts (F3, Docs/internal/callouts-spec.md)
 // Real typing / mouse / keyboard / computed colours / the export path: what jsdom cannot cover. The fixture is opened from a file; CO-1 types its own callout at the end.
@@ -1105,7 +1106,7 @@ if (want('callouts')) try {
         assert(!h.includes('[!warning]') && !h.includes('[!note]'), 'raw callout marker leaked into the export')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('callouts', e) }
+} catch (e) { await scenarioCrashed('callouts', e) } finally { await reap('callouts') }
 
 // ---------------------------------------------------------------- scenario: mermaid (F4, Docs/internal/mermaid-spec.md)
 // Real Mermaid layout + CSS under the app CSP (script-src 'self'), the lazy chunk, theme re-render, the export path: what jsdom cannot cover.
@@ -1269,7 +1270,7 @@ if (want('mermaid')) try {
         } finally { await cdp.send('Network.disable').catch(() => {}); await cdp.detach().catch(() => {}) }
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('mermaid', e) }
+} catch (e) { await scenarioCrashed('mermaid', e) } finally { await reap('mermaid') }
 
 // ---------------------------------------------------------------- scenario: front matter (F5, Docs/internal/frontmatter-spec.md)
 // Real layout, computed fonts/colours/direction, mouse click, export and keystroke timing: what jsdom cannot cover.
@@ -1429,7 +1430,7 @@ if (want('frontmatter')) try {
         return info
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('frontmatter', e) }
+} catch (e) { await scenarioCrashed('frontmatter', e) } finally { await reap('frontmatter') }
 
 // ---------------------------------------------------------------- scenario: sub/superscript + emoji (F6, Docs/internal/subsup-emoji-spec.md)
 // Real layout, computed styles, line height, emoji font and export: what jsdom cannot cover.
@@ -1549,7 +1550,7 @@ if (want('subsupemoji')) try {
         } finally { await setTheme('light').catch(() => {}) }
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('subsupemoji', e) }
+} catch (e) { await scenarioCrashed('subsupemoji', e) } finally { await reap('subsupemoji') }
 
 // ---------------------------------------------------------------- scenario: table cells (B12, Docs/internal/table-cells-spec.md)
 // Real layout, computed styles, MathJax, link click and the keyboard: what jsdom cannot cover.
@@ -1699,7 +1700,7 @@ if (want('tablecells')) try {
         return `cell direction ${r.dir}, שלום x ${r.firstX.toFixed(1)} > עולם x ${r.secondX.toFixed(1)}`
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('tablecells', e) }
+} catch (e) { await scenarioCrashed('tablecells', e) } finally { await reap('tablecells') }
 
 // ---------------------------------------------------------------- scenario: safe HTML tags (F7, Docs/internal/html-tags-spec.md)
 // Real layout, computed styles, caret reveal, export file: what jsdom cannot cover.
@@ -1844,7 +1845,7 @@ if (want('htmltags')) try {
         return `Hebrew direction ${r.heb.dir}, details raw, cell kbd "${r.cell}"`
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('htmltags', e) }
+} catch (e) { await scenarioCrashed('htmltags', e) } finally { await reap('htmltags') }
 
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) try {
@@ -1957,7 +1958,7 @@ if (want('session')) try {
         eq(await app.evaluate(() => globalThis.__picker), 0, 'picker opened'); assert(!/read: denied/.test(logOf(Us)), 'denied read in log'); assert((await ui.toastText(win)).trim() === '', 'toast: ' + await ui.toastText(win))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('session', e) }
+} catch (e) { await scenarioCrashed('session', e) } finally { await reap('session') }
 
 // ---------------------------------------------------------------- scenario: close races
 if (want('close')) try {
@@ -1991,7 +1992,7 @@ if (want('close')) try {
         }, { smoke: via === 'x' })
         await app.close().catch(() => {})
     }
-} catch (e) { await scenarioCrashed('close', e) }
+} catch (e) { await scenarioCrashed('close', e) } finally { await reap('close') }
 
 // ---------------------------------------------------------------- scenario: opening files right after launch
 if (want('race')) try {
@@ -2007,7 +2008,7 @@ if (want('race')) try {
         assert(t.includes('SECOND-DOC-BODY') && !t.includes('FIRST-DOC-BODY'), 'editor shows the wrong document: ' + JSON.stringify(t.slice(0, 40)))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('race', e) }
+} catch (e) { await scenarioCrashed('race', e) } finally { await reap('race') }
 
 // ---------------------------------------------------------------- scenario: race with a NON-EMPTY saved session
 if (want('race2')) try {
@@ -2091,13 +2092,13 @@ if (want('race2')) try {
         })
         await app.close().catch(() => {})
     }
-} catch (e) { await scenarioCrashed('race2', e) }
+} catch (e) { await scenarioCrashed('race2', e) } finally { await reap('race2') }
 
 // ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
 const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: true })
-if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) }
-if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) }
-if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) }
+if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) } finally { await reap('multiwin') }
+if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) } finally { await reap('orphan') }
+if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) } finally { await reap('override') }
 
 // ---------------------------------------------------------------- scenario: second window
 if (want('newwin')) try {
@@ -2140,7 +2141,7 @@ if (want('newwin')) try {
         assert(!/Blocked (window\.open|open-external|unsafe)/.test(logOf(Un)), 'a block was logged: ' + (logOf(Un).match(/.*Blocked (window\.open|open-external|unsafe).*/) || [])[0])
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('newwin', e) }
+} catch (e) { await scenarioCrashed('newwin', e) } finally { await reap('newwin') }
 
 // ---------------------------------------------------------------- scenario: single instance (A4)
 if (want('single')) try {
@@ -2157,7 +2158,7 @@ if (want('single')) try {
         return 'second instance exit code ' + code
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('single', e) }
+} catch (e) { await scenarioCrashed('single', e) } finally { await reap('single') }
 
 
 // ---------------------------------------------------------------- Windows-only: default userData location (one launch against the default profile)
@@ -2175,7 +2176,7 @@ if (want('datadir')) try {
     })
     await ui.closeViaX(app); await app.close().catch(() => {})
     if (!existed) rmSync(dflt, { recursive: true, force: true })      // clean up: this dir was created by this run
-} catch (e) { await scenarioCrashed('datadir', e) }
+} catch (e) { await scenarioCrashed('datadir', e) } finally { await reap('datadir') }
 
 // ---------------------------------------------------------------- Windows-only: caption buttons driven with real mouse input
 if (want('caption')) try {
@@ -2207,7 +2208,7 @@ if (want('caption')) try {
         return trail.join('; ')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('caption', e) }
+} catch (e) { await scenarioCrashed('caption', e) } finally { await reap('caption') }
 
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
 if (want('legacykey')) try {
@@ -2243,7 +2244,7 @@ else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electr
         return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
     } finally { await app.close().catch(() => {}) }
 })
-} catch (e) { await scenarioCrashed('legacykey', e) }
+} catch (e) { await scenarioCrashed('legacykey', e) } finally { await reap('legacykey') }
 
 // ---------------------------------------------------------------- scenario: close while the session load is still running
 if (want('closeload')) try {
@@ -2286,7 +2287,7 @@ for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         return res.ms + 'ms'
     })
 }
-} catch (e) { await scenarioCrashed('closeload', e) }
+} catch (e) { await scenarioCrashed('closeload', e) } finally { await reap('closeload') }
 
 // ---------------------------------------------------------------- scenario: close waits for a slow save (no forced close; user is asked after 15s)
 if (want('closewait')) try {
@@ -2424,7 +2425,7 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
         return 'closed at ' + (Date.now() - c.t0) + 'ms'
     } finally { await c.app.close().catch(() => {}) }
 })
-} catch (e) { await scenarioCrashed('closewait', e) }
+} catch (e) { await scenarioCrashed('closewait', e) } finally { await reap('closewait') }
 
 if (want('updates')) try {
 // U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
@@ -2453,7 +2454,7 @@ try {
         return 'label "' + label + '"'
     })
 } finally { await app.close().catch(() => {}) }
-} catch (e) { await scenarioCrashed('updates', e) }
+} catch (e) { await scenarioCrashed('updates', e) } finally { await reap('updates') }
 
 // ---------------------------------------------------------------- scenario: session data path + size + Open folder (S1, Docs/internal/data-path-spec.md)
 if (want('datainfo')) try {
@@ -2597,7 +2598,7 @@ if (want('datainfo')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('datainfo', e) }
+} catch (e) { await scenarioCrashed('datainfo', e) } finally { await reap('datainfo') }
 
 // ---------------------------------------------------------------- scenario: pdf (P1, BACKLOG row P1)
 // Export to PDF goes through main's print-to-pdf (webContents.printToPDF): a long doc must export, small, with selectable text.
@@ -2689,7 +2690,7 @@ if (want('pdf')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('pdf', e) }
+} catch (e) { await scenarioCrashed('pdf', e) } finally { await reap('pdf') }
 
 // ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
 if (want('changelog')) try {
@@ -2748,7 +2749,7 @@ if (want('changelog')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('changelog', e) }
+} catch (e) { await scenarioCrashed('changelog', e) } finally { await reap('changelog') }
 
 // ---------------------------------------------------------------- scenario: file associations (B8, Docs/internal/win-assoc-spec.md)
 // Assumes a PER-USER NSIS install (registrations under HKCU\Software\Classes) and that `binary` IS the installed exe
@@ -2795,7 +2796,7 @@ if (want('assoc')) try {
             eq((await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)).length, 1, 'window count')
         } finally { await app.close().catch(() => {}) }
     })
-} catch (e) { await scenarioCrashed('assoc', e) }
+} catch (e) { await scenarioCrashed('assoc', e) } finally { await reap('assoc') }
 
 // ---------------------------------------------------------------- scenario: keyboard shortcuts (B9)
 // Real key presses prove the wiring; the Hebrew layout cannot be switched here, so a KeyboardEvent {key:'ד', code:'KeyS', ctrlKey} is
@@ -2909,7 +2910,7 @@ if (want('keys')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('keys', e) }
+} catch (e) { await scenarioCrashed('keys', e) } finally { await reap('keys') }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }

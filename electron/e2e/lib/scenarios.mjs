@@ -1,6 +1,9 @@
 // Round-4 scenarios shared by packaged.mjs (Linux) and packaged-win.mjs (Windows).
 // ctx = { L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, isWin }
-import { diag, killApp } from './harness.mjs'
+import { diag, killApp, note } from './harness.mjs'
+import { readFileSync } from 'node:fs'
+// main.js's close-handshake wait before it asks the user (read, never changed here); a Discard-closed secondary can take this long.
+const closeAskMs = (() => { try { return +/CLOSE_ASK_AFTER_MS\s*=\s*([\d_]+)/.exec(readFileSync(new URL('../../main.js', import.meta.url), 'utf8'))[1].replaceAll('_', '') } catch { note('CLOSE_ASK_AFTER_MS not found in main.js: using the 15000 fallback'); return 15000 } })()
 const mainCount = (app) => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().filter(w => /index\.html/.test(w.webContents.getURL())).length)
 
 export async function multiWindow(ctx) {
@@ -103,15 +106,15 @@ export async function multiWindow(ctx) {
         await app.evaluate(() => { globalThis.__choice = 0 })        // Discard
         const t0 = Date.now()
         await w2.getByText('File', { exact: true }).first().click(); await w2.getByText('Exit', { exact: true }).click()
-        await waitFor(() => st.exited, { timeout: 20000, what: 'exit after Discard' }).catch(() => {})   // > main's 15 s CLOSE_ASK_AFTER_MS, plus margin
+        await waitFor(() => st.exited, { timeout: closeAskMs + 10000, what: 'exit after Discard' }).catch(() => {})   // main's CLOSE_ASK_AFTER_MS (parsed from main.js) plus margin
         const quitMs = Date.now() - t0
         await check('EXIT-2', 'window', 'File > Exit again with "Discard changes and close": the app ends', async () => {
             assert(st.exited, 'app still running after Exit + Discard')
-            assert(quitMs <= 12000, `slow quit ${quitMs} ms (the 20 s wait only keeps the app from leaking into the next scenario; > 12 s means the stuck-save path ran)`)
+            assert(quitMs <= 12000, `slow quit ${quitMs} ms (the longer wait only keeps the app from leaking into the next scenario; > 12 s means the stuck-save path ran)`)
             return `quit in ${quitMs} ms`
         })
         if (!st.exited || quitMs > 12000) diag(st.exited ? `EXIT-2 slow quit ${quitMs} ms` : 'EXIT-2 app still running', { userData: U, app })
-        if (!st.exited) killApp(app)   // so it cannot spoil the next scenario
+        if (!st.exited) { killApp(app); note('EXIT-2: killed the leftover app, ' + app.process().pid) }   // so it cannot spoil the next scenario
         await app.close().catch(() => {})
     }
     }
