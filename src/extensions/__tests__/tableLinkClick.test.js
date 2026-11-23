@@ -3,6 +3,12 @@ import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { TableWidget } from '../widgets';
 
+// jsdom has no layout: CodeMirror's async measure pass calls Range#getClientRects / getBoundingClientRect, which jsdom lacks
+// (unhandled TypeError after the test ends, which makes `vitest run` exit 1). Stub them with empty geometry for this file.
+const emptyRect = { x: 0, y: 0, top: 0, left: 0, right: 0, bottom: 0, width: 0, height: 0, toJSON() {} };
+if (!Range.prototype.getClientRects) Range.prototype.getClientRects = () => ({ length: 0, item: () => null, [Symbol.iterator]: function* () {} });
+if (!Range.prototype.getBoundingClientRect) Range.prototype.getBoundingClientRect = () => emptyRect;
+
 // Rendered table: plain click on a link puts the cursor in the table (raw markdown shows);
 // only Ctrl/Cmd+Click follows the link. Same as links outside tables.
 const DOC = 'intro\n\n| a |\n|---|\n| [x](https://example.com) |\n';
