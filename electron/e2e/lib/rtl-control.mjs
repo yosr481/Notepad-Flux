@@ -22,7 +22,7 @@ export async function stockCaretSequence(app, mode, presses = 22) {
     const seq = []
     for (let i = 0; i < presses; i++) { seq.push(await probe()); await page.keyboard.press('ArrowRight') }
     await page.close().catch(() => {})
-    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach(w => { if (/i\.html/.test(w.webContents.getURL())) w.destroy() }))
+    await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().forEach(w => { if (!w.isDestroyed() && /i\.html/.test(w.webContents.getURL())) w.destroy() }))
     await sleep(200)
     rmSync(dir, { recursive: true, force: true })
     return seq
