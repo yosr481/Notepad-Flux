@@ -48,6 +48,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     platform: process.platform,
     // Files passed on the command line: pull the queue, and get told when more arrive.
     takeLaunchFiles: () => ipcRenderer.invoke('take-launch-files'),
+    // Export to PDF: main prints the page's print container; no arguments are forwarded.
+    printToPdf: () => ipcRenderer.invoke('print-to-pdf'),
     // Settings > Session data. No arguments are forwarded: the page can't choose what main opens or measures.
     getDataInfo: () => ipcRenderer.invoke('get-data-info'),
     openDataFolder: () => ipcRenderer.invoke('open-data-folder'),
