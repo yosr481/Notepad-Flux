@@ -1,17 +1,19 @@
 import { WidgetType, Decoration } from "@codemirror/view";
 import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
-import { sanitizeHTML } from '../utils/sanitize';
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
-import { resolveReference, getVisibleTextBetweenMarks } from "./linkDefs";
+import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination } from "./linkDefs";
 import { isSafeExternalUrl } from "./linkHandler";
+import { linkLabelParts, appendParts } from "./tableCells";
+import { resolveFootnotes } from "./footnotes";
 
 class LinkWidget extends WidgetType {
-    constructor(text, url, style = {}) {
+    constructor(text, url, style = {}, parts = [text]) {
         super();
         this.text = text;
         this.url = url;
+        this.parts = parts; // label as tableCells parts (sub/sup/emoji/math/footnote/highlight...)
         this.style = style; // { bold: boolean, italic: boolean }
     }
 
@@ -27,8 +29,7 @@ class LinkWidget extends WidgetType {
         if (this.style.italic) link.style.fontStyle = "italic";
 
         const textSpan = document.createElement("span");
-        // Parse markdown formatting in link text
-        textSpan.innerHTML = sanitizeHTML(this.parseMarkdown(this.text));
+        appendParts(textSpan, this.parts, view);
         link.appendChild(textSpan);
 
         const icon = document.createElement("span");
@@ -39,39 +40,9 @@ class LinkWidget extends WidgetType {
         return link;
     }
 
-    parseMarkdown(text) {
-        // Escape HTML to prevent XSS
-        let html = text
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-        // IMPORTANT: The order matters. Combined usage first.
-
-        // Bold and Italic: ***text*** or ___text___
-        // Logic: *** matches bold(*) + italic(**) or bold(**) + italic(*)
-        html = html.replace(/\*\*\*(.*?)\*\*\*/g, "<strong><em>$1</em></strong>");
-        html = html.replace(/___(.*?)___/g, "<strong><em>$1</em></strong>");
-
-        // Bold: **text** or __text__
-        html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
-        html = html.replace(/__(.*?)__/g, "<strong>$1</strong>");
-
-        // Italic: *text* or _text_
-        html = html.replace(/(?<!\*)\*(?!\*)(.*?)(?<!\*)\*(?!\*)/g, "<em>$1</em>");
-        html = html.replace(/(?<!_)_(?!_)(.*?)(?<!_)_(?!_)/g, "<em>$1</em>");
-
-        // Strikethrough: ~~text~~
-        html = html.replace(/~~(.*?)~~/g, "<del>$1</del>");
-
-        // Inline code: `text`
-        html = html.replace(/`(.*?)`/g, "<code>$1</code>");
-
-        return html;
-    }
-
     eq(other) {
         return other.text === this.text &&
+            JSON.stringify(other.parts) === JSON.stringify(this.parts) &&
             other.url === this.url &&
             other.style?.bold === this.style?.bold &&
             other.style?.italic === this.style?.italic;
@@ -91,6 +62,12 @@ function computeLinkDecorations(view) {
     const builder = new RangeSetBuilder();
     const { state } = view;
     const { selection, doc } = state;
+    let footnotes; // resolved lazily, once per pass
+    const partsOf = (n, text) => {
+        if (!/[*_~^=`$:[&<\\]/.test(text)) return [text]; // no inline-construct starter: skip the walk
+        footnotes ??= resolveFootnotes(state);
+        return linkLabelParts(state, n, footnotes) ?? [text];
+    };
 
     // Iterate over the syntax tree to find Links
     syntaxTree(state).iterate({
@@ -135,17 +112,14 @@ function computeLinkDecorations(view) {
                 // Ignore image links which start with !
                 if (textContentFull.startsWith("!")) return;
 
-                const match = textContentFull.match(/^\[(.*?)\]\(([^"\s)]+)(?:\s+"(.*?)")?\)/);
+                const urlNode = node.node.getChild("URL");
 
-                if (match) {
-                    // double check with urlNode if it exists to be precise?
-                    // Actually the replacement range is [from, to] so regex matching the whole slice is correct.
-
-                    const linkText = match[1];
-                    const linkUrl = match[2];
+                if (urlNode) {
+                    const linkText = getVisibleTextBetweenMarks(node.node, doc);
+                    const linkUrl = normalizeDestination(doc.sliceString(urlNode.from, urlNode.to));
 
                     builder.add(from, to, Decoration.replace({
-                        widget: new LinkWidget(linkText, linkUrl, { bold, italic }),
+                        widget: new LinkWidget(linkText, linkUrl, { bold, italic }, partsOf(node.node, linkText)),
                         inclusive: false
                     }));
                 } else {
@@ -154,7 +128,7 @@ function computeLinkDecorations(view) {
                     const def = resolveReference(node.node, state);
                     if (def) {
                         builder.add(from, to, Decoration.replace({
-                            widget: new LinkWidget(visibleText, def.url, { bold, italic }),
+                            widget: new LinkWidget(visibleText, def.url, { bold, italic }, partsOf(node.node, visibleText)),
                             inclusive: false
                         }));
                     }

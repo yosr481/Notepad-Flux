@@ -15,7 +15,7 @@ export const createMath = (nonce) => {
             {
                 name: 'blockMath',
                 level: 'block',
-                start: (src) => src.match(/^ {0,3}\$\$/m)?.index,
+                start: (src) => src.match(/\n {0,3}\$\$/)?.index, // real line starts only, see exportFootnotes
                 tokenizer(src) {
                     const m = /^ {0,3}\$\$/.exec(src);
                     if (!m) return undefined;

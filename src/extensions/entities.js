@@ -47,3 +47,15 @@ export function decodeEntity(entity) {
 
     return null;
 }
+
+// Attribute values (abbr title, link destination): every HTML5 entity, one pass, same as export. The platform
+// parser decodes each matched entity inside a detached <textarea>, which is RCDATA: it makes text only, never
+// elements (even </textarea> is no end tag without a start tag), so nothing can fire; CSP script-src 'self' backs it. Unknown names and malformed numerics come back unchanged.
+let scratch;
+export function decodeAttrEntities(str) {
+    return str.replace(/&[^&;\s]*;/g, (e) => {
+        scratch ??= document.createElement("textarea");
+        scratch.innerHTML = e;
+        return scratch.value;
+    });
+}

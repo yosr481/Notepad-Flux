@@ -452,6 +452,19 @@ describe('resolveFootnotes: memoization', () => {
         expect(r1.labelled.get('1').refs).toEqual([1]);
     });
 
+    it('same doc, partial parse then full parse -> recomputed, not the stale partial result', () => {
+        const doc = 'filler line\n'.repeat(60000) + 'a[^1]\n\n[^1]: x';
+        const s1 = EditorState.create({
+            doc,
+            extensions: [markdown({ base: markdownLanguage, extensions: [mathSyntax, footnoteSyntax] })],
+        });
+        resolveFootnotes(s1); // may see only the partial tree (20 ms budget)
+        ensureSyntaxTree(s1, s1.doc.length, 20000);
+        const s2 = s1.update({}).state; // same doc object, finished tree
+        expect(s2.doc).toBe(s1.doc);
+        expect(resolveFootnotes(s2).labelled.get('1').number).toBe(1);
+    });
+
     it('result reflects removal of the definition', () => {
         const s1 = state('a[^1]\n\n[^1]: x');
         expect(resolveFootnotes(s1).labelled.size).toBe(1);

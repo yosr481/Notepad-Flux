@@ -3,9 +3,9 @@ import { normalizeLabel } from "./linkDefs";
 import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
-import { resolveReference } from "./linkDefs";
+import { resolveReference, normalizeDestination } from "./linkDefs";
 import { resolveFootnotes } from "./footnotes";
-import { decodeEntity } from "./entities";
+import { decodeEntity, decodeAttrEntities } from "./entities";
 import { syntaxTree } from "@codemirror/language";
 import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 
@@ -19,7 +19,8 @@ import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 const CONTAINERS = { StrongEmphasis: "strong", Emphasis: "em", Strikethrough: "del", Subscript: "sub", Superscript: "sup" };
 const unpipe = (s) => s.replace(/\\\|/g, "|"); // GFM: `\|` in a cell is a literal pipe, even in code and math
 
-function cellParts(state, cell, footnotes) {
+// The inline walker shared by table cells and link labels outside tables (linkPreview.js).
+function inlineWalker(state, footnotes) {
     const doc = state.doc;
     const text = (a, b) => doc.sliceString(a, b);
     // ponytail: `==h==` is found per text run, so a pair split by other markup (==**b**==) stays literal.
@@ -108,14 +109,17 @@ function cellParts(state, cell, footnotes) {
             case "Entity": return [decodeEntity(text(n.from, n.to)) ?? text(n.from, n.to)];
             case "Autolink": {
                 const url = n.node.getChild("URL");
-                return url ? [{ k: "a", href: text(url.from, url.to), c: [text(url.from, url.to)] }] : raw(n);
+                if (!url) return raw(n);
+                const label = text(url.from, url.to);
+                // autolinks: entities decode, backslash stays literal (CommonMark) as %5C since the browser reads a raw one as "/"
+                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? decodeAttrEntities(label).replace(/\\/g, "%5C") : "mailto:" + label, c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");
                 const marks = n.node.getChildren("LinkMark");
                 if (marks.length < 2) return raw(n);
                 let href;
-                if (url) href = text(url.from, url.to).replace(/^<(.*)>$/, "$1").replace(/\\([!-/:-@[-`{-~])/g, "$1");
+                if (url) href = normalizeDestination(text(url.from, url.to));
                 else {
                     const def = resolveReference(n.node, state);
                     if (!def) return raw(n);
@@ -127,7 +131,15 @@ function cellParts(state, cell, footnotes) {
         }
     }
 
-    return walk(cell, cell.from, cell.to);
+    return walk;
+}
+
+const cellParts = (state, cell, footnotes) => inlineWalker(state, footnotes)(cell, cell.from, cell.to);
+
+// Parts of an inline Link's label (between its first two LinkMarks), or null when it has no two marks.
+export function linkLabelParts(state, link, footnotes) {
+    const marks = link.getChildren("LinkMark");
+    return marks.length < 2 ? null : inlineWalker(state, footnotes)(link, marks[0].to, marks[1].from);
 }
 
 const ALIGN = (s) => {
@@ -185,7 +197,7 @@ const el = (tag, cls) => {
     return e;
 };
 
-function appendParts(parent, parts, view) {
+export function appendParts(parent, parts, view) {
     for (const p of parts) {
         if (typeof p === "string") { parent.append(p); continue; }
         let e;

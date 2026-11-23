@@ -1,6 +1,6 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
-import { resolveReference } from "./linkDefs";
+import { resolveReference, normalizeDestination } from "./linkDefs";
 
 // Scheme allowlist for URLs pulled straight from document content.
 // Anything not http/https/mailto (file:, smb:, javascript:, custom protocols) is refused.
@@ -72,11 +72,7 @@ export const linkClickHandler = EditorView.domEventHandlers({
         // Extract URL
         const urlNode = linkNode.getChild("URL");
         if (urlNode) {
-            let url = state.doc.sliceString(urlNode.from, urlNode.to);
-            // Remove surrounding parens if present (standard markdown parser includes them in URL node sometimes?)
-            // Actually Lezer markdown URL node is usually just the text.
-            // But let's clean it just in case.
-            url = url.replace(/^\(/, '').replace(/\)$/, '');
+            const url = normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
 
             if (url) {
                 if (isSafeExternalUrl(url)) {
@@ -102,10 +98,11 @@ export const linkClickHandler = EditorView.domEventHandlers({
             // Simple regex to extract url from [text](url) or <url>
             const match = text.match(/\((.*?)\)$/) || text.match(/^<(.*)>$/);
             if (match) {
-                if (isSafeExternalUrl(match[1])) {
-                    window.open(match[1], '_blank');
+                const url = normalizeDestination(match[1]);
+                if (isSafeExternalUrl(url)) {
+                    window.open(url, '_blank');
                 } else {
-                    console.warn('Blocked unsafe link scheme:', match[1]);
+                    console.warn('Blocked unsafe link scheme:', url);
                 }
                 event.preventDefault();
             }

@@ -9,16 +9,17 @@ import { sanitizeHTML } from "../utils/sanitize";
 const cache = new WeakMap();
 
 // { labelled: Map<label, {number, defFrom, defTo, text, refs}>, inline: Map<from, {number, text}> },
-// memoized per EditorState. Read-only for callers. One tree pass, then GitHub-order numbering; notes never reached get no entry.
+// memoized per doc + parse tree (selection-only states reuse it; a fuller parse recomputes). Read-only for callers. One tree pass, then GitHub-order numbering; notes never reached get no entry.
 export function resolveFootnotes(state) {
-    if (cache.has(state)) return cache.get(state);
+    const doc = state.doc, tree = syntaxTree(state);
+    const hit = cache.get(doc);
+    if (hit && hit.tree === tree) return hit.result;
 
-    const doc = state.doc;
     const defs = new Map();   // label -> first definition in document order
     const events = [];        // refs and inline notes, document order
     const open = [];          // enclosing definitions' labels; IGNORED stands for a duplicate (never numbered)
     const IGNORED = Symbol('ignored duplicate definition');
-    syntaxTree(state).iterate({
+    tree.iterate({
         leave: (node) => { if (node.name === 'FootnoteDefinition') open.pop(); },
         enter: (node) => {
             const inDef = open.at(-1) ?? null;
@@ -53,7 +54,7 @@ export function resolveFootnotes(state) {
     });
 
     const result = { labelled, inline };
-    cache.set(state, result);
+    cache.set(doc, { tree, result });
     return result;
 }
 

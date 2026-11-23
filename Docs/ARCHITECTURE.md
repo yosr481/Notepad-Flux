@@ -76,7 +76,7 @@ src/
 ├── extensions/             - CodeMirror 6 Extensions (The "Brain" of the editor)
 │   ├── livePreview.js      - Core WYSIWYG logic (syntax hiding/revealing)
 │   ├── widgets.js          - Custom DOM widgets (Checkboxes, Tables, HR)
-│   ├── tableCells.js       - Table cell data from the syntax tree + table DOM (inline features in cells)
+│   ├── tableCells.js       - Table cell data from the syntax tree + table DOM; also the shared inline renderer for link labels
 │   ├── imagePreview.js     - Inline image rendering
 │   ├── mathSyntax.js / mathPreview.js     - Math: Lezer parser + shared scanners / widgets
 │   ├── footnoteSyntax.js / footnotes.js   - Footnotes: Lezer parser + shared rules / numbering, widgets, tooltip
@@ -87,7 +87,7 @@ src/
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
-│   ├── entities.js        - Shared HTML entity decoder (`decodeEntity`): the entity text span, table cells, abbr titles
+│   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (small set) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link destinations
 │   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes). callouts, mermaid, frontMatter, subSup, emoji and htmlInline each use their own field (backlog C5)
 │   └── ...
 ├── hooks/                  - Custom React Hooks
@@ -323,7 +323,7 @@ The editor's functionality is built through composable CodeMirror extensions:
 
 4. **`linkPreview.js`**: Link rendering
    - Link widget with icon
-   - Markdown parsing in link text
+   - Label rendered from `tableCells.js` parts (`linkLabelParts` + `appendParts`, DOM text nodes), so labels show the same inline features as table cells; labels with no inline-construct character skip the walk
    - Cursor-based activation
 
 5. **`linkHandler.js`**: Link interaction
@@ -337,7 +337,7 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Task list creation
 
 7. **`tableCells.js`**: Rendered table cells
-   - Also a registry: every inline feature that should render in cells (math, sub/sup, emoji, footnote refs, highlight, HTML tags) needs a case in its `convert()` and `appendParts`.
+   - Also a registry: every inline feature that should render in cells and link labels (math, sub/sup, emoji, footnote refs, highlight, HTML tags) needs a case in its `convert()` and `appendParts`.
    - `buildTableData` reads rows/cells/inline parts from the syntax tree (footnote numbers via `resolveFootnotes`); `tableDOM` builds the DOM with `createElement`/`textContent`, no sanitizer pass
 
 8. **`mathSyntax.js`** / **`mathPreview.js`**: Math (`$…$`, `$$…$$`)
@@ -370,7 +370,7 @@ The editor's functionality is built through composable CodeMirror extensions:
 15. **`htmlInlinePreview.js`**: Safe inline HTML tags (`<kbd>`, `<mark>`, `<u>`, `<ins>`, `<small>`, `<abbr>`, `<sub>`, `<sup>`, `<span>`)
    - Pairs the opening and closing `HTMLTag` nodes in the same inline context. Outside the cursor the tags are hidden and the content gets a class; attributes are never applied, except `abbr` `title`, which becomes the tooltip. Block HTML and `<br>` stay source.
 
-Export: one module per feature in `src/utils/` follows one contract, `createX(...) → { extension, prepare?, has?, finish(root) }` (stateless features, `exportSubSup.js` and `exportEmoji.js`, export the marked extension object directly, with no `createX`/`finish`), and `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each `finish(root)` (the post-sanitize DOM pass): math (after `prepare`), footnotes (ids; its `appendSection` runs before sanitizing), callouts (icons) and mermaid (SVG). Sanitizing lives in `sanitize.js`, plus the SVG sanitizers in `math.js` and `mermaid.js` (MathJax/Mermaid output is inserted after `sanitizeHTML`). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). It strips front matter before marked lexes the document. `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget, linkPreview too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`; sub/sup is the exception: the editor uses lezer's built-in Subscript/Superscript and export mirrors them with `scanSubSup` in `src/utils/exportSubSup.js`, kept in step by the shared case table `src/test/subSupCases.js`.
+Export: one module per feature in `src/utils/` follows one contract, `createX(...) → { extension, prepare?, has?, finish(root) }` (stateless features, `exportSubSup.js` and `exportEmoji.js`, export the marked extension object directly, with no `createX`/`finish`), and `export.js` `renderMarkdownHtml` composes them, sanitizes, then runs each `finish(root)` (the post-sanitize DOM pass): math (after `prepare`), footnotes (ids; its `appendSection` runs before sanitizing), callouts (icons) and mermaid (SVG). Sanitizing lives in `sanitize.js`, plus the SVG sanitizers in `math.js` and `mermaid.js` (MathJax/Mermaid output is inserted after `sanitizeHTML`). Each feature owns its own swap, so `export.js` doesn't grow a block per feature. Mermaid SVG is inserted after sanitizing, from `mermaid.js`, which runs its own SVG sanitize. `renderMarkdownHtml(md, { expandFolds })` renders every fold open (PDF/Print). It strips front matter before marked lexes the document. `sanitize.js` allows `div`/`details`/`summary`/`open` for every caller (TableWidget too), not just export. Rules are shared with the editor via `src/extensions/*Syntax.js`; sub/sup is the exception: the editor uses lezer's built-in Subscript/Superscript and export mirrors them with `scanSubSup` in `src/utils/exportSubSup.js`, kept in step by the shared case table `src/test/subSupCases.js`.
 
 ---
 

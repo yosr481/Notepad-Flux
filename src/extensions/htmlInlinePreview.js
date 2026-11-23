@@ -2,7 +2,7 @@ import { EditorView, Decoration } from "@codemirror/view";
 import { StateField, RangeSet, RangeValue } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { isCursorTouching } from "./selection";
-import { decodeEntity } from "./entities";
+import { decodeAttrEntities } from "./entities";
 
 export const SAFE_INLINE_HTML_TAGS = ["abbr", "ins", "kbd", "mark", "small", "span", "sub", "sup", "u"];
 // Content class per tag (span has none). Every name must also be in sanitize.js ALLOWED_TAGS.
@@ -22,7 +22,7 @@ export function abbrTitle(src) {
     for (let m; re.lastIndex < src.length && (m = re.exec(src)); ) {
         if (m[1] && m[1].toLowerCase() === "title") {
             const v = m[2] ?? m[3] ?? m[4];
-            if (v !== undefined) return v.replace(/&[^&;\s]*;/g, (e) => decodeEntity(e) ?? e);
+            if (v !== undefined) return decodeAttrEntities(v);
         }
     }
     return null;

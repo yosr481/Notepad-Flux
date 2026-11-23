@@ -548,6 +548,85 @@ describe('numbering parity with resolveFootnotes', () => {
     });
 });
 
+// B13: a definition is only a definition at the START of a line (GitHub/cmark-gfm, same as the editor).
+// Mid-line `[^1]:` is a reference followed by literal text. marked passes block `start()` the source minus its
+// first char, so a `^`-anchored regex used to match the slice start and cut the paragraph there, losing text.
+describe('renderMarkdownHtml footnotes: mid-line [^x]: is a reference plus literal text (B13)', () => {
+
+    it('a[^1]:x then a real definition: paragraph keeps a, ref to note 1 and ":x"; notes list has n', async () => {
+        const d = await render('a[^1]:x\n\n[^1]: n');
+        const p = d.querySelector('p');
+        expect(p.textContent).toBe('a1:x');
+        expect(p.querySelectorAll('sup > a.footnote-ref')).toHaveLength(1);
+        expect(refs(d)[0].getAttribute('href')).toBe('#fn-1');
+        expect(lis(d)).toHaveLength(1);
+        expect(lis(d)[0].textContent).toContain('n');
+        expect(lis(d)[0].textContent).not.toContain('x');
+    });
+
+    it('a [^1]: x (space before the ref): same, ": x" survives as text', async () => {
+        const d = await render('a [^1]: x\n\n[^1]: n');
+        expect(d.querySelector('p').textContent).toBe('a 1: x');
+        expect(refs(d)).toHaveLength(1);
+        expect(lis(d)).toHaveLength(1);
+        expect(lis(d)[0].textContent).toContain('n');
+    });
+
+    it('in a list item: ref + ":x" survive, note exported', async () => {
+        const d = await render('- a[^1]:x\n\n[^1]: n');
+        const li = d.querySelector('ul > li');
+        expect(li.textContent).toBe('a1:x');
+        expect(li.querySelectorAll('sup > a.footnote-ref')).toHaveLength(1);
+        expect(lis(d)).toHaveLength(1);
+        expect(lis(d)[0].textContent).toContain('n');
+    });
+
+    it('in a blockquote: ref + ":x" survive, note exported', async () => {
+        const d = await render('> a[^1]:x\n\n[^1]: n');
+        const p = d.querySelector('blockquote p');
+        expect(p.textContent).toBe('a1:x');
+        expect(p.querySelectorAll('sup > a.footnote-ref')).toHaveLength(1);
+        expect(lis(d)).toHaveLength(1);
+        expect(lis(d)[0].textContent).toContain('n');
+    });
+
+    it('two refs on one line, the second followed by ":": both are refs, ":x" survives', async () => {
+        const d = await render('a[^1] b[^2]:x\n\n[^1]: one\n[^2]: two');
+        expect(d.querySelector('p').textContent).toBe('a1 b2:x');
+        expect(refs(d).map((a) => a.textContent)).toEqual(['1', '2']);
+        expect(lis(d).map((li) => li.textContent.replace('↩', '').trim())).toEqual(['one', 'two']);
+    });
+
+    it('two refs, both followed by ":": both refs, both texts survive', async () => {
+        const d = await render('a[^1]:x b[^2]:y\n\n[^1]: one\n[^2]: two');
+        expect(d.querySelector('p').textContent).toBe('a1:x b2:y');
+        expect(refs(d).map((a) => a.textContent)).toEqual(['1', '2']);
+        expect(lis(d)).toHaveLength(2);
+    });
+
+    it('regression: definition at line start (col 0 and 3-space indent) still defines, emits no text', async () => {
+        for (const def of ['[^1]: n', '   [^1]: n']) {
+            const d = await render(`a[^1]\n\n${def}`);
+            expect(d.querySelector('p').textContent).toBe('a1');
+            expect(refs(d)).toHaveLength(1);
+            expect(lis(d)).toHaveLength(1);
+            expect(lis(d)[0].textContent).toContain('n');
+            expect(d.textContent).not.toContain('[^1]');
+        }
+    });
+
+    it('regression: definition inside a list item still defines (not text)', async () => {
+        const d = await render('a[^1]\n\n- [^1]: n');
+        expect(refs(d)).toHaveLength(1);
+        expect(lis(d)).toHaveLength(1);
+    });
+
+    it('no text is lost: the paragraph text survives for an undefined label too', async () => {
+        const d = await render('a[^9]:x');
+        expect(d.querySelector('p').textContent).toBe('a[^9]:x');
+    });
+});
+
 describe('markdownToHtml stays the plain marked call', () => {
     it('no footnote handling: identical to marked()', () => {
         const md = 'a[^1] b^[c]\n\n[^1]: n';
