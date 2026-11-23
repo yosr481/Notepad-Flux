@@ -446,7 +446,7 @@ describe('resolveFootnotes: memoization', () => {
         const r1 = resolveFootnotes(s1);
         const s2 = s1.update({ changes: { from: 0, to: 0, insert: 'z[^1] ' } }).state;
         ensureSyntaxTree(s2, s2.doc.length, 5000);
-        const r2 = resolveFootnotes(s2);
+        const r2 = resolveFootnotes(s2.update({}).state);
         expect(r2).not.toBe(r1);
         expect(r2.labelled.get('1').refs).toEqual([1, 7]);
         expect(r1.labelled.get('1').refs).toEqual([1]);

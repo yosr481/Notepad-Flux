@@ -45,7 +45,7 @@ const mk = (doc) => {
     });
     ensureSyntaxTree(state, state.doc.length, 10000);
     // ensureSyntaxTree does not always publish into the state: a no-op transaction picks up the finished work.
-    return syntaxTree(state).length < state.doc.length ? state.update({}).state : state;
+    return state.update({}).state;
 };
 
 describe('normalizeLabel', () => {

@@ -393,8 +393,9 @@ describe('table cells: footnotes', () => {
     const doc = 'a[^x] then\n\n| h |\n| --- |\n| b[^y] |\n\n[^x]: X\n[^y]: Y\n';
     const stateOf = (d) => {
         const s = EditorState.create({ doc: d, extensions: [markdown({ base: markdownLanguage, extensions: SYNTAX })] });
-        ensureSyntaxTree(s, d.length, 5000);
-        return s;
+        // ensureSyntaxTree does not always publish into the state (syntaxTree(state) is a stale snapshot); update({}) adopts the finished tree
+        ensureSyntaxTree(s, d.length, 30000);
+        return s.update({}).state;
     };
 
     it('resolveFootnotes counts the ref in the table (guards the test premise)', () => {

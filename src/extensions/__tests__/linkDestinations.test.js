@@ -62,7 +62,7 @@ afterEach(() => { while (views.length) views.pop().destroy(); vi.restoreAllMocks
 const mkState = (doc) => {
     const s = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
     ensureSyntaxTree(s, s.doc.length, 10000);
-    return syntaxTree(s).length < s.doc.length ? s.update({}).state : s;
+    return s.update({}).state;
 };
 
 const outsideDoc = (body, defs = "") => `p\n\n${body}\n\nz\n${defs}`;

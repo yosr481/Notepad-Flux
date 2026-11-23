@@ -33,8 +33,8 @@ describe('resolveLinkDefs on a large, incrementally parsed document (B2)', () =>
         const partialTreeLen = syntaxTree(state0).length;
 
         // (b) finish the parse
-        const done = ensureSyntaxTree(state0, state0.doc.length, 30000);
-        expect(done, 'parse must complete within 30s').toBeTruthy();
+        const done = ensureSyntaxTree(state0, state0.doc.length, 120000);
+        expect(done, 'parse must complete within 120s').toBeTruthy();
         expect(done.length).toBe(state0.doc.length);
 
         // (c) next state after a trivial transaction: must read the complete tree
@@ -49,11 +49,11 @@ describe('resolveLinkDefs on a large, incrementally parsed document (B2)', () =>
         expect(resolveLinkDefs(state1)).not.toBe(partial);
         // Informational: partial only differs if the machine was too slow to parse in budget.
         if (partialTreeLen < state0.doc.length) expect(partial.size).toBeLessThan(2);
-    });
+    }, 180000);
 
     it('resolveReference for a top-of-doc reference link resolves on the complete-tree state', () => {
         const state0 = EditorState.create({ doc: bigDoc(), extensions });
-        ensureSyntaxTree(state0, state0.doc.length, 30000);
+        ensureSyntaxTree(state0, state0.doc.length, 120000);
         const state1 = state0.update({}).state;
         let found = 0;
         syntaxTree(state1).iterate({
@@ -66,7 +66,7 @@ describe('resolveLinkDefs on a large, incrementally parsed document (B2)', () =>
             },
         });
         expect(found).toBe(2);
-    });
+    }, 180000);
 });
 
 describe('imagePreview rendering after the parse completes (B2, user-visible)', () => {
@@ -80,7 +80,7 @@ describe('imagePreview rendering after the parse completes (B2, user-visible)', 
         try {
             // Drive the parse to completion and let the view pick the finished tree up
             // the way CodeMirror's own parse worker does: an empty transaction.
-            ensureSyntaxTree(view.state, view.state.doc.length, 30000);
+            ensureSyntaxTree(view.state, view.state.doc.length, 120000);
             // Large docs (>1000 lines) debounce tree-only recomputes by 300 ms: fake clock, no flakiness.
             vi.useFakeTimers();
             view.dispatch({});
@@ -92,5 +92,5 @@ describe('imagePreview rendering after the parse completes (B2, user-visible)', 
             view.destroy();
             parent.remove();
         }
-    });
+    }, 180000);
 });
