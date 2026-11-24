@@ -220,7 +220,7 @@ const footnoteTheme = EditorView.baseTheme({
 
 // Plain click opens the raw source (caret just inside the opening mark); Ctrl/Cmd+click follows the link.
 const footnoteClick = EditorView.domEventHandlers({
-    // The mousedown above handles it; keep the click from also opening a surrounding link (linkHandler).
+    // The mousedown below handles it; keep the click from also opening a surrounding link (linkHandler).
     click(event) {
         return (event.ctrlKey || event.metaKey) && event.target instanceof Element && !!event.target.closest(".cm-footnote-ref, .cm-footnote-def");
     },
