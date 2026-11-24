@@ -123,3 +123,83 @@ without losing the "why".
 - **B9:** shortcuts match `e.code` with exact modifiers. Held Ctrl+N/W/O/P is swallowed
   (`preventDefault`, no action) so a repeat can't reach a native default like print.
   Accepted side effect: Ctrl+F5 / Shift+F5 no longer insert the date.
+
+## 2026-11-24 — 2.0.1 release
+
+- **Released as 2.0.1** (patch: fixes only, agreed with Yossi 2026-11-22). Content: the
+  2.0.0 retest stack #131–#134 (merged 2026-11-22), #142 PDF export + Print, #143 link and
+  footnote edges, #144 test fixes and B17 diagnostics, #145 version bump. Tag `v2.0.1` on
+  the #145 merge commit; release run 45344749992 green (unit tests, Windows, Linux).
+- **Release gate:** Vitest 4080 pass; packaged e2e Linux 199/199, Windows installed 197 pass /
+  0 fail / 6 not automatable (5 PDF text checks need poppler on the VM, KEY-LEGACY-1 needs a
+  1.4.4 binary).
+- **PDF export is built with Electron `printToPDF` from the Print page**, not an html2canvas
+  raster. The raster failed past Chromium's canvas size (`wrong PNG signature`), made 53 MB
+  files from 3 KB docs, and had no selectable text. The web build opens the print dialog
+  (Save as PDF) instead of downloading a file.
+- **Print:** title once on page 1; "Page N of M" from paged-media counters, which Chromium and
+  Electron draw and Firefox doesn't (accepted: Firefox prints without numbers).
+- **Inline math:** MathJax 4 inline line-breaking split a formula into several `<svg>` and
+  only the first was kept; fixed with `linebreaks: { inline: false }`.
+- **Table links behave like editor links:** plain click puts the caret in the cell,
+  Ctrl/Cmd+click opens.
+- **Task checkboxes find their `[` with `posAtDOM`**, not a line regex, so quoted, callout,
+  `+` and `1.` items save. The native toggle is always prevented, so the box never disagrees
+  with the file; keyboard and screen readers toggle via click with `detail === 0`.
+- **Export base CSS is scoped `:where(.nf-export)`** (zero specificity, no leak into the
+  app). New CSS files must be listed in `vitest.config.js` `css.include` or vitest blanks them.
+- **New dependency `@mathjax/mathjax-mhchem-font-extension`** (Apache-2.0, 96 KB): mhchem
+  arrows are private-use glyphs that exist only in it.
+- **Untrusted-file hardening found in review:** Mermaid `<a>` becomes an inert `<g>` with an
+  attribute allowlist (`sanitize.js` untouched); the footnote hover parses in an inert
+  `<template>` and drops `<img>` (a remote image leaked the IP on hover).
+- **Accepted ceilings:** a `[comment]: #` or link definition alone on its line at column 0
+  collapses to zero height, so ArrowUp/Down skip it (a click still reaches it); `*italic*`
+  inside a callout custom title shows upright; `a==b and c==d` highlights in export the same
+  way the editor does.
+- **F6 definition lists and `[TOC]` were dropped by Yossi (2026-11-17)**, not deferred.
+- **Link destinations are normalized once** and shared by the editor widget and Ctrl+click
+  (`<url>` brackets stripped, entities decoded, `<a@b>` to `mailto:`), matching export. Left
+  on purpose: B18 (more link gaps) and B19 (entities in text nodes need a policy).
+- **Load flakes fixed in the tests, not by loosening them:** helpers adopt the finished tree
+  with `state.update({})` and get larger parse budgets; the 300 KB export-math check compares
+  against a 75 KB run instead of a wall-clock bound.
+- **B17 (rare Windows exit/launch failure): evidence before any app change.** The e2e harness
+  writes main.log, app stderr/stdout and the process list to `Docs/internal/e2e/diag-<os>.log`
+  (previous run kept as `.prev`), waits `CLOSE_ASK_AFTER_MS` + 10 s in EXIT-2, and kills and
+  records any app a scenario leaves running. Not reproduced in two Windows full runs. An app
+  quit fallback only if a log shows a stall.
+- **Accepted risks, dismissed on GitHub with Yossi's OK:** Dependabot #247 (esbuild dev
+  server, dev-only, never run) as tolerable risk; CodeQL #91 (`mermaidBridge.js` `Map`
+  dispatch, gated on `event.source`) as a false positive. Reopen conditions are in BACKLOG
+  D1 and S1. This refines 2026-11-19: CodeQL alerts in test code still get fixed; an
+  app-code false positive may be dismissed with Yossi's OK and a BACKLOG row.
+
+## 2026-11-24 — curated out of HANDOFF.md §5 (2026-11-12 → 11-16 sessions)
+
+- **Launch files are pulled, not pushed:** main queues command-line / "Open with" paths and
+  the page drains them with `take-launch-files`; it can never add to the queue.
+- **Same-file dedupe lives in `createTab`** (`fileKey`), so every open path gets it.
+- **Review findings declined (2026-11-12):** skip-next-arg after a valueless flag; a `--`
+  terminator (BACKLOG C2); Windows root-relative `\x` paths.
+- **Encryption key rules:** a secure key that can't be read now is never replaced
+  (`KEY_UNAVAILABLE` locks writes); legacy decrypt with no key throws (`fromKey`); the
+  plaintext `notepad-flux-key` is removed only when a later launch decrypts the secure copy
+  to the same value on a real keyring backend (never `basic_text` or unknown).
+- **RACE-3s was a test defect, not an app bug** (#96). Lesson: a "passed before" claim needs
+  a saved result.
+- **Windows code signing: not done, by Yossi's choice.**
+- **Unexplained Windows one-off (Electron 45 round):** the first full run after an install
+  failed CLOSE-* "tab missing after relaunch"; 0 in 44 reruns. Guess: Defender scanning the
+  new exe.
+- **Version 1.6.0, not 1.5.1:** a new feature means a minor bump. Tag `v1.6.0` was moved
+  (deleted and re-pushed on `80d4f20`) with Yossi's OK, before any release existed.
+- **CI on Node 24** (#111): jsdom 31 / undici need Node ≥ 22.22, and Node 20 is end of life.
+- **Math (MathJax 4, `@mathjax/src`):** TeX packages exclude `html`, `require` and `autoload`
+  (links, attributes, code fetch); output goes through the DOMPurify SVG profile with
+  `data-latex` forbidden (it echoed TeX into export). An unclosed `$$` is plain text (a
+  run-to-end block hid all live preview below it while typing). Inline math is capped at
+  1000 chars (`INLINE_MATH_MAX`; long `$`-heavy lines were quadratic). Each formula gets a
+  fresh TeX input jax (~0.8 ms) so `\newcommand` can't leak. Export swaps formula
+  placeholders on the parsed DOM, not the string (a formula in image alt text broke out of
+  the attribute). A click on a math widget puts the caret just inside the delimiter.
