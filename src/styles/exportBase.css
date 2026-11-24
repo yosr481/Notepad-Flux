@@ -11,3 +11,6 @@
 
 /* Each paragraph takes its direction from its first strong letter, so Hebrew and Arabic align right. */
 :where(.nf-export) :is(p, li, h1, h2, h3, h4, h5, h6, td, th, blockquote, summary) { unicode-bidi: plaintext; text-align: start; }
+
+:where(.nf-export) kbd { font-family: monospace; font-size: 0.9em; padding: 1px 5px; color: #1e293b; background-color: #f1f5f9; border: 1px solid #94a3b8; border-bottom-width: 2px; border-radius: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+:where(.nf-export) mark { color: #1e293b; background-color: #ede9fe; padding: 2px 4px; border-radius: 4px; print-color-adjust: exact; -webkit-print-color-adjust: exact; }

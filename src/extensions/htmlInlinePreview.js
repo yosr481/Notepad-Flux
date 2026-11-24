@@ -1,7 +1,8 @@
-import { EditorView, Decoration } from "@codemirror/view";
-import { StateField, RangeSet, RangeValue } from "@codemirror/state";
-import { syntaxTree } from "@codemirror/language";
+import { Decoration } from "@codemirror/view";
+import { RangeSet, RangeValue } from "@codemirror/state";
 import { isCursorTouching } from "./selection";
+import { selectionKeyedField } from "./decorationField";
+import { nodesOf } from "./nodeIndex";
 import { decodeAttrEntities } from "./entities";
 
 export const SAFE_INLINE_HTML_TAGS = ["abbr", "ins", "kbd", "mark", "small", "span", "sub", "sup", "u"];
@@ -63,61 +64,54 @@ export function pairHtmlTags(parent, doc) {
     });
 }
 
-class PairRef extends RangeValue { constructor(i) { super(); this.i = i; } }
+class ItemRef extends RangeValue { constructor(i) { super(); this.i = i; } }
+const indexes = new WeakMap(); // items -> RangeSet of pair spans, so a selection move needn't scan every pair
 
-function build(state) {
-    const tree = syntaxTree(state);
-    const pairs = [];
-    const brs = [];
+// Items: pairs (spanning open.from..close.to) and <br> tags; only pairs depend on the selection.
+function collect(state) {
+    const items = [];
     const seen = new Set();
-    tree.iterate({
-        enter: (n) => {
-            if (n.name !== "HTMLTag") return;
-            const src = state.doc.sliceString(n.from, n.to);
-            if (/^<br\b/i.test(src)) brs.push({ from: n.from, to: n.to });
-            const parent = n.node.parent;
-            if (!parent || seen.has(parent.from + ":" + parent.to + parent.name)) return;
-            seen.add(parent.from + ":" + parent.to + parent.name);
-            pairs.push(...pairHtmlTags(parent, state.doc));
-        },
-    });
-    pairs.sort((a, b) => a.open.from - b.open.from);
-    const index = RangeSet.of(pairs.map((p, i) => new PairRef(i).range(p.open.from, p.close.to)));
-    return withSelection({ tree, pairs, brs, index }, state);
+    for (const n of nodesOf(state, "HTMLTag")) {
+        if (/^<br\b/i.test(state.doc.sliceString(n.from, n.to))) items.push({ from: n.from, to: n.to });
+        const parent = n.node.parent;
+        if (!parent) continue;
+        const key = parent.from + ":" + parent.to + parent.name;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        for (const p of pairHtmlTags(parent, state.doc)) items.push({ from: p.open.from, to: p.close.to, ...p, title: p.name === "abbr" ? abbrTitle(state.doc.sliceString(p.open.from, p.open.to)) : null });
+    }
+    return items.sort((a, b) => a.from - b.from);
 }
 
-// The only selection input: which pairs it touches. Same decoration set while that stays the same.
-function withSelection(value, state) {
+function touching(items, state) {
+    let index = indexes.get(items);
+    if (!index) {
+        index = RangeSet.of(items.flatMap((p, i) => (p.open ? [new ItemRef(i).range(p.from, p.to)] : [])), true);
+        indexes.set(items, index);
+    }
     const hit = new Set();
     for (const r of state.selection.ranges) {
-        value.index.between(Math.max(0, r.from - 1), r.to + 1, (_f, _t, v) => {
-            const p = value.pairs[v.i];
-            if (isCursorTouching(state.selection, p.open.from, p.close.to)) hit.add(v.i);
-        });
+        index.between(Math.max(0, r.from - 1), r.to + 1, (_f, _t, v) => { if (isCursorTouching(state.selection, items[v.i].from, items[v.i].to)) hit.add(v.i); });
     }
-    const key = [...hit].sort((a, b) => a - b).join(",");
-    if (value.decos && key === value.key) return value;
-    const ranges = value.brs.map((b) => faint.range(b.from, b.to));
-    value.pairs.forEach((p, i) => {
+    return [...hit].sort((a, b) => a - b);
+}
+
+function decorate(items, touched) {
+    const ranges = [];
+    items.forEach((p, i) => {
+        if (!p.open) { ranges.push(faint.range(p.from, p.to)); return; }
         const { open, close } = p;
-        if (hit.has(i)) { ranges.push(faint.range(open.from, open.to), faint.range(close.from, close.to)); return; }
+        if (touched.has(i)) { ranges.push(faint.range(open.from, open.to), faint.range(close.from, close.to)); return; }
         ranges.push(hide.range(open.from, open.to), hide.range(close.from, close.to));
         const cls = HTML_TAG_CLASS[p.name];
-        const title = p.name === "abbr" ? abbrTitle(state.doc.sliceString(open.from, open.to)) : null;
+        const { title } = p;
         if ((cls || title !== null) && close.from > open.to) {
             const spec = { class: cls };
             if (title !== null) spec.attributes = { title };
             ranges.push(Decoration.mark(spec).range(open.to, close.from));
         }
     });
-    return { ...value, key, decos: Decoration.set(ranges, true) };
+    return Decoration.set(ranges, true);
 }
 
-export const htmlInlinePreview = StateField.define({
-    create: build,
-    update(value, tr) {
-        if (tr.docChanged || syntaxTree(tr.state) !== value.tree) return build(tr.state);
-        return tr.selection ? withSelection(value, tr.state) : value;
-    },
-    provide: (field) => EditorView.decorations.from(field, (v) => v.decos),
-});
+export const htmlInlinePreview = selectionKeyedField({ collect, decorate, touching });

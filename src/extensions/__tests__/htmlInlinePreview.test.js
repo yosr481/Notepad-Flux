@@ -485,7 +485,7 @@ describe('source guards and wiring', () => {
     const own = readFileSync(resolve(process.cwd(), 'src/extensions/htmlInlinePreview.js'), 'utf8');
     const editor = readFileSync(resolve(process.cwd(), 'src/components/Editor.jsx'), 'utf8');
     it('reuses isCursorTouching from ./selection (one touching rule across extensions)', () => {
-        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]/);
+        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]|import\s*\{[^}]*\bselectionKeyedField\b[^}]*\}\s*from\s*['"]\.\/decorationField['"]/);
     });
     it('Editor.jsx imports htmlInlinePreview and lists it in the extensions array', () => {
         expect(editor).toMatch(/import\s*\{[^}]*\bhtmlInlinePreview\b[^}]*\}\s*from\s*['"]\.\.\/extensions\/htmlInlinePreview['"]/);

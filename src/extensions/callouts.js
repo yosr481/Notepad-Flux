@@ -1,6 +1,7 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { EditorSelection, EditorState, StateEffect, StateField } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { nodesOf } from "./nodeIndex";
 import { isCursorOnLine } from "./selection";
 import { scanCallout, calloutTitle, CALLOUT_TYPES } from "./calloutSyntax";
 import { lucideSvg } from "../utils/lucideSvg";
@@ -13,17 +14,14 @@ const toggleFold = StateEffect.define();
 function findCallouts(state) {
     const { doc } = state;
     const found = [];
-    syntaxTree(state).iterate({
-        enter: (node) => {
-            if (node.name !== "Blockquote") return;
-            const line = doc.lineAt(node.from);
-            const text = line.text.slice(node.from - line.from);
-            if (text[0] !== ">") return;
-            const from = node.from + (text[1] === " " || text[1] === "\t" ? 2 : 1);
-            const scan = scanCallout(line.text.slice(from - line.from));
-            if (scan) found.push({ from, scan, line, quoteFrom: node.from, lastLine: doc.lineAt(node.to - 1) });
-        },
-    });
+    for (const node of nodesOf(state, "Blockquote")) {
+        const line = doc.lineAt(node.from);
+        const text = line.text.slice(node.from - line.from);
+        if (text[0] !== ">") continue;
+        const from = node.from + (text[1] === " " || text[1] === "\t" ? 2 : 1);
+        const scan = scanCallout(line.text.slice(from - line.from));
+        if (scan) found.push({ from, scan, line, quoteFrom: node.from, lastLine: doc.lineAt(node.to - 1) });
+    }
     return found;
 }
 

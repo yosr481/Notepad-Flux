@@ -88,7 +88,8 @@ src/
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
 │   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (small set) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link destinations
-│   ├── decorationField.js - Shared StateField helper for decoration fields (math, footnotes). callouts, mermaid, frontMatter, subSup, emoji and htmlInline each use their own field (backlog C5)
+│   ├── decorationField.js - Shared StateField helpers for decoration fields (`selectionKeyedField`: math, footnotes, subSup, emoji, htmlInline). callouts, mermaid and frontMatter still use their own field (backlog C5)
+│   ├── nodeIndex.js       - `nodesOf(state, name)`: one shared tree walk per syntax tree, indexed by node name (see `INDEXED_NODES`), cached on doc + tree
 │   └── ...
 ├── hooks/                  - Custom React Hooks
 │   └── useCommands.js      - Centralized command logic (Save, Open, New Tab)
@@ -157,6 +158,7 @@ public/
   - **`buildDecorations`**: Scans the document for markdown syntax (Bold, Italic, Headings, etc.).
     - **Cursor Detection**: Checks if the user's cursor (`state.selection`) overlaps with a syntax node.
     - **If Overlap**: Renders raw text (reveals syntax).
+  - doc/tree change rebuilds everything; selection-only moves re-decorate just the top-level blocks the old or new selection touches (line-widened).
 
 ### 5.4. Desktop IPC & File Access
 
@@ -351,7 +353,6 @@ The editor's functionality is built through composable CodeMirror extensions:
 10. **`calloutSyntax.js`** / **`callouts.js`**: Callouts (`> [!type] Title`, `-`/`+` fold)
    - `calloutSyntax.js`: `scanCallout`, `CALLOUT_TYPES` (canonical types, aliases, icons), `calloutTitle`
    - `callouts.js`: one StateField (header widget, tint line classes, folded-body block replace). Fold state (`flipped`) is view-only: kept in the field, mapped through edits, pruned when its header goes or its fold char changes, never persisted to the document or session. Selection-only transactions keep the previous decorations unless a cursor entered/left a header line or an unfold flipped a callout. `unfoldOnJump` (transaction filter) rewrites a one-line arrow-key step across a folded body to land inside it, which unfolds it.
-   - `decorationField.js`: shared helper for fields that provide decorations (math, footnotes)
 
 11. **`mermaidPreview.js`**: Mermaid (`` `mermaid` `` fences)
    - Block widget with the rendered diagram outside the fence; raw source inside it. Click on the diagram puts the cursor in the source (click-to-edit). A theme watcher re-renders visible diagrams when the app theme changes. Uses `utils/mermaid.js` for rendering. Mermaid itself runs only in `mermaid-frame.html` (`src/mermaidFrame.js`), a hidden same-origin iframe with the CSP `default-src 'none'; script-src 'self'; style-src 'unsafe-inline'`, so nothing Mermaid builds from document text can fetch. It is a second Vite build input next to `index.html` and is created on the first render, not at startup.
