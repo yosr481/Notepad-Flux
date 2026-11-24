@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Links to headings like `[Lists](#lists)` now work: Ctrl/Cmd+click jumps to the heading in the editor, and exported HTML, PDF and Print jump too.
+
 ### Changed
 
 - Moving the cursor in a large document is much faster: the editor now redraws only the blocks the cursor leaves and enters, instead of the whole document.

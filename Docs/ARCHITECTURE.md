@@ -330,7 +330,7 @@ The editor's functionality is built through composable CodeMirror extensions:
    - Cursor-based activation
 
 5. **`linkHandler.js`**: Link interaction
-   - Ctrl+Click to open links
+   - Ctrl+Click to open links; `#heading` links jump in the editor (`headingTargets`, same slugs as export via `headingSlug.js`)
    - Hover tooltip
    - URL extraction from syntax tree
 

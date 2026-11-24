@@ -187,6 +187,14 @@ URLs in angle brackets will automatically get turned into links:
 
 [1]: https://www.example.com
 
+### Links to headings
+
+A link to `#` plus a heading's slug jumps to that heading: lowercase the heading text, drop punctuation, and turn spaces into `-` (`## Links to headings` is `#links-to-headings`). A repeated heading gets `-1`, `-2`, and so on (`#intro`, `#intro-1`). Ctrl/Cmd+click the link in the editor to jump; the links also work in HTML, PDF and Print export.
+
+```markdown
+[Back to Links](#links)
+```
+
 ---
 
 ## Code
