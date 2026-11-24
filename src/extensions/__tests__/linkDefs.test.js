@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EditorState } from '@codemirror/state';
-import { syntaxTree, ensureSyntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { resolveLinkDefs, normalizeLabel } from '../linkDefs';
 
@@ -45,7 +45,7 @@ const mk = (doc) => {
     });
     ensureSyntaxTree(state, state.doc.length, 10000);
     // ensureSyntaxTree does not always publish into the state: a no-op transaction picks up the finished work.
-    return syntaxTree(state).length < state.doc.length ? state.update({}).state : state;
+    return state.update({}).state;
 };
 
 describe('normalizeLabel', () => {

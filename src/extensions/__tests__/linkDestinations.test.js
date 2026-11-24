@@ -2,7 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
-import { ensureSyntaxTree, syntaxTree } from '@codemirror/language';
+import { ensureSyntaxTree } from '@codemirror/language';
 import { Subscript, Superscript } from '@lezer/markdown';
 import { fastLinkEnd } from '../fastLinkEnd';
 import { mathSyntax } from '../mathSyntax';
@@ -62,7 +62,7 @@ afterEach(() => { while (views.length) views.pop().destroy(); vi.restoreAllMocks
 const mkState = (doc) => {
     const s = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage })] });
     ensureSyntaxTree(s, s.doc.length, 10000);
-    return syntaxTree(s).length < s.doc.length ? s.update({}).state : s;
+    return s.update({}).state;
 };
 
 const outsideDoc = (body, defs = "") => `p\n\n${body}\n\nz\n${defs}`;

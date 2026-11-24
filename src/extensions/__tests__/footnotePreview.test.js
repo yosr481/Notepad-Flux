@@ -47,8 +47,9 @@ const stateOf = (doc) => {
         doc,
         extensions: [markdown({ base: markdownLanguage, extensions: [mathSyntax, footnoteSyntax] })],
     });
-    ensureSyntaxTree(state, doc.length, 5000);
-    return state;
+    // ensureSyntaxTree does not always publish into the state (syntaxTree(state) is a stale snapshot); update({}) adopts the finished tree
+    ensureSyntaxTree(state, doc.length, 30000);
+    return state.update({}).state;
 };
 const qa = (v, sel) => [...v.dom.querySelectorAll(sel)];
 const q = (v, sel) => v.dom.querySelector(sel);

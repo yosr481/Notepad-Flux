@@ -242,8 +242,8 @@ describe('math selection reuse: doc and tree changes still rebuild', () => {
         try {
             const treeBefore = syntaxTree(view.state);
             const before = setOf(view.state);
-            expect(flat(view.state).some((d) => d.value.spec.widget?.tex === 'late')).toBe(false); // partial parse
-            forceParsing(view, view.state.doc.length, 10000);
+            // No "late math absent before" assertion: how far the first parse gets is load-dependent.
+            expect(forceParsing(view, view.state.doc.length, 30000)).toBe(true);
             expect(syntaxTree(view.state)).not.toBe(treeBefore);
             expect(setOf(view.state)).not.toBe(before);
             expect(flat(view.state).some((d) => d.value.spec.widget?.tex === 'late')).toBe(true);

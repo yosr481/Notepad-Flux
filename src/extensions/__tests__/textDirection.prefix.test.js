@@ -7,8 +7,8 @@ import { textDirection } from '../textDirection';
 
 const dirs = (doc) => {
     const state = EditorState.create({ doc, extensions: [markdown({ base: markdownLanguage }), textDirection] });
-    ensureSyntaxTree(state, doc.length, 5000);
-    const view = new EditorView({ state, parent: document.body });
+    ensureSyntaxTree(state, doc.length, 30000);
+    const view = new EditorView({ state: state.update({}).state, parent: document.body });
     return [...view.dom.querySelectorAll('.cm-line')].map((l) => l.getAttribute('dir'));
 };
 

@@ -9,7 +9,7 @@ import { execFileSync } from 'node:child_process'
 import { launch } from './lib/launch.mjs'
 import { stockCaretSequence } from './lib/rtl-control.mjs'
 import { multiWindow, overrideScenarios, orphanRows } from './lib/scenarios.mjs'
-import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
+import { check, na, assert, eq, sleep, waitFor, results, tally, writeResults, setSmoke, recordFailure, scenarioCrashed, launched, diag, reap, setDiagFile, launchStats, absorbLaunchNoise, killAppsOf } from './lib/harness.mjs'
 import * as ui from './lib/ui.mjs'
 // exact URL match on the openExternal log (array of URLs), not a substring test
 const openedUrl = (urls, want) => urls.some(u => { try { return new URL(u).href === new URL(want).href } catch { return false } })
@@ -82,6 +82,7 @@ const dotted = join(W, 'notes..md'); writeFileSync(dotted, 'dotted body\r\n'); c
 // LEGACY format (bare path strings, as written before 5edfcb1): main must migrate it to [{path, real}] on first load.
 writeFileSync(join(U1, 'authorized-paths.json'), JSON.stringify([granted, gdir, swapped, join(linkdir, 'n.md')]))
 
+setDiagFile(join(here, '../../Docs/internal/e2e/diag-windows.log'))
 let app, win
 if (want('core')) try {
 try {
@@ -593,7 +594,7 @@ await check('TAB-1', 'tabs', 'many tabs scroll inside the list; the + button sta
     })
     await win.screenshot({ path: join(shots, `win-core.jpg`) }).catch(() => {})
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('core', e) } // end core
+} catch (e) { await scenarioCrashed('core', e) } finally { await reap('core') } // end core
 if (want('core') || want('nav')) try {
 // A cancelled navigation leaves Playwright 'waiting for navigation', so this runs in its own throwaway launch.
 {
@@ -607,7 +608,7 @@ if (want('core') || want('nav')) try {
     })
     await r.app.close().catch(() => {})
 }
-} catch (e) { await scenarioCrashed('core', e) }
+} catch (e) { await scenarioCrashed('core', e) } finally { await reap('core') }
 
 // ---------------------------------------------------------------- scenario: live preview
 const walk = (d, out = []) => { for (const n of readdirSync(d, { withFileTypes: true })) { const f = join(d, n.name); n.isDirectory() ? walk(f, out) : out.push(f) } return out }
@@ -817,7 +818,7 @@ if (want('lp')) try {
     })
     await win.screenshot({ path: join(shots, `win-live-preview.jpg`) }).catch(() => {})
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('lp', e) }
+} catch (e) { await scenarioCrashed('lp', e) } finally { await reap('lp') }
 
 // ---------------------------------------------------------------- scenario: math rendering (F1, Docs/internal/math-spec.md)
 // Only the packaged build proves the lazy MathJax chunk and the runtime font ranges load from app.asar.
@@ -891,7 +892,7 @@ if (want('math')) try {
         eq(r.text, 'costs $5 and $10'); eq(r.math, 0, 'widgets on the dollar line')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('math', e) }
+} catch (e) { await scenarioCrashed('math', e) } finally { await reap('math') }
 
 // ---------------------------------------------------------------- scenario: footnotes (F2, Docs/internal/footnotes-spec.md)
 // Real hover / Ctrl+click / the export path: what jsdom cannot cover. The doc is opened from a file (typing `[^` would hit bracket auto-close).
@@ -973,7 +974,7 @@ if (want('footnotes')) try {
         assert(consoleErrs.length === 0, 'console errors: ' + JSON.stringify(consoleErrs.slice(0, 3)))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('footnotes', e) }
+} catch (e) { await scenarioCrashed('footnotes', e) } finally { await reap('footnotes') }
 
 // ---------------------------------------------------------------- scenario: callouts (F3, Docs/internal/callouts-spec.md)
 // Real typing / mouse / keyboard / computed colours / the export path: what jsdom cannot cover. The fixture is opened from a file; CO-1 types its own callout at the end.
@@ -1095,7 +1096,7 @@ if (want('callouts')) try {
         const h = readFileSync(dst, 'utf8')
         assert(/<div class="callout callout-warning"/.test(h), 'no div.callout.callout-warning')
         assert(/<details class="callout callout-note"(?![^>]*\bopen)[^>]*>/.test(h), 'no closed details.callout for [!note]-')
-        const b = h.slice(h.indexOf('<body')), i = b.indexOf('callout-info'), j = b.indexOf('callout-danger')
+        const b = h.slice(h.indexOf('</head>')), i = b.indexOf('callout-info'), j = b.indexOf('callout-danger')
         assert(i >= 0 && j > i && b.slice(i, j).includes('callout-content'), 'danger callout not nested in the info content: ' + b.slice(Math.max(i, 0), Math.max(i, 0) + 700).replace(/\s+/g, ' '))
         const titles = h.match(/<(?:div|summary) class="callout-title">/g) || []
         const withSvg = h.match(/<(?:div|summary) class="callout-title">\s*<svg/g) || []
@@ -1105,7 +1106,7 @@ if (want('callouts')) try {
         assert(!h.includes('[!warning]') && !h.includes('[!note]'), 'raw callout marker leaked into the export')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('callouts', e) }
+} catch (e) { await scenarioCrashed('callouts', e) } finally { await reap('callouts') }
 
 // ---------------------------------------------------------------- scenario: mermaid (F4, Docs/internal/mermaid-spec.md)
 // Real Mermaid layout + CSS under the app CSP (script-src 'self'), the lazy chunk, theme re-render, the export path: what jsdom cannot cover.
@@ -1269,7 +1270,7 @@ if (want('mermaid')) try {
         } finally { await cdp.send('Network.disable').catch(() => {}); await cdp.detach().catch(() => {}) }
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('mermaid', e) }
+} catch (e) { await scenarioCrashed('mermaid', e) } finally { await reap('mermaid') }
 
 // ---------------------------------------------------------------- scenario: front matter (F5, Docs/internal/frontmatter-spec.md)
 // Real layout, computed fonts/colours/direction, mouse click, export and keystroke timing: what jsdom cannot cover.
@@ -1429,7 +1430,7 @@ if (want('frontmatter')) try {
         return info
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('frontmatter', e) }
+} catch (e) { await scenarioCrashed('frontmatter', e) } finally { await reap('frontmatter') }
 
 // ---------------------------------------------------------------- scenario: sub/superscript + emoji (F6, Docs/internal/subsup-emoji-spec.md)
 // Real layout, computed styles, line height, emoji font and export: what jsdom cannot cover.
@@ -1549,7 +1550,7 @@ if (want('subsupemoji')) try {
         } finally { await setTheme('light').catch(() => {}) }
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('subsupemoji', e) }
+} catch (e) { await scenarioCrashed('subsupemoji', e) } finally { await reap('subsupemoji') }
 
 // ---------------------------------------------------------------- scenario: table cells (B12, Docs/internal/table-cells-spec.md)
 // Real layout, computed styles, MathJax, link click and the keyboard: what jsdom cannot cover.
@@ -1620,22 +1621,21 @@ if (want('tablecells')) try {
         for (const k of ['math', 'emoji', 'hl']) assert(r[k] <= r.plain * 1.3, `${k} row more than 30% taller than the plain row: ` + info)
         return info
     })
-    await check('TC-3', 'tablecells', 'plain click on the <em> inside the cell link: no raw table (widget stays, caret not in the table), the link is followed (openExternal https://example.com); a plain cell click shows the raw table', async () => {
+    await check('TC-3', 'tablecells', 'table-cell links open on Ctrl/Cmd+click only (#131): a plain click on the <em> inside the cell link puts the caret in the table (raw table shown) and does not call openExternal; after the widget returns, Ctrl+click opens https://example.com', async () => {
         await tableReady()
         await app.evaluate(({ shell }) => { globalThis.__ext = []; shell.openExternal = async (u) => { globalThis.__ext.push(u) } })
         const a = tbl.locator('a'); eq(await a.count(), 1, 'link count'); eq(await a.getAttribute('href'), 'https://example.com', 'link href')
         const em = tbl.locator('a em'); eq(await em.count(), 1, 'em inside the link')
         await em.click(); await sleep(700)
+        const plain = await app.evaluate(() => globalThis.__ext)
+        eq(plain.length, 0, 'plain click must not call openExternal, got ' + JSON.stringify(plain))
+        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table (caret in the table) after a plain click on the em' })
+        // control: a plain cell click also shows the raw table; then restore the widget
+        await caretFar(); await tableReady()
+        await tbl.locator('a em').click({ modifiers: ['Control'] })
+        await waitFor(async () => openedUrl(await app.evaluate(() => globalThis.__ext), 'https://example.com'), { what: 'Ctrl+click opens https://example.com' })
         const ext = await app.evaluate(() => globalThis.__ext)
-        assert(openedUrl(ext, 'https://example.com'), 'link not followed, openExternal got: ' + JSON.stringify(ext))
-        eq(await tbl.count(), 1, 'table widget gone after clicking the em (raw table shown)')
-        const raw = await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |')))
-        assert(!raw, 'raw table lines visible after clicking the em')
-        // control: a plain cell shows the raw table
-        await tbl.locator('td', { hasText: /^plain$/ }).first().click()
-        await waitFor(async () => (await tbl.count()) === 0 && await win.evaluate(() => [...document.querySelectorAll('.cm-content .cm-line')].some(l => l.innerText.includes('| plain |'))), { what: 'raw table after a plain cell click' })
-        await tableReady()
-        return 'openExternal ' + JSON.stringify(ext)
+        return 'plain ' + JSON.stringify(plain) + ', ctrl ' + JSON.stringify(ext)
     })
     await check('TC-4', 'tablecells', 'type a new ref [^c] in the paragraph and its definition at the end: with the caret off the table its footnote numbers shift to 3 and 4 and the paragraph numbers are 1 and 2', async () => {
         await tableReady()
@@ -1700,7 +1700,7 @@ if (want('tablecells')) try {
         return `cell direction ${r.dir}, שלום x ${r.firstX.toFixed(1)} > עולם x ${r.secondX.toFixed(1)}`
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('tablecells', e) }
+} catch (e) { await scenarioCrashed('tablecells', e) } finally { await reap('tablecells') }
 
 // ---------------------------------------------------------------- scenario: safe HTML tags (F7, Docs/internal/html-tags-spec.md)
 // Real layout, computed styles, caret reveal, export file: what jsdom cannot cover.
@@ -1845,7 +1845,7 @@ if (want('htmltags')) try {
         return `Hebrew direction ${r.heb.dir}, details raw, cell kbd "${r.cell}"`
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('htmltags', e) }
+} catch (e) { await scenarioCrashed('htmltags', e) } finally { await reap('htmltags') }
 
 // ---------------------------------------------------------------- scenario: session restore, encryption, close handshake
 if (want('session')) try {
@@ -1958,7 +1958,7 @@ if (want('session')) try {
         eq(await app.evaluate(() => globalThis.__picker), 0, 'picker opened'); assert(!/read: denied/.test(logOf(Us)), 'denied read in log'); assert((await ui.toastText(win)).trim() === '', 'toast: ' + await ui.toastText(win))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('session', e) }
+} catch (e) { await scenarioCrashed('session', e) } finally { await reap('session') }
 
 // ---------------------------------------------------------------- scenario: close races
 if (want('close')) try {
@@ -1992,7 +1992,7 @@ if (want('close')) try {
         }, { smoke: via === 'x' })
         await app.close().catch(() => {})
     }
-} catch (e) { await scenarioCrashed('close', e) }
+} catch (e) { await scenarioCrashed('close', e) } finally { await reap('close') }
 
 // ---------------------------------------------------------------- scenario: opening files right after launch
 if (want('race')) try {
@@ -2008,7 +2008,7 @@ if (want('race')) try {
         assert(t.includes('SECOND-DOC-BODY') && !t.includes('FIRST-DOC-BODY'), 'editor shows the wrong document: ' + JSON.stringify(t.slice(0, 40)))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('race', e) }
+} catch (e) { await scenarioCrashed('race', e) } finally { await reap('race') }
 
 // ---------------------------------------------------------------- scenario: race with a NON-EMPTY saved session
 if (want('race2')) try {
@@ -2092,13 +2092,13 @@ if (want('race2')) try {
         })
         await app.close().catch(() => {})
     }
-} catch (e) { await scenarioCrashed('race2', e) }
+} catch (e) { await scenarioCrashed('race2', e) } finally { await reap('race2') }
 
 // ---------------------------------------------------------------- scenarios: several windows, hand-over, File > Exit (3dfc5e8, afd0354)
 const scenarioCtx = () => ({ smoke: flag('smoke'), L, check, na, ui, sleep, waitFor, assert, eq, logOf, tmp, cleanup, join, existsSync, readdirSync, readFileSync, isWin: true })
-if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) }
-if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) }
-if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) }
+if (want('failover') || want('multiwin')) try { await multiWindow(scenarioCtx()) } catch (e) { await scenarioCrashed('multiwin', e) } finally { await reap('multiwin') }
+if (want('failover') || want('orphan')) try { await orphanRows(scenarioCtx()) } catch (e) { await scenarioCrashed('orphan', e) } finally { await reap('orphan') }
+if (want('override')) try { await overrideScenarios(scenarioCtx()) } catch (e) { await scenarioCrashed('override', e) } finally { await reap('override') }
 
 // ---------------------------------------------------------------- scenario: second window
 if (want('newwin')) try {
@@ -2141,7 +2141,7 @@ if (want('newwin')) try {
         assert(!/Blocked (window\.open|open-external|unsafe)/.test(logOf(Un)), 'a block was logged: ' + (logOf(Un).match(/.*Blocked (window\.open|open-external|unsafe).*/) || [])[0])
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('newwin', e) }
+} catch (e) { await scenarioCrashed('newwin', e) } finally { await reap('newwin') }
 
 // ---------------------------------------------------------------- scenario: single instance (A4)
 if (want('single')) try {
@@ -2158,7 +2158,7 @@ if (want('single')) try {
         return 'second instance exit code ' + code
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('single', e) }
+} catch (e) { await scenarioCrashed('single', e) } finally { await reap('single') }
 
 
 // ---------------------------------------------------------------- Windows-only: default userData location (one launch against the default profile)
@@ -2176,7 +2176,7 @@ if (want('datadir')) try {
     })
     await ui.closeViaX(app); await app.close().catch(() => {})
     if (!existed) rmSync(dflt, { recursive: true, force: true })      // clean up: this dir was created by this run
-} catch (e) { await scenarioCrashed('datadir', e) }
+} catch (e) { await scenarioCrashed('datadir', e) } finally { await reap('datadir') }
 
 // ---------------------------------------------------------------- Windows-only: caption buttons driven with real mouse input
 if (want('caption')) try {
@@ -2208,7 +2208,7 @@ if (want('caption')) try {
         return trail.join('; ')
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('caption', e) }
+} catch (e) { await scenarioCrashed('caption', e) } finally { await reap('caption') }
 
 // ---------------------------------------------------------------- scenario: profile written by the previous (Electron 40, sync safeStorage) build
 if (want('legacykey')) try {
@@ -2244,7 +2244,7 @@ else await check('KEY-LEGACY-1', 'encryption', 'secure key written by the Electr
         return 'restored both tabs; secure key ' + (now === oldKey ? 'unchanged' : 'rewritten (keyring asked re-encrypt)')
     } finally { await app.close().catch(() => {}) }
 })
-} catch (e) { await scenarioCrashed('legacykey', e) }
+} catch (e) { await scenarioCrashed('legacykey', e) } finally { await reap('legacykey') }
 
 // ---------------------------------------------------------------- scenario: close while the session load is still running
 if (want('closeload')) try {
@@ -2287,7 +2287,7 @@ for (const via of ['x', 'menu-exit', 'menu-close-window']) {
         return res.ms + 'ms'
     })
 }
-} catch (e) { await scenarioCrashed('closeload', e) }
+} catch (e) { await scenarioCrashed('closeload', e) } finally { await reap('closeload') }
 
 // ---------------------------------------------------------------- scenario: close waits for a slow save (no forced close; user is asked after 15s)
 if (want('closewait')) try {
@@ -2425,7 +2425,7 @@ await check('CLOSE-WAIT-e', 'close', 'renderer crashes during a stuck close: win
         return 'closed at ' + (Date.now() - c.t0) + 'ms'
     } finally { await c.app.close().catch(() => {}) }
 })
-} catch (e) { await scenarioCrashed('closewait', e) }
+} catch (e) { await scenarioCrashed('closewait', e) } finally { await reap('closewait') }
 
 if (want('updates')) try {
 // U1 (Docs/internal/update-spec.md): main/preload wiring that unit tests cannot reach.
@@ -2454,7 +2454,7 @@ try {
         return 'label "' + label + '"'
     })
 } finally { await app.close().catch(() => {}) }
-} catch (e) { await scenarioCrashed('updates', e) }
+} catch (e) { await scenarioCrashed('updates', e) } finally { await reap('updates') }
 
 // ---------------------------------------------------------------- scenario: session data path + size + Open folder (S1, Docs/internal/data-path-spec.md)
 if (want('datainfo')) try {
@@ -2598,7 +2598,99 @@ if (want('datainfo')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('datainfo', e) }
+} catch (e) { await scenarioCrashed('datainfo', e) } finally { await reap('datainfo') }
+
+// ---------------------------------------------------------------- scenario: pdf (P1, BACKLOG row P1)
+// Export to PDF goes through main's print-to-pdf (webContents.printToPDF): a long doc must export, small, with selectable text.
+if (want('pdf')) try {
+    const Up = tmp('nf-pdf-u-'), Wp = tmp('nf-pdf-w-'); cleanup.push(Up, Wp)
+    const { app, win } = await L(Up)
+    const errs0 = pageErrors.length
+    // Windows: pdftotext/pdfinfo (poppler) are not part of the VM image. Without them the text checks skip loudly (not-automatable), PDF-2/PDF-3 still run.
+    const poppler = (() => { try { execFileSync('pdftotext', ['-v'], { stdio: 'ignore' }); execFileSync('pdfinfo', ['-v'], { stdio: 'ignore' }); return true } catch { return false } })()
+    const pcheck = poppler ? check : (id, area, what) => na(id, area, what, 'SKIPPED: pdftotext/pdfinfo (poppler) not on PATH on this machine; install poppler (e.g. choco install poppler) and rerun --only=pdf')
+    const MARK = 'PDFENDMARKER7Q4Z'
+    const parts = []
+    for (let i = 1; i <= 120; i++) {
+        parts.push(`## Section ${i}\n`, `Paragraph ${i}: ` + 'lorem ipsum dolor sit amet consectetur adipiscing elit sed do eiusmod tempor. '.repeat(5) + '\n')
+        if (i === 60) parts.push('| Name | Value |\n| --- | --- |\n| alpha | 1 |\n| beta | 2 |\n', 'זוהי פסקה בעברית כדי לבדוק כיוון טקסט בקובץ ה-PDF שנוצר.\n')
+    }
+    parts.push(`last line ${MARK}\n`)
+    const md = parts.join('\n')
+    assert(Buffer.byteLength(md) >= 40 * 1024, 'fixture too small: ' + Buffer.byteLength(md))
+    const f = join(Wp, 'long.md'); writeFileSync(f, md)
+    await ui.openViaDialog(app, win, f)
+    await waitFor(async () => (await ui.activeTitle(win)) === 'long.md', { what: 'tab long.md' })
+    // Raw ipcRenderer in a throwaway hidden window (see DATA-*): the real bridge is not reachable from a foreign page.
+    const rawPreload = join(Wp, 'raw-preload.cjs')
+    writeFileSync(rawPreload, "const { contextBridge, ipcRenderer } = require('electron'); contextBridge.exposeInMainWorld('raw', { invoke: (c, ...a) => ipcRenderer.invoke(c, ...a) })\n")
+    const rawCall = (url, ch) => app.evaluate(async ({ BrowserWindow }, { preload, url, ch }) => {
+        const w = new BrowserWindow({ show: false, webPreferences: { preload, sandbox: true, contextIsolation: true } })
+        try {
+            await w.loadURL(url)
+            return await w.webContents.executeJavaScript(`window.raw.invoke(${JSON.stringify(ch)}).then(v => ({ ok: true }), e => ({ err: String((e && e.message) || e) }))`)
+        } finally { w.destroy() }
+    }, { preload: rawPreload, url, ch })
+
+    await pcheck('PDF-1', 'pdf', 'a >= 40 KB doc (headings, table, Hebrew, marker on the last line) exported via File > Export to PDF: file starts %PDF, < 5 MB, pdftotext finds the last-line marker (selectable text, not a raster)', async () => {
+        const dst = join(Wp, 'long-out.pdf'); await ui.stubSave(app, dst)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to PDF', { exact: true }).click()
+        await waitFor(() => existsSync(dst) && readFileSync(dst).length > 100, { timeout: 90000, what: 'Export to PDF file' })
+        await sleep(500)
+        const b = readFileSync(dst)
+        eq(b.subarray(0, 4).toString('latin1'), '%PDF', 'magic')
+        assert(b.length < 5 * 1024 * 1024, 'PDF is ' + b.length + ' B, expected < 5 MB')
+        const txt = execFileSync('pdftotext', [dst, '-']).toString('utf8')
+        assert(txt.includes(MARK), 'last-line marker missing from pdftotext output (' + txt.length + ' chars)')
+        assert(txt.includes('Section 1') && txt.includes('Section 120'), 'first/last section headings missing')
+        assert((await win.locator('#print-container').count()) === 0, '#print-container left mounted')
+    })
+    // P2: one export, reused by PDF-4..6. Print itself calls window.print (native dialog), so these checks on the shared Print page stand in for it.
+    const dst2 = join(Wp, 'layout-out.pdf')
+    let pages = 0
+    const pageTxt = (k) => execFileSync('pdftotext', ['-f', String(k), '-l', String(k), dst2, '-']).toString('utf8')
+    await pcheck('PDF-4', 'pdf', 'every page k of the exported long doc shows "Page k of M" (M = pdfinfo page count, margin-box counter)', async () => {
+        await ui.stubSave(app, dst2)
+        await win.getByText('File', { exact: true }).first().click(); await win.getByText('Export to PDF', { exact: true }).click()
+        await waitFor(() => existsSync(dst2) && readFileSync(dst2).length > 100, { timeout: 90000, what: 'Export to PDF file (layout)' })
+        await sleep(500)
+        pages = Number(/^Pages:\s+(\d+)/m.exec(execFileSync('pdfinfo', [dst2]).toString('utf8'))[1])
+        assert(pages > 1, 'expected a multi-page PDF, got ' + pages)
+        for (let k = 1; k <= pages; k++) assert(pageTxt(k).includes(`Page ${k} of ${pages}`), `page ${k} lacks "Page ${k} of ${pages}": ` + JSON.stringify(pageTxt(k).slice(-80)))
+    })
+    await pcheck('PDF-5', 'pdf', 'the tab title "long.md" appears exactly once in the whole PDF text, on page 1 (not repeated per page)', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const all = execFileSync('pdftotext', [dst2, '-']).toString('utf8')
+        eq(all.split('long.md').length - 1, 1, 'occurrences of the title in the PDF')
+        assert(pageTxt(1).includes('long.md'), 'title not on page 1')
+    })
+    await pcheck('PDF-6', 'pdf', 'on page 1 the title box overlaps no other word box (header not drawn over body text)', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const xml = execFileSync('pdftotext', ['-bbox', '-f', '1', '-l', '1', dst2, '-']).toString('utf8')
+        const words = [...xml.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">([^<]*)<\/word>/g)].map((m) => ({ x0: +m[1], y0: +m[2], x1: +m[3], y1: +m[4], t: m[5] }))
+        const title = words.filter((w) => w.t.includes('long.md'))
+        eq(title.length, 1, 'title word boxes on page 1')
+        const T = title[0]
+        const hit = words.filter((w) => w !== T && w.x0 < T.x1 && w.x1 > T.x0 && w.y0 < T.y1 && w.y1 > T.y0)
+        assert(hit.length === 0, 'title overlaps: ' + hit.map((w) => w.t).join(' '))
+    })
+    await pcheck('PDF-7', 'pdf', 'no app UI text in the exported PDF: the "Exporting to PDF..." toast (fixed, .toast.show visibility:visible beats `body *` hidden) is not printed on any page', async () => {
+        assert(pages > 0, 'PDF-4 did not produce a PDF')
+        const all = execFileSync('pdftotext', [dst2, '-']).toString('utf8')
+        assert(!/Exporting\s+to\s+PDF/.test(all), 'toast text "Exporting to PDF" found in PDF (' + (all.match(/Exporting\s+to\s+PDF/g) || []).length + ' times)')
+    })
+    await check('PDF-2', 'pdf', 'a page that is not the app (data: URL, other local file:) is denied on print-to-pdf with "Access denied"', async () => {
+        const foreign = join(Wp, 'foreign.html'); writeFileSync(foreign, '<!doctype html><title>x</title><p>foreign local file')
+        for (const url of ['data:text/html,<p>other-origin', 'file://' + (process.platform === 'win32' ? '/' : '') + foreign.replace(/\\/g, '/')]) {
+            const r = await rawCall(url, 'print-to-pdf')
+            assert(r.err && /Access denied/.test(r.err), url + ': ' + JSON.stringify(r))
+        }
+    })
+    await check('PDF-3', 'pdf', 'no page errors during the scenario', async () => {
+        assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
+    })
+    await app.close().catch(() => {})
+} catch (e) { await scenarioCrashed('pdf', e) } finally { await reap('pdf') }
 
 // ---------------------------------------------------------------- scenario: this version's changelog in Settings > About (S2, Docs/internal/changelog-about-spec.md)
 if (want('changelog')) try {
@@ -2657,7 +2749,7 @@ if (want('changelog')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('changelog', e) }
+} catch (e) { await scenarioCrashed('changelog', e) } finally { await reap('changelog') }
 
 // ---------------------------------------------------------------- scenario: file associations (B8, Docs/internal/win-assoc-spec.md)
 // Assumes a PER-USER NSIS install (registrations under HKCU\Software\Classes) and that `binary` IS the installed exe
@@ -2704,7 +2796,7 @@ if (want('assoc')) try {
             eq((await ui.mainWindows(app)).filter(w => /index\.html/.test(w.url)).length, 1, 'window count')
         } finally { await app.close().catch(() => {}) }
     })
-} catch (e) { await scenarioCrashed('assoc', e) }
+} catch (e) { await scenarioCrashed('assoc', e) } finally { await reap('assoc') }
 
 // ---------------------------------------------------------------- scenario: keyboard shortcuts (B9)
 // Real key presses prove the wiring; the Hebrew layout cannot be switched here, so a KeyboardEvent {key:'ד', code:'KeyS', ctrlKey} is
@@ -2818,7 +2910,7 @@ if (want('keys')) try {
         assert(pageErrors.length === errs0, 'page errors: ' + pageErrors.slice(errs0).join(' | '))
     })
     await app.close().catch(() => {})
-} catch (e) { await scenarioCrashed('keys', e) }
+} catch (e) { await scenarioCrashed('keys', e) } finally { await reap('keys') }
 
 // ---------------------------------------------------------------- done
 for (const d of cleanup) try { rmSync(d, { recursive: true, force: true }) } catch { /* ignore */ }

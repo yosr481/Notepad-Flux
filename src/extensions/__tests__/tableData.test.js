@@ -32,8 +32,9 @@ const stateOf = (doc) => {
         doc,
         extensions: [markdown({ base: markdownLanguage, extensions: [fastLinkEnd, mathSyntax, footnoteSyntax, frontMatterSyntax, Subscript, Superscript, emojiSyntax] }), livePreview],
     });
-    ensureSyntaxTree(s, doc.length, 5000);
-    return s;
+    // ensureSyntaxTree does not always publish into the state (syntaxTree(state) is a stale snapshot); update({}) adopts the finished tree
+    ensureSyntaxTree(s, doc.length, 30000);
+    return s.update({}).state;
 };
 const tableNode = (s) => {
     let t = null;
