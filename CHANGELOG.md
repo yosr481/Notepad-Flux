@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Code-block comments, numbers and property names are now readable in dark mode, and comments in light mode.
+- Print and PDF export now show the content of a closed `<details>` block instead of printing it closed and hiding it.
 
 ## [2.0.1] — 2026-11-24
 

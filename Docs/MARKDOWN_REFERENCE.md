@@ -700,7 +700,7 @@ A few inline HTML tags render in the editor: `kbd`, `mark`, `u`, `ins`, `small`,
 HTML export, PDF export and Print keep those tags, plus `details`/`summary`, `div` and `br`.
 
 - Attributes such as `style`, `class` and `on…` are ignored or removed. `abbr` keeps its `title`.
-- `<details>` is collapsible in the editor: a chevron and the `<summary>` text replace the tags, and it starts folded unless the tag has `open`. Click the chevron to fold or unfold (this is not saved). The one-line form and `<details>` inside quotes or lists stay as source, as does other block HTML. Export still renders them.
+- `<details>` is collapsible in the editor: a chevron and the `<summary>` text replace the tags, and it starts folded unless the tag has `open`. Click the chevron to fold or unfold (this is not saved). Moving the cursor into a folded body (with search, Go to line or the arrow keys) unfolds it. The one-line form and `<details>` inside quotes or lists stay as source, as does other block HTML. Export still renders them: HTML export keeps each block as written, while Print and PDF print every `<details>` open.
 - A pair nested more than 32 deep stays as typed.
 
 ```markdown
