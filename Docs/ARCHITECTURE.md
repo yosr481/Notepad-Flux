@@ -84,6 +84,7 @@ src/
 │   ├── mermaidPreview.js   - Mermaid: fenced diagram widget outside the cursor, raw source inside
 │   ├── frontMatterSyntax.js / frontMatterPreview.js - Front matter: shared scanner + Lezer block node / Properties box (js-yaml)
 │   ├── subSupPreview.js    - Subscript and superscript: `@lezer/markdown` Subscript/Superscript, marks hidden outside the cursor
+│   ├── headingSlug.js      - Shared heading-anchor rule: `headingSlug` / `createSlugger` (GitHub-style slugs, editor and export)
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor

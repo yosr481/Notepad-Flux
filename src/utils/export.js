@@ -9,6 +9,7 @@ import { highlightExtension } from './exportHighlight';
 import { createCallouts } from './exportCallouts';
 import { createMermaid } from './exportMermaid';
 import { scanFrontMatter } from '../extensions/frontMatterSyntax';
+import { createSlugger } from '../extensions/headingSlug';
 import calloutCss from '../styles/calloutExport.css?raw';
 import baseCss from '../styles/exportBase.css?raw';
 
@@ -41,14 +42,29 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const fm = scanFrontMatter(markdown);
     const body = fm ? markdown.slice(fm.to).replace(/^\r?\n/, '') : markdown;
     const nonce = Array.from(crypto.getRandomValues(new Uint8Array(12)), (b) => b.toString(16).padStart(2, '0')).join('');
-    const idMark = `nf${nonce}-`; // footnote ids ride as classes with this prefix: sanitizing drops every id
+    const idMark = `nf${nonce}-`; // footnote and heading ids ride as classes with this prefix: sanitizing drops every id
     const math = createMath(nonce);
     const footnotes = createFootnotes(idMark);
     const callouts = createCallouts(idMark, options.expandFolds === true);
     const mermaid = createMermaid(nonce);
+    // ponytail: a heading slug equal to a footnote id (`fn-1`, `fnref-1`) duplicates the id; first in the DOM wins. Accepted.
+    const slugger = createSlugger();
+    let inBody = true; // headings rendered by the footnote section take no id and no slug
+    const headingIds = {
+        renderer: {
+            heading({ tokens, depth, text, raw }) {
+                // marked keeps a tab-separated closing run (`Foo\t##`) that lezer strips; an escaped `\#` is not matched
+                const atx = /^ {0,3}#/.test(raw) ? text.replace(/[ \t]+#+[ \t]*$/, '') : text;
+                const slug = inBody ? slugger.slug(atx) : null;
+                return `<h${depth}${slug ? ` class="${idMark}${slug}"` : ''}>${this.parser.parseInline(tokens)}</h${depth}>\n`;
+            },
+        },
+    };
     // marked tries the last-registered inline extension first: footnotes must come after subSup so `^[note]` stays a footnote.
-    const m = new Marked(tableAlign, math.extension, highlightExtension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
-    const html = sanitizeHTML(footnotes.appendSection(m, m.parser(m.lexer(body))));
+    const m = new Marked(tableAlign, headingIds, math.extension, highlightExtension, subSupExtension, emojiExtension, footnotes.extension, callouts.extension, mermaid.extension);
+    const bodyHtml = m.parser(m.lexer(body));
+    inBody = false;
+    const html = sanitizeHTML(footnotes.appendSection(m, bodyHtml));
     if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
 
     await Promise.all([math.prepare(), mermaid.prepare()]);
