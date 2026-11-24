@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] — 2026-11-24
+
 ### Fixed
 
 - Named entities like `&eacute;` in an `<abbr title>` tooltip and in link destinations now show the real character in the editor, as they already did in export.
