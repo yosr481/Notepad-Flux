@@ -6,6 +6,7 @@ import { isCursorTouching, isCursorOnLine } from "./selection";
 import { isUnresolvedReference } from "./linkDefs";
 import { buildTableData } from "./tableCells";
 import { resolveFootnotes } from "./footnotes";
+import { HIGHLIGHT } from "./highlight";
 import { decodeEntity } from "./entities";
 
 // Each handler gets (node, ctx = { state, doc, selection, decorations }) and pushes
@@ -478,7 +479,7 @@ const highlightPlugin = ViewPlugin.fromClass(class {
 
         for (const { from, to } of view.visibleRanges) {
             const text = doc.sliceString(from, to);
-            const regex = /==(.*?)==/g;
+            const regex = new RegExp(HIGHLIGHT);
             let match;
             while ((match = regex.exec(text))) {
                 const start = from + match.index;

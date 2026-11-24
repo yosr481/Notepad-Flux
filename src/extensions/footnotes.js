@@ -3,6 +3,7 @@ import { syntaxTree } from "@codemirror/language";
 import { nodesOf } from "./nodeIndex";
 import { normalizeLabel } from "./linkDefs";
 import { scanFootnoteDef, numberFootnotes, defText } from "./footnoteSyntax";
+import { Prec } from "@codemirror/state";
 import { selectionKeyedField } from "./decorationField";
 import { marked } from "marked";
 import { sanitizeHTML } from "../utils/sanitize";
@@ -118,7 +119,7 @@ export function footnoteJump(view, pos) {
     return true;
 }
 
-class FootnoteWidget extends WidgetType {
+export class FootnoteWidget extends WidgetType {
     constructor(text, def) {
         super();
         this.text = text;
@@ -219,6 +220,10 @@ const footnoteTheme = EditorView.baseTheme({
 
 // Plain click opens the raw source (caret just inside the opening mark); Ctrl/Cmd+click follows the link.
 const footnoteClick = EditorView.domEventHandlers({
+    // The mousedown above handles it; keep the click from also opening a surrounding link (linkHandler).
+    click(event) {
+        return (event.ctrlKey || event.metaKey) && event.target instanceof Element && !!event.target.closest(".cm-footnote-ref, .cm-footnote-def");
+    },
     mousedown(event, view) {
         if (event.button !== 0 || event.shiftKey) return false;
         const el = event.target instanceof Element ? event.target.closest(".cm-footnote-ref, .cm-footnote-def") : null;
@@ -233,4 +238,4 @@ const footnoteClick = EditorView.domEventHandlers({
     },
 });
 
-export const footnotePreview = [footnoteField, footnoteTooltip, footnoteTheme, footnoteClick];
+export const footnotePreview = [footnoteField, footnoteTooltip, footnoteTheme, Prec.high(footnoteClick)];

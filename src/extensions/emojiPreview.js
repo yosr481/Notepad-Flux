@@ -3,7 +3,7 @@ import { selectionKeyedField } from "./decorationField";
 import { nodesOf } from "./nodeIndex";
 import { emojiFor } from "../utils/emojiTable";
 
-class EmojiWidget extends WidgetType {
+export class EmojiWidget extends WidgetType {
     constructor(name) { super(); this.name = name; }
     eq(other) { return other instanceof EmojiWidget && other.name === this.name; }
     toDOM() {
