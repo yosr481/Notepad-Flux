@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `<details>` blocks are now collapsible in the editor: click the chevron to fold or unfold them, and `<details open>` starts open.
+
 ### Changed
 
 - Moving the cursor in a large document is much faster: the editor now redraws only the blocks the cursor leaves and enters, instead of the whole document.
