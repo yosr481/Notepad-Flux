@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moving the cursor in a large document is much faster: the editor now redraws only the blocks the cursor leaves and enters, instead of the whole document.
+
 ## [2.0.1] — 2026-11-24
 
 ### Fixed

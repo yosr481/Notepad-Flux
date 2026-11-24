@@ -157,6 +157,7 @@ public/
   - **`buildDecorations`**: Scans the document for markdown syntax (Bold, Italic, Headings, etc.).
     - **Cursor Detection**: Checks if the user's cursor (`state.selection`) overlaps with a syntax node.
     - **If Overlap**: Renders raw text (reveals syntax).
+  - doc/tree change rebuilds everything; selection-only moves re-decorate just the top-level blocks the old or new selection touches (line-widened).
 
 ### 5.4. Desktop IPC & File Access
 
