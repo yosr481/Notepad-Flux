@@ -5,6 +5,8 @@ import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, TextSpanWidget } f
 import { isCursorTouching, isCursorOnLine } from "./selection";
 import { isUnresolvedReference } from "./linkDefs";
 import { buildTableData } from "./tableCells";
+import { resolveFootnotes } from "./footnotes";
+import { HIGHLIGHT } from "./highlight";
 import { decodeEntity } from "./entities";
 
 // Each handler gets (node, ctx = { state, doc, selection, decorations }) and pushes
@@ -393,23 +395,50 @@ export const buildDecorations = (state, range) => {
 };
 
 
-// ponytail: full-doc decoration rebuild per keystroke/selection; fine for
-// notepad-sized docs (tens of KB), add viewport windowing back if large files jank.
+// Warm resolveFootnotes' own result cache (doc + tree keyed; the node walk is the shared index) so a later
+// selection-only move that un-touches a table needs no resolve pass. Without it selectionReuse.livePreview's table cases fail.
+const fullBuild = (state) => {
+    resolveFootnotes(state);
+    return buildDecorations(state);
+};
+
+// ponytail: doc/tree changes rebuild every decoration; selection-only moves redo just the touched blocks.
+// Fine for notepad-sized docs (tens of KB), add viewport windowing back if large files jank.
 const livePreviewField = StateField.define({
     create(state) {
-        return buildDecorations(state);
+        return fullBuild(state);
     },
     update(decorations, transaction) {
         // syntaxTree comparison: the markdown parser is time-sliced, so on a long
         // doc the tail parses in a later transaction that carries no docChanged/
         // selection/effect flag. Without this check those lines keep their stale
         // (empty) decorations and never render as live preview.
-        if (
-            transaction.docChanged ||
-            transaction.selection ||
-            syntaxTree(transaction.startState) !== syntaxTree(transaction.state)
-        ) {
-            return buildDecorations(transaction.state);
+        const tree = syntaxTree(transaction.state);
+        if (transaction.docChanged || syntaxTree(transaction.startState) !== tree) {
+            return fullBuild(transaction.state);
+        }
+        if (transaction.selection) {
+            // Selection-only: re-decorate just the top-level blocks the old or new selection touches.
+            const { startState, state } = transaction;
+            // Touch test is line-widened: blocks indented 1-3 spaces start after the indent but reveal per line.
+            const touched = [];
+            for (let n = tree.topNode.firstChild; n; n = n.nextSibling) {
+                const lf = state.doc.lineAt(n.from).from, lt = state.doc.lineAt(n.to).to;
+                if (isCursorTouching(startState.selection, lf, lt) || isCursorTouching(state.selection, lf, lt)) {
+                    touched.push({ from: n.from, to: n.to });
+                }
+            }
+            if (!touched.length) return decorations;
+            const owned = (from) => touched.some((b) => from >= b.from && from <= b.to);
+            const add = [];
+            for (const b of touched) {
+                for (const it = buildDecorations(state, b).iter(); it.value; it.next()) {
+                    if (it.from >= b.from && it.from <= b.to) add.push(it.value.range(it.from, it.to));
+                }
+            }
+            return decorations.update({
+                filter: (from) => !owned(from), filterFrom: touched[0].from, filterTo: touched[touched.length - 1].to, add, sort: true,
+            });
         }
         return decorations;
     },
@@ -450,7 +479,7 @@ const highlightPlugin = ViewPlugin.fromClass(class {
 
         for (const { from, to } of view.visibleRanges) {
             const text = doc.sliceString(from, to);
-            const regex = /==(.*?)==/g;
+            const regex = new RegExp(HIGHLIGHT);
             let match;
             while ((match = regex.exec(text))) {
                 const start = from + match.index;

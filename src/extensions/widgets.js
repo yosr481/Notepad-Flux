@@ -72,7 +72,6 @@ export class TableWidget extends WidgetType {
     constructor(data) {
         super();
         this.data = data;
-        this.key = JSON.stringify(data);
     }
 
     toDOM(view) {
@@ -102,7 +101,11 @@ export class TableWidget extends WidgetType {
         return div;
     }
 
-    eq(other) { return other.key === this.key; }
+    eq(other) {
+        return this.data === other.data || this.getKey() === other.getKey();
+    }
+
+    getKey() { return this.key ??= JSON.stringify(this.data); }
 
     ignoreEvent() { return true; }
 }

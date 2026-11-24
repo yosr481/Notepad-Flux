@@ -143,11 +143,11 @@ describe('renderMarkdownHtml html tags: footnote ids stay un-spoofable', () => {
 });
 
 // Spec: kbd gets a key-cap look in HTML, PDF and Print. PrintDocument (used for PDF and Print) does not use the
-// exportToHtml <style> block, so its own stylesheet must style kbd with explicit fg and bg.
+// exportToHtml <style> block, so the shared exportBase.css (imported by PrintDocument; C7 moved kbd there) must style kbd with explicit fg and bg.
 describe('html tags: Print/PDF stylesheet', () => {
-    it('Print.module.css gives kbd an explicit color and background-color', async () => {
+    it('shared exportBase.css gives kbd an explicit color and background-color', async () => {
         const { readFileSync } = await import('fs');
-        const css = readFileSync('src/components/Print/Print.module.css', 'utf8');
+        const css = readFileSync('src/styles/exportBase.css', 'utf8');
         const rule = (css.match(/kbd[^{}]*\{([^}]*)\}/) || [])[1] || '';
         expect(rule).toMatch(/(^|[;\s])color:/);
         expect(rule).toMatch(/background(-color)?:/);

@@ -32,19 +32,19 @@ export function normalizeLabel(raw) {
 }
 
 // Returns a Map<normalizedLabel, {url, title?}> of link reference definitions in
-// the document, memoized per EditorState. The Map is shared across callers —
+// the document, memoized per doc + syntax tree. The Map is shared across callers —
 // callers must treat it as read-only and never mutate it.
 export function resolveLinkDefs(state) {
-    // Check cache first
-    if (cache.has(state)) {
-        return cache.get(state);
-    }
+    // Keyed by doc + tree so selection-only states reuse it.
+    const tree = syntaxTree(state);
+    const hit = cache.get(state.doc);
+    if (hit && hit.tree === tree) return hit.map;
 
     const map = new Map();
     const doc = state.doc;
 
     // Iterate full document collecting LinkReference nodes
-    syntaxTree(state).iterate({
+    tree.iterate({
         enter: (node) => {
             const { name } = node;
 
@@ -100,7 +100,7 @@ export function resolveLinkDefs(state) {
     });
 
     // Store in cache and return
-    cache.set(state, map);
+    cache.set(state.doc, { tree, map });
     return map;
 }
 

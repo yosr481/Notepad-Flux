@@ -1,4 +1,4 @@
-// ==highlight== for marked: the editor's rule (livePreview.js, /==(.*?)==/ within one line), content parsed
+// ==highlight== for marked: the editor's rule (src/extensions/highlight.js, HIGHLIGHT; within one line), content parsed
 // as inline markdown so ==**b**== keeps its bold. An empty ==== stays text.
 export const highlightExtension = {
     extensions: [{

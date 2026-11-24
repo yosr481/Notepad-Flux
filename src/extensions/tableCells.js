@@ -4,7 +4,9 @@ import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
 import { resolveReference, normalizeDestination } from "./linkDefs";
-import { resolveFootnotes } from "./footnotes";
+import { resolveFootnotes, FootnoteWidget } from "./footnotes";
+import { EmojiWidget } from "./emojiPreview";
+import { HIGHLIGHT } from "./highlight";
 import { decodeEntity, decodeAttrEntities } from "./entities";
 import { syntaxTree } from "@codemirror/language";
 import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
@@ -28,7 +30,7 @@ function inlineWalker(state, footnotes) {
         const out = [];
         let last = 0;
         const s = text(a, b);
-        for (const m of s.matchAll(/==(.*?)==/g)) {
+        for (const m of s.matchAll(HIGHLIGHT)) {
             if (m.index > last) out.push(s.slice(last, m.index));
             out.push({ k: "mark", c: [m[1]] });
             last = m.index + m[0].length;
@@ -203,17 +205,8 @@ export function appendParts(parent, parts, view) {
         let e;
         switch (p.k) {
             case "math": parent.append(new MathWidget(p.tex, p.display ? "display" : "inline").toDOM(view)); continue;
-            case "emoji":
-                e = el("span", "cm-emoji");
-                e.setAttribute("role", "img");
-                e.setAttribute("aria-label", p.name);
-                e.textContent = emojiFor(p.name);
-                break;
-            case "fn":
-                e = el("sup", "cm-footnote-ref");
-                e.dir = "ltr";
-                e.textContent = String(p.n);
-                break;
+            case "emoji": parent.append(new EmojiWidget(p.name).toDOM()); continue;
+            case "fn": parent.append(new FootnoteWidget(String(p.n), false).toDOM()); continue;
             case "html":
                 e = el("span", p.cls);
                 if (p.title !== null) e.setAttribute("title", p.title);

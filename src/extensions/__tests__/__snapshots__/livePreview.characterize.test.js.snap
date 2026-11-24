@@ -963,7 +963,7 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > crlf-table:
     "startSide": 499999999,
     "to": 29,
     "widget": {
-      "eqAnyFieldChangeIsUnequal": false,
+      "eqAnyFieldChangeIsUnequal": true,
       "eqEqualTwin": true,
       "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>1</td><td>2</td></tr></tbody></table></div>",
       "ignoreEvent": true,
@@ -2907,7 +2907,7 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > table: curs
     "startSide": 499999999,
     "to": 33,
     "widget": {
-      "eqAnyFieldChangeIsUnequal": false,
+      "eqAnyFieldChangeIsUnequal": true,
       "eqEqualTwin": true,
       "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th class="cm-align-center">b</th></tr></thead><tbody><tr><td>1</td><td class="cm-align-center"><strong>2</strong></td></tr></tbody></table></div>",
       "ignoreEvent": true,
@@ -2943,7 +2943,7 @@ exports[`buildDecorations characterization (pre-refactor snapshot) > table-escap
     "startSide": 499999999,
     "to": 48,
     "widget": {
-      "eqAnyFieldChangeIsUnequal": false,
+      "eqAnyFieldChangeIsUnequal": true,
       "eqEqualTwin": true,
       "html": "<div class="cm-table-widget"><table><thead><tr><th>a</th><th>b</th></tr></thead><tbody><tr><td>x|y</td><td><a class="cm-link" href="http://e.com" target="_blank" rel="noopener noreferrer">l</a></td></tr></tbody></table></div>",
       "ignoreEvent": true,

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Moving the cursor in a large document is much faster: the editor now redraws only the blocks the cursor leaves and enters, instead of the whole document.
+- Typing in a large document is faster: the previews for math, footnotes, callouts, diagrams, emoji, sub/superscript and inline HTML now share one pass over the document per edit instead of each making their own.
+
 ### Fixed
 
 - Code-block comments, numbers and property names are now readable in dark mode, and comments in light mode.

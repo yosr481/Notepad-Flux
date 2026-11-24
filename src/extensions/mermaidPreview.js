@@ -1,6 +1,7 @@
 import { EditorView, Decoration, WidgetType, ViewPlugin } from "@codemirror/view";
 import { StateField, StateEffect } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
+import { nodesOf } from "./nodeIndex";
 import { isCursorTouching } from "./selection";
 import { renderMermaid } from "../utils/mermaid";
 
@@ -54,27 +55,23 @@ function bodyStripper(prefix) {
 function mermaidBlocks(state) {
     const { doc } = state;
     const blocks = [];
-    syntaxTree(state).iterate({
-        enter: (node) => {
-            if (node.name !== "FencedCode") return;
-            const info = node.node.getChild("CodeInfo");
-            if (!info || doc.sliceString(info.from, info.to).trim().split(/\s+/)[0].toLowerCase() !== "mermaid") return false;
-            const open = doc.lineAt(node.from);
-            const closed = node.node.getChildren("CodeMark").length > 1;
-            const end = doc.lineAt(node.to);
-            const lastBody = closed ? end.number - 1 : end.number;
-            const strip = bodyStripper(doc.sliceString(open.from, node.from));
-            const lines = [];
-            for (let n = open.number + 1; n <= lastBody; n++) lines.push(strip(doc.line(n).text));
-            blocks.push({
-                from: open.from,
-                to: end.to,
-                source: lines.join("\n"),
-                bodyFrom: lastBody > open.number ? doc.line(open.number + 1).from : open.to,
-            });
-            return false;
-        },
-    });
+    for (const node of nodesOf(state, "FencedCode")) {
+        const info = node.node.getChild("CodeInfo");
+        if (!info || doc.sliceString(info.from, info.to).trim().split(/\s+/)[0].toLowerCase() !== "mermaid") continue;
+        const open = doc.lineAt(node.from);
+        const closed = node.node.getChildren("CodeMark").length > 1;
+        const end = doc.lineAt(node.to);
+        const lastBody = closed ? end.number - 1 : end.number;
+        const strip = bodyStripper(doc.sliceString(open.from, node.from));
+        const lines = [];
+        for (let n = open.number + 1; n <= lastBody; n++) lines.push(strip(doc.line(n).text));
+        blocks.push({
+            from: open.from,
+            to: end.to,
+            source: lines.join("\n"),
+            bodyFrom: lastBody > open.number ? doc.line(open.number + 1).from : open.to,
+        });
+    }
     return blocks;
 }
 

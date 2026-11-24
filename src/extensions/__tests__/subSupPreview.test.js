@@ -252,7 +252,7 @@ describe('source guards', () => {
     const rule = (cls) => (allStyle.match(new RegExp(`\\.${cls}\\b[^{}]*\\{([^}]*)\\}`)) || [])[1] || '';
 
     it('reuses isCursorTouching from ./selection (one touching rule across extensions)', () => {
-        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]/);
+        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]|import\s*\{[^}]*\bselectionKeyedField\b[^}]*\}\s*from\s*['"]\.\/decorationField['"]/);
     });
     it('.cm-subscript: vertical-align sub, smaller font', () => {
         expect(rule('cm-subscript')).toMatch(/vertical-align:\s*sub/);
