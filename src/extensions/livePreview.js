@@ -394,8 +394,8 @@ export const buildDecorations = (state, range) => {
 };
 
 
-// Warm the footnote cache (doc + tree keyed) so a later selection-only move that un-touches a table
-// doesn't need a whole-tree walk for it. ponytail: extra pass only if footnotePreview isn't loaded (in the app it's a shared cache hit).
+// Warm resolveFootnotes' own result cache (doc + tree keyed; the node walk is the shared index) so a later
+// selection-only move that un-touches a table needs no resolve pass. Without it selectionReuse.livePreview's table cases fail.
 const fullBuild = (state) => {
     resolveFootnotes(state);
     return buildDecorations(state);

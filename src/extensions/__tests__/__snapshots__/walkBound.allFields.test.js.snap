@@ -1,0 +1,10885 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor away 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inBlockMath 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 118,
+    "side": 1,
+    "spec": {
+      "block": true,
+      "side": 1,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "preview",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inCallout 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inFootnoteDef 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inInner 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inMermaid 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inTable 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 823,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 920,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > all fields together, cursor inUnclosed 1`] = `
+[
+  {
+    "block": false,
+    "from": 61,
+    "side": 0,
+    "spec": {},
+    "to": 62,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 62,
+    "side": 0,
+    "spec": {
+      "class": "cm-subscript",
+    },
+    "to": 65,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 65,
+    "side": 0,
+    "spec": {},
+    "to": 66,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 67,
+    "side": 0,
+    "spec": {},
+    "to": 68,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 68,
+    "side": 0,
+    "spec": {
+      "class": "cm-superscript",
+    },
+    "to": 71,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 71,
+    "side": 0,
+    "spec": {},
+    "to": 72,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 81,
+    "side": 0,
+    "spec": {},
+    "to": 87,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 87,
+    "side": 0,
+    "spec": {
+      "class": "cm-highlight",
+    },
+    "to": 88,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 88,
+    "side": 0,
+    "spec": {},
+    "to": 95,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 73,
+    "side": 0,
+    "spec": {},
+    "to": 80,
+    "w": {
+      "cls": "EmojiWidget",
+      "props": {
+        "name": "smile",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 30,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 35,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "a+b",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 44,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 51,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "c^2",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 98,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 118,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "block",
+        "tex": "
+\\int_0^1 x\\,dx
+",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 156,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 159,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "z",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 274,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 277,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "t",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 282,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 287,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "display",
+        "tex": "u",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 397,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 400,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "d",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 591,
+    "side": 0,
+    "spec": {
+      "block": false,
+    },
+    "to": 594,
+    "w": {
+      "cls": "MathWidget",
+      "props": {
+        "kind": "inline",
+        "tex": "q",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 127,
+    "side": 0,
+    "spec": {},
+    "to": 133,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 144,
+    "side": 0,
+    "spec": {},
+    "to": 165,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "2",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 197,
+    "side": 0,
+    "spec": {},
+    "to": 203,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 213,
+    "side": 0,
+    "spec": {},
+    "to": 219,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 250,
+    "side": 0,
+    "spec": {},
+    "to": 260,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "4",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 265,
+    "side": 0,
+    "spec": {},
+    "to": 271,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 302,
+    "side": 0,
+    "spec": {},
+    "to": 308,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 337,
+    "side": 0,
+    "spec": {},
+    "to": 344,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "1.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 365,
+    "side": 0,
+    "spec": {},
+    "to": 371,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 376,
+    "side": 0,
+    "spec": {},
+    "to": 392,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "6",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 434,
+    "side": 0,
+    "spec": {},
+    "to": 440,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "1",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 462,
+    "side": 0,
+    "spec": {},
+    "to": 469,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "5.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 502,
+    "side": 0,
+    "spec": {},
+    "to": 508,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "3",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 510,
+    "side": 0,
+    "spec": {},
+    "to": 517,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": true,
+        "text": "3.",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 595,
+    "side": 0,
+    "spec": {},
+    "to": 601,
+    "w": {
+      "cls": "FootnoteWidget",
+      "props": {
+        "def": false,
+        "text": "5",
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 562,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 562,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 564,
+    "side": 0,
+    "spec": {},
+    "to": 572,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "note",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 572,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 577,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 578,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-note",
+    },
+    "to": 578,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 602,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 602,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 606,
+    "side": 0,
+    "spec": {},
+    "to": 618,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "warning",
+        "foldable": true,
+        "folded": true,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 618,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 630,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 630,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 645,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 631,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-warning",
+    },
+    "to": 631,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 654,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 654,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 658,
+    "side": 0,
+    "spec": {},
+    "to": 665,
+    "w": {
+      "cls": "CalloutHeaderWidget",
+      "props": {
+        "canonical": "tip",
+        "foldable": false,
+        "folded": false,
+      },
+    },
+  },
+  {
+    "block": false,
+    "from": 665,
+    "side": 0,
+    "spec": {
+      "attributes": {
+        "dir": "auto",
+      },
+      "class": "cm-callout-title",
+    },
+    "to": 672,
+    "w": undefined,
+  },
+  {
+    "block": false,
+    "from": 673,
+    "side": 0,
+    "spec": {
+      "class": "cm-callout cm-callout-tip",
+    },
+    "to": 673,
+    "w": undefined,
+  },
+  {
+    "block": true,
+    "from": 687,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 717,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "graph TD; A-->B",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 719,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 759,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "flowchart LR; X-->Y",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 795,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 821,
+    "w": {
+      "cls": "MermaidWidget",
+      "props": {
+        "source": "pie "a" : 1",
+        "theme": "default",
+      },
+    },
+  },
+  {
+    "block": true,
+    "from": 0,
+    "side": 0,
+    "spec": {
+      "block": true,
+    },
+    "to": 22,
+    "w": {
+      "cls": "PropertiesWidget",
+      "props": {
+        "yamlText": "title: Fixture",
+      },
+    },
+  },
+]
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor away 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inBlockMath 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 118,
+      "side": 1,
+      "spec": {
+        "block": true,
+        "side": 1,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "preview",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inCallout 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inFootnoteDef 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inInner 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inMermaid 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inTable 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 823,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 920,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "unclosed mermaid
+
+Display math $$ opened but never
+closed here
+
+$$
+unclosed block math",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > every field alone, cursor inUnclosed 1`] = `
+{
+  "callout": [
+    {
+      "block": false,
+      "from": 562,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 562,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 564,
+      "side": 0,
+      "spec": {},
+      "to": 572,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "note",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 572,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 577,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 578,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-note",
+      },
+      "to": 578,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 602,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 602,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 606,
+      "side": 0,
+      "spec": {},
+      "to": 618,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "warning",
+          "foldable": true,
+          "folded": true,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 618,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 630,
+      "w": undefined,
+    },
+    {
+      "block": true,
+      "from": 630,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 645,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 631,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-warning",
+      },
+      "to": 631,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 654,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 654,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 658,
+      "side": 0,
+      "spec": {},
+      "to": 665,
+      "w": {
+        "cls": "CalloutHeaderWidget",
+        "props": {
+          "canonical": "tip",
+          "foldable": false,
+          "folded": false,
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 665,
+      "side": 0,
+      "spec": {
+        "attributes": {
+          "dir": "auto",
+        },
+        "class": "cm-callout-title",
+      },
+      "to": 672,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 673,
+      "side": 0,
+      "spec": {
+        "class": "cm-callout cm-callout-tip",
+      },
+      "to": 673,
+      "w": undefined,
+    },
+  ],
+  "emoji": [
+    {
+      "block": false,
+      "from": 73,
+      "side": 0,
+      "spec": {},
+      "to": 80,
+      "w": {
+        "cls": "EmojiWidget",
+        "props": {
+          "name": "smile",
+        },
+      },
+    },
+  ],
+  "footnote": [
+    {
+      "block": false,
+      "from": 127,
+      "side": 0,
+      "spec": {},
+      "to": 133,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 144,
+      "side": 0,
+      "spec": {},
+      "to": 165,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "2",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 197,
+      "side": 0,
+      "spec": {},
+      "to": 203,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 213,
+      "side": 0,
+      "spec": {},
+      "to": 219,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 250,
+      "side": 0,
+      "spec": {},
+      "to": 260,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "4",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 265,
+      "side": 0,
+      "spec": {},
+      "to": 271,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 302,
+      "side": 0,
+      "spec": {},
+      "to": 308,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 337,
+      "side": 0,
+      "spec": {},
+      "to": 344,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "1.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 365,
+      "side": 0,
+      "spec": {},
+      "to": 371,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 376,
+      "side": 0,
+      "spec": {},
+      "to": 392,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "6",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 434,
+      "side": 0,
+      "spec": {},
+      "to": 440,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "1",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 462,
+      "side": 0,
+      "spec": {},
+      "to": 469,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "5.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 502,
+      "side": 0,
+      "spec": {},
+      "to": 508,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "3",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 510,
+      "side": 0,
+      "spec": {},
+      "to": 517,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": true,
+          "text": "3.",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 595,
+      "side": 0,
+      "spec": {},
+      "to": 601,
+      "w": {
+        "cls": "FootnoteWidget",
+        "props": {
+          "def": false,
+          "text": "5",
+        },
+      },
+    },
+  ],
+  "frontMatter": [
+    {
+      "block": true,
+      "from": 0,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 22,
+      "w": {
+        "cls": "PropertiesWidget",
+        "props": {
+          "yamlText": "title: Fixture",
+        },
+      },
+    },
+  ],
+  "htmlInline": [
+    {
+      "block": false,
+      "from": 81,
+      "side": 0,
+      "spec": {},
+      "to": 87,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 87,
+      "side": 0,
+      "spec": {
+        "class": "cm-highlight",
+      },
+      "to": 88,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 88,
+      "side": 0,
+      "spec": {},
+      "to": 95,
+      "w": undefined,
+    },
+  ],
+  "math": [
+    {
+      "block": false,
+      "from": 30,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 35,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "a+b",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 44,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 51,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "c^2",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 98,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 118,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "block",
+          "tex": "
+\\int_0^1 x\\,dx
+",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 156,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 159,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "z",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 274,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 277,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "t",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 282,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 287,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "display",
+          "tex": "u",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 397,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 400,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "d",
+        },
+      },
+    },
+    {
+      "block": false,
+      "from": 591,
+      "side": 0,
+      "spec": {
+        "block": false,
+      },
+      "to": 594,
+      "w": {
+        "cls": "MathWidget",
+        "props": {
+          "kind": "inline",
+          "tex": "q",
+        },
+      },
+    },
+  ],
+  "mermaid": [
+    {
+      "block": true,
+      "from": 687,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 717,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "graph TD; A-->B",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 719,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 759,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "flowchart LR; X-->Y",
+          "theme": "default",
+        },
+      },
+    },
+    {
+      "block": true,
+      "from": 795,
+      "side": 0,
+      "spec": {
+        "block": true,
+      },
+      "to": 821,
+      "w": {
+        "cls": "MermaidWidget",
+        "props": {
+          "source": "pie "a" : 1",
+          "theme": "default",
+        },
+      },
+    },
+  ],
+  "subSup": [
+    {
+      "block": false,
+      "from": 61,
+      "side": 0,
+      "spec": {},
+      "to": 62,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 62,
+      "side": 0,
+      "spec": {
+        "class": "cm-subscript",
+      },
+      "to": 65,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 65,
+      "side": 0,
+      "spec": {},
+      "to": 66,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 67,
+      "side": 0,
+      "spec": {},
+      "to": 68,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 68,
+      "side": 0,
+      "spec": {
+        "class": "cm-superscript",
+      },
+      "to": 71,
+      "w": undefined,
+    },
+    {
+      "block": false,
+      "from": 71,
+      "side": 0,
+      "spec": {},
+      "to": 72,
+      "w": undefined,
+    },
+  ],
+}
+`;
+
+exports[`equivalence with pre-T3 output (snapshot) > resolveFootnotes output 1`] = `
+{
+  "inline": [
+    [
+      144,
+      {
+        "number": 2,
+        "text": "note with $z$ math",
+      },
+    ],
+    [
+      250,
+      {
+        "number": 4,
+        "text": "in cell",
+      },
+    ],
+    [
+      376,
+      {
+        "number": 6,
+        "text": "inline in def",
+      },
+    ],
+  ],
+  "labelled": [
+    [
+      "one",
+      {
+        "defFrom": 337,
+        "defTo": 460,
+        "number": 1,
+        "refs": [
+          127,
+          197,
+          265,
+          302,
+        ],
+        "text": "First note with ref [^two] and ^[inline in def] and $d$.
+
+[^nested]: Nested def with [^one] and ^[deep inline].",
+      },
+    ],
+    [
+      "tbl",
+      {
+        "defFrom": 510,
+        "defTo": 529,
+        "number": 3,
+        "refs": [
+          213,
+          502,
+        ],
+        "text": "Table note.",
+      },
+    ],
+    [
+      "two",
+      {
+        "defFrom": 462,
+        "defTo": 508,
+        "number": 5,
+        "refs": [
+          365,
+          595,
+        ],
+        "text": "Second note.
+continued line [^tbl]",
+      },
+    ],
+  ],
+}
+`;

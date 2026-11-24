@@ -1,5 +1,6 @@
 import { EditorView, Decoration, WidgetType, hoverTooltip } from "@codemirror/view";
 import { syntaxTree } from "@codemirror/language";
+import { nodesOf } from "./nodeIndex";
 import { normalizeLabel } from "./linkDefs";
 import { scanFootnoteDef, numberFootnotes, defText } from "./footnoteSyntax";
 import { selectionKeyedField } from "./decorationField";
@@ -7,6 +8,10 @@ import { marked } from "marked";
 import { sanitizeHTML } from "../utils/sanitize";
 
 const cache = new WeakMap();
+
+// Definitions, references and inline notes in document order, outer before inner.
+const footnoteNodes = (state) => ["FootnoteDefinition", "FootnoteReference", "InlineFootnote"]
+    .flatMap((name) => nodesOf(state, name)).sort((a, b) => a.from - b.from || b.to - a.to);
 
 // { labelled: Map<label, {number, defFrom, defTo, text, refs}>, inline: Map<from, {number, text}> },
 // memoized per doc + parse tree (selection-only states reuse it; a fuller parse recomputes). Read-only for callers. One tree pass, then GitHub-order numbering; notes never reached get no entry.
@@ -17,28 +22,26 @@ export function resolveFootnotes(state) {
 
     const defs = new Map();   // label -> first definition in document order
     const events = [];        // refs and inline notes, document order
-    const open = [];          // enclosing definitions' labels; IGNORED stands for a duplicate (never numbered)
+    const open = [];          // enclosing definitions: { to, key }; IGNORED key stands for a duplicate (never numbered)
     const IGNORED = Symbol('ignored duplicate definition');
-    tree.iterate({
-        leave: (node) => { if (node.name === 'FootnoteDefinition') open.pop(); },
-        enter: (node) => {
-            const inDef = open.at(-1) ?? null;
-            if (node.name === 'FootnoteDefinition') {
-                const label = node.node.getChild('FootnoteLabel');
-                const key = label && normalizeLabel(doc.sliceString(label.from, label.to));
-                if (!label || defs.has(key)) { open.push(IGNORED); return; }
-                open.push(key);
-                const raw = doc.sliceString(label.to + 2, node.to);
-                const text = defText(raw);
-                defs.set(key, { defFrom: node.from, defTo: node.to - (raw.length - raw.trimEnd().length), text });
-            } else if (node.name === 'FootnoteReference') {
-                const label = node.node.getChild('FootnoteLabel');
-                if (label) events.push({ kind: 'ref', label: normalizeLabel(doc.sliceString(label.from, label.to)), inDef, from: node.from });
-            } else if (node.name === 'InlineFootnote') {
-                events.push({ kind: 'inline', inDef, from: node.from, text: doc.sliceString(node.from + 2, node.to - 1) });
-            }
-        },
-    });
+    for (const { from, node } of footnoteNodes(state)) {
+        while (open.length && open.at(-1).to <= from) open.pop();
+        const inDef = open.at(-1)?.key ?? null;
+        if (node.name === 'FootnoteDefinition') {
+            const label = node.getChild('FootnoteLabel');
+            const key = label && normalizeLabel(doc.sliceString(label.from, label.to));
+            if (!label || defs.has(key)) { open.push({ to: node.to, key: IGNORED }); continue; }
+            open.push({ to: node.to, key });
+            const raw = doc.sliceString(label.to + 2, node.to);
+            const text = defText(raw);
+            defs.set(key, { defFrom: node.from, defTo: node.to - (raw.length - raw.trimEnd().length), text });
+        } else if (node.name === 'FootnoteReference') {
+            const label = node.getChild('FootnoteLabel');
+            if (label) events.push({ kind: 'ref', label: normalizeLabel(doc.sliceString(label.from, label.to)), inDef, from });
+        } else {
+            events.push({ kind: 'inline', inDef, from, text: doc.sliceString(from + 2, node.to - 1) });
+        }
+    }
 
     const labelled = new Map(), inline = new Map();
     const numbers = numberFootnotes(events, (label) => defs.has(label));
@@ -143,25 +146,24 @@ function collectFootnotes(state) {
     const items = [];
     const { labelled, inline } = resolveFootnotes(state);
     const add = (from, to, text, def) => items.push({ from, to, text, def });
-    syntaxTree(state).iterate({
-        enter: (node) => {
-            if (node.name === 'FootnoteReference') {
-                const entry = labelled.get(labelKey(state, node.node));
-                if (entry) add(node.from, node.to, String(entry.number), false);
-                return false;
-            }
-            if (node.name === 'InlineFootnote') {
-                const note = inline.get(node.from);
-                if (note) add(node.from, node.to, String(note.number), false);
-                return false;
-            }
-            if (node.name === 'FootnoteDefinition') {
-                const label = node.node.getChild('FootnoteLabel');
-                const entry = label && labelled.get(labelKey(state, node.node));
-                if (entry?.defFrom === node.from) add(node.from, label.to + 2, entry.number + '.', true);
-            }
-        },
-    });
+    let end = 0; // refs and inline notes don't descend: skip those nested in an emitted one
+    for (const { from, to, node } of footnoteNodes(state)) {
+        if (node.name !== 'FootnoteDefinition') {
+            if (from < end) continue;
+            end = to;
+        }
+        if (node.name === 'FootnoteReference') {
+            const entry = labelled.get(labelKey(state, node));
+            if (entry) add(from, to, String(entry.number), false);
+        } else if (node.name === 'InlineFootnote') {
+            const note = inline.get(from);
+            if (note) add(from, to, String(note.number), false);
+        } else {
+            const label = node.getChild('FootnoteLabel');
+            const entry = label && labelled.get(labelKey(state, node));
+            if (entry?.defFrom === from) add(from, label.to + 2, entry.number + '.', true);
+        }
+    }
     return items;
 }
 

@@ -1,7 +1,7 @@
 import { syntaxTree } from "@codemirror/language";
 
 // One full-tree walk per syntax tree, shared by every caller and name. Cached per doc, valid while the tree is the same.
-export const INDEXED_NODES = ["Subscript", "Superscript", "Emoji", "HTMLTag"];
+export const INDEXED_NODES = ["Subscript", "Superscript", "Emoji", "HTMLTag", "InlineMath", "BlockMath", "FootnoteDefinition", "FootnoteReference", "InlineFootnote", "Blockquote", "FencedCode"];
 
 const cache = new WeakMap(); // doc -> { tree, byName }
 

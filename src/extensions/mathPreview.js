@@ -1,5 +1,5 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { nodesOf } from "./nodeIndex";
 import { isClosedBlock, mathSource } from "./mathSyntax";
 import { renderTex } from "../utils/math";
 import { selectionKeyedField } from "./decorationField";
@@ -54,21 +54,18 @@ export class MathWidget extends WidgetType {
 function collectMath(state) {
     const items = [];
     const { doc } = state;
-    syntaxTree(state).iterate({
-        enter: (node) => {
-            if (node.name === "InlineMath") {
-                const kind = doc.sliceString(node.from, node.from + 2) === "$$" ? "display" : "inline";
-                items.push({ from: node.from, to: node.to, kind, tex: mathSource(doc, node.node) });
-                return false;
-            }
-            if (node.name === "BlockMath") {
-                if (!isClosedBlock(node.node)) return false;
-                // Block widgets must cover whole lines (a block inside "> " included).
-                items.push({ from: doc.lineAt(node.from).from, to: doc.lineAt(node.to).to, kind: "block", tex: mathSource(doc, node.node) });
-                return false;
-            }
-        },
-    });
+    let end = 0; // a math node doesn't descend: skip any nested in the previous one, closed or not
+    for (const node of [...nodesOf(state, "InlineMath"), ...nodesOf(state, "BlockMath")].sort((a, b) => a.from - b.from || b.to - a.to)) {
+        if (node.from < end) continue;
+        end = node.to;
+        if (node.node.name === "InlineMath") {
+            const kind = doc.sliceString(node.from, node.from + 2) === "$$" ? "display" : "inline";
+            items.push({ from: node.from, to: node.to, kind, tex: mathSource(doc, node.node) });
+        } else if (isClosedBlock(node.node)) {
+            // Block widgets must cover whole lines (a block inside "> " included).
+            items.push({ from: doc.lineAt(node.from).from, to: doc.lineAt(node.to).to, kind: "block", tex: mathSource(doc, node.node) });
+        }
+    }
     return items;
 }
 
