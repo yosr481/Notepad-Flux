@@ -20,13 +20,16 @@ export function decorationField(build) {
 
 // Like decorationField, but the tree/doc work lives in collect(state) -> items ({from, to, ...}) and runs only
 // on doc or syntax-tree changes. A selection-only move re-derives which items it touches (isCursorTouching) and
-// keeps the same DecorationSet while that is unchanged; otherwise decorate(items, touched[]) -> DecorationSet.
-export function selectionKeyedField({ collect, decorate }) {
+// keeps the same DecorationSet while that is unchanged; otherwise decorate(items, touched) -> DecorationSet,
+// where touched is always a Set of touched item indices.
+// Optional touching(items, state) -> indices lets a field skip the O(items) scan. They must be sorted and
+// unique: the change key is their join.
+export function selectionKeyedField({ collect, decorate, touching }) {
     const withSelection = (value, state) => {
-        const touched = value.items.map((n) => isCursorTouching(state.selection, n.from, n.to));
-        const key = touched.map(Number).join("");
+        const touched = touching ? touching(value.items, state) : value.items.flatMap((n, i) => isCursorTouching(state.selection, n.from, n.to) ? [i] : []);
+        const key = touched.join(",");
         if (value.decos && key === value.key) return value;
-        return { ...value, key, decos: decorate(value.items, touched) };
+        return { ...value, key, decos: decorate(value.items, new Set(touched)) };
     };
     const build = (state) => withSelection({ tree: syntaxTree(state), items: collect(state) }, state);
     return StateField.define({

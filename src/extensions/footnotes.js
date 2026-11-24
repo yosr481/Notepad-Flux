@@ -166,7 +166,7 @@ function collectFootnotes(state) {
 }
 
 const decorateFootnotes = (items, touched) => Decoration.set(
-    items.flatMap((it, i) => touched[i] ? [] : [Decoration.replace({ widget: new FootnoteWidget(it.text, it.def) }).range(it.from, it.to)]),
+    items.flatMap((it, i) => touched.has(i) ? [] : [Decoration.replace({ widget: new FootnoteWidget(it.text, it.def) }).range(it.from, it.to)]),
     true,
 );
 

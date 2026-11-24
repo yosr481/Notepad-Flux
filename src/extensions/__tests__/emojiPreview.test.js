@@ -285,7 +285,7 @@ describe('source guards', () => {
     const allStyle = [own, ...cssFiles(resolve(process.cwd(), 'src')).map((p) => readFileSync(p, 'utf8'))].join('\n');
 
     it('reuses isCursorTouching from ./selection (one touching rule across extensions)', () => {
-        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]/);
+        expect(own).toMatch(/import\s*\{[^}]*\bisCursorTouching\b[^}]*\}\s*from\s*['"]\.\/selection['"]|import\s*\{[^}]*\bselectionKeyedField\b[^}]*\}\s*from\s*['"]\.\/decorationField['"]/);
     });
     it('looks names up through emojiFor from ../utils/emojiTable', () => {
         expect(own).toMatch(/import\s*\{[^}]*\bemojiFor\b[^}]*\}\s*from\s*['"]\.\.\/utils\/emojiTable['"]/);

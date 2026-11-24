@@ -74,7 +74,7 @@ function collectMath(state) {
 
 function decorateMath(items, touched) {
     const decorations = items.map((it, i) => {
-        if (!touched[i]) {
+        if (!touched.has(i)) {
             return Decoration.replace({ widget: new MathWidget(it.tex, it.kind), block: it.kind === "block" }).range(it.from, it.to);
         }
         if (it.kind !== "block") return null;
