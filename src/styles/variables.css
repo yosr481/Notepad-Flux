@@ -88,7 +88,7 @@
    --syntax-keyword: var(--color-flux-violet);
    --syntax-string: var(--color-slate-600);
    --syntax-variable: var(--color-slate-800);
-   --syntax-comment: var(--color-slate-400);
+   --syntax-comment: var(--color-slate-500);
    --syntax-tag: var(--color-slate-500);
    --syntax-property: var(--color-slate-700);
 
@@ -209,7 +209,9 @@
    --syntax-string: #A5B4FC;
    /* Light Indigo */
    --syntax-variable: var(--color-dark-text-primary);
-   --syntax-comment: #52525B;
+   --syntax-comment: #8B8B96; /* zinc, 4.54:1 on #252526; was #52525B */
+   --syntax-tag: var(--color-slate-400);
+   --syntax-property: var(--color-slate-300);
 
    --text-highlight-bg: var(--text-highlight-bg-dark);
 }
