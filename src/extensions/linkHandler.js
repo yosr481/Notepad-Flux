@@ -64,44 +64,66 @@ const jumpToHeading = (view, fragment) => {
     view.focus();
 };
 
-// One place for the open-URL rule: http/https/mailto open, `#x` jumps, anything else warns.
-const openLink = (view, url) => {
-    if (url.startsWith("#")) jumpToHeading(view, url.slice(1));
-    else if (isSafeExternalUrl(url)) window.open(url, '_blank');
-    else console.warn('Blocked unsafe link scheme:', url);
+// Kind of an already-normalized destination. Relative links (no scheme) never open from the editor.
+export const linkKind = (url) => {
+    if (url.startsWith("#")) return "heading";
+    if (isSafeExternalUrl(url)) return "external";
+    return /^[a-z][a-z0-9+.-]*:/i.test(url) ? "unsafe" : "relative";
 };
 
-// Tooltip to show "Ctrl + Click to open"
-export const linkTooltip = hoverTooltip((view, pos, side) => {
-    const { state } = view;
-    const { selection } = state;
+// One place for the open-URL rule: http/https/mailto open, `#x` jumps, relative is inert, other schemes warn.
+const openLink = (view, url) => {
+    const kind = linkKind(url);
+    if (kind === "heading") jumpToHeading(view, url.slice(1));
+    else if (kind === "external") window.open(url, '_blank');
+    else if (kind === "unsafe") console.warn('Blocked unsafe link scheme:', url);
+};
 
-    // Check if cursor is touching the position (Active Mode)
-    // If the cursor is inside the link, we don't want the tooltip because we are editing
-    // We need to find the link node first to know its range
-    const node = syntaxTree(state).resolveInner(pos, side);
-    let linkNode = node;
+// Normalized destination of a Link node (inline URL, else resolved reference), or null.
+const linkDestination = (linkNode, state) => {
+    const urlNode = linkNode.getChild("URL");
+    if (urlNode) return normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
+    const ref = resolveReference(linkNode, state);
+    if (ref) return ref.url;
+    // Maybe it's an autolink where the whole thing is a URL: [text](url) or <url>
+    const match = state.doc.sliceString(linkNode.from, linkNode.to).match(/\((.*?)\)$/)
+        || state.doc.sliceString(linkNode.from, linkNode.to).match(/^<(.*)>$/);
+    return match ? normalizeDestination(match[1]) : null;
+};
+
+const TOOLTIP_TEXT = {
+    external: "Ctrl + Click to open link",
+    heading: "Ctrl + Click to jump to heading",
+    relative: "Relative link: opens only in exported files",
+};
+
+// Pure body of linkTooltip: { pos, end, text } for an inactive link with an openable/relative destination.
+export const linkTooltipInfo = (state, pos, side) => {
+    // The cursor inside the link means we are editing it: no tooltip.
+    let linkNode = syntaxTree(state).resolveInner(pos, side);
     if (linkNode.name !== "Link") {
-        if (linkNode.parent && linkNode.parent.name === "Link") {
-            linkNode = linkNode.parent;
-        } else {
-            return null;
-        }
+        if (linkNode.parent && linkNode.parent.name === "Link") linkNode = linkNode.parent;
+        else return null;
     }
+    if (state.selection.ranges.some(r => r.from <= linkNode.to && r.to >= linkNode.from)) return null;
 
-    // Check if cursor touches the link range
-    const isTouching = selection.ranges.some(range => range.from <= linkNode.to && range.to >= linkNode.from);
-    if (isTouching) return null;
+    const url = linkDestination(linkNode, state);
+    if (url === null) return null;
+    const text = TOOLTIP_TEXT[linkKind(url)];
+    return text ? { pos: linkNode.from, end: linkNode.to, text } : null;
+};
 
-    // We found a link and cursor is NOT touching it. Return tooltip.
+export const linkTooltip = hoverTooltip((view, pos, side) => {
+    const info = linkTooltipInfo(view.state, pos, side);
+    if (!info) return null;
     return {
-        pos: linkNode.from,
-        end: linkNode.to,
+        pos: info.pos,
+        end: info.end,
         above: true,
-        create(view) {
+        create() {
             const dom = document.createElement("div");
             dom.className = "cm-tooltip-cursor";
-            dom.textContent = "Ctrl + Click to open link";
+            dom.textContent = info.text;
             return { dom };
         }
     };
@@ -115,40 +137,14 @@ export const linkClickHandler = EditorView.domEventHandlers({
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
         if (pos === null) return;
 
-        const { state } = view;
-        const node = syntaxTree(state).resolveInner(pos);
-
-        let linkNode = node;
-        // Traverse up to find Link node
-        while (linkNode && linkNode.name !== "Link") {
-            linkNode = linkNode.parent;
-        }
-
+        let linkNode = syntaxTree(view.state).resolveInner(pos);
+        while (linkNode && linkNode.name !== "Link") linkNode = linkNode.parent;
         if (!linkNode) return;
 
-        // Extract URL
-        const urlNode = linkNode.getChild("URL");
-        if (urlNode) {
-            const url = normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
-
-            if (url) {
-                openLink(view, url);
-                event.preventDefault();
-            }
-        } else if (resolveReference(linkNode, state)) {
-            // Reference link, e.g. [![alt][img]][site] with [site]: url elsewhere
-            openLink(view, resolveReference(linkNode, state).url);
+        const url = linkDestination(linkNode, view.state);
+        if (url !== null) {
+            openLink(view, url);
             event.preventDefault();
-        } else if (linkNode.name === "Link") {
-            // Maybe it's an autolink where the whole thing is a URL?
-            // Or try to find text content if URL node is missing
-            const text = state.doc.sliceString(linkNode.from, linkNode.to);
-            // Simple regex to extract url from [text](url) or <url>
-            const match = text.match(/\((.*?)\)$/) || text.match(/^<(.*)>$/);
-            if (match) {
-                openLink(view, normalizeDestination(match[1]));
-                event.preventDefault();
-            }
         }
     }
 });

@@ -19,6 +19,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Relative links like `notes.md` no longer log a false "unsafe link" warning on Ctrl+click, and the hover now says what a link does: open, jump to a heading, or relative (opens only in exported files).
 - Code-block comments, numbers and property names are now readable in dark mode, and comments in light mode.
 - Print and PDF export now show the content of a closed `<details>` block instead of printing it closed and hiding it.
 - Named entities like `&eacute;`, `&frac12;` and `&hellip;` now show the real character in the editor body and in table cells, as they already did in export. Before, only seven names did.
