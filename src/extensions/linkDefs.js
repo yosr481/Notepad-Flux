@@ -7,9 +7,11 @@ export const normalizeDestination = (raw) => decodeAttrEntities(raw
     .replace(/^<(.*)>$/, "$1")
     .replace(/\\([!-/:-@[-`{-~])/g, "$1"));
 
+export const hasScheme = (s) => /^[a-z][a-z0-9+.-]*:/i.test(s);
+
 // Autolink label (text between `<` `>`) -> href. Entities decode, backslash stays literal (CommonMark)
 // as %5C since the browser reads a raw one as "/"; no scheme = email.
-export const autolinkHref = (label) => /^[a-z][a-z0-9+.-]*:/i.test(label)
+export const autolinkHref = (label) => hasScheme(label)
     ? decodeAttrEntities(label).replace(/\\/g, "%5C")
     : "mailto:" + label;
 
@@ -144,3 +146,18 @@ export function resolveReference(linkNode, state) {
 export function isUnresolvedReference(linkNode, state) {
     return !isInlineLink(linkNode) && !resolveReference(linkNode, state);
 }
+
+// Link or Autolink at/around a tree node; a Link beats an Autolink inside its label (outer destination wins).
+// Only a Link with a destination (`isUnresolvedReference` is false) counts: a destination-less inner `[b]`
+// in `[a [b] c](u)` is skipped for the outer one, and a lone unresolved `[t]` is no link at all.
+export const enclosingLink = (node, state) => {
+    let hit = null;
+    for (let n = node; n; n = n.parent) {
+        if (n.name === "Link" && !isUnresolvedReference(n, state)) return n;
+        if (n.name === "Autolink") hit ??= n;
+    }
+    return hit;
+};
+
+// Is this node inside another link's label (a Link, not an Autolink)? Then it renders nothing of its own.
+export const insideLinkLabel = (node, state) => enclosingLink(node.parent, state)?.name === "Link";

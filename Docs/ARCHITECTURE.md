@@ -89,7 +89,7 @@ src/
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
-│   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (every HTML5 named entity) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link destinations
+│   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (numeric + names via `decodeAttrEntities`, cached per name) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link and autolink destinations
 │   ├── decorationField.js - Shared StateField helpers for decoration fields (`selectionKeyedField`: math, footnotes, subSup, emoji, htmlInline). callouts, mermaid and frontMatter still use their own field (backlog C5)
 │   ├── fastLinkEnd.js     - Wraps lezer's `LinkEnd`: amortised O(1) opener invalidation per paragraph (stock is O(n²)), plus one rule change: a bare shortcut `[x]` close keeps earlier `[` openers alive, so `[a [b] c](url)` is one link
 │   ├── nodeIndex.js       - `nodesOf(state, name)`: one shared tree walk per syntax tree, indexed by node name (see `INDEXED_NODES`), cached on doc + tree
@@ -329,12 +329,13 @@ The editor's functionality is built through composable CodeMirror extensions:
 4. **`linkPreview.js`**: Link rendering
    - Link widget with icon
    - Label rendered from `tableCells.js` parts (`linkLabelParts` + `appendParts`, DOM text nodes), so labels show the same inline features as table cells; labels with no inline-construct character skip the walk
+   - Autolink widgets outside tables (label as typed, `autolinkHref`); a Link nested in a link label renders nothing of its own
    - Cursor-based activation
 
 5. **`linkHandler.js`**: Link interaction
-   - Ctrl+Click to open links; `#heading` links jump in the editor (`headingTargets`, same slugs as export via `headingSlug.js`)
-   - Hover tooltip
-   - URL extraction from syntax tree
+   - Ctrl+Click by `linkKind`: external opens, `#heading` jumps (`headingTargets`, same slugs as export via `headingSlug.js`), relative is inert, other schemes warn
+   - Hover tooltip names the kind
+   - URL extraction from syntax tree; `linkDefs.js` owns `enclosingLink` (Link or Autolink around a node) and `insideLinkLabel` (shared by linkPreview, livePreview, tableCells)
 
 6. **`listKeymap.js`**: List keyboard behaviors
    - Enter key handling

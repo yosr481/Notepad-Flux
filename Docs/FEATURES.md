@@ -226,6 +226,13 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab; a `#heading` link jumps to that heading in the document; a relative link (like `notes.md`) does nothing from the editor, silently
 - Regular click moves cursor to link for editing
 
+### Autolinks (`<https://…>`, `<a@b.co>`)
+
+- Off the cursor, the URL shows as typed, with the link icon; `<a@b.co>` opens as `mailto:`
+- `Ctrl + Click` (or `Cmd + Click`) and the hover tooltip work as for links
+- In table cells the table renders the autolink
+- Cursor touching it shows the `<…>` source
+
 ---
 
 ## Images

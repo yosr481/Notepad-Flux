@@ -1,6 +1,6 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
-import { resolveReference, isUnresolvedReference, normalizeDestination, autolinkHref } from "./linkDefs";
+import { resolveReference, normalizeDestination, autolinkHref, hasScheme, enclosingLink } from "./linkDefs";
 import { createSlugger } from "./headingSlug";
 
 // Scheme allowlist for URLs pulled straight from document content.
@@ -68,7 +68,7 @@ const jumpToHeading = (view, fragment) => {
 export const linkKind = (url) => {
     if (url.startsWith("#")) return "heading";
     if (isSafeExternalUrl(url)) return "external";
-    return /^[a-z][a-z0-9+.-]*:/i.test(url) ? "unsafe" : "relative";
+    return hasScheme(url) ? "unsafe" : "relative";
 };
 
 // One place for the open-URL rule: http/https/mailto open, `#x` jumps, relative is inert, other schemes warn.
@@ -79,7 +79,7 @@ const openLink = (view, url) => {
     else if (kind === "unsafe") console.warn('Blocked unsafe link scheme:', url);
 };
 
-// Normalized destination of a Link node (inline URL, else resolved reference), or null.
+// Normalized destination of a Link or Autolink node (inline URL, else resolved reference), or null.
 const linkDestination = (linkNode, state) => {
     if (linkNode.name === "Autolink") {
         const u = linkNode.getChild("URL");
@@ -89,28 +89,13 @@ const linkDestination = (linkNode, state) => {
     if (urlNode) return normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
     const ref = resolveReference(linkNode, state);
     if (ref) return ref.url;
-    // Maybe it's an autolink where the whole thing is a URL: [text](url) or <url>
-    const match = state.doc.sliceString(linkNode.from, linkNode.to).match(/\((.*?)\)$/)
-        || state.doc.sliceString(linkNode.from, linkNode.to).match(/^<(.*)>$/);
-    return match ? normalizeDestination(match[1]) : null;
+    return ""; // inline link with no URL node ([t]() / [t]( )): empty destination, relative like marked's href=""
 };
 
 const TOOLTIP_TEXT = {
     external: "Ctrl + Click to open link",
     heading: "Ctrl + Click to jump to heading",
     relative: "Relative link: opens only in exported files",
-};
-
-// Link or Autolink at/around a tree node; a Link beats an Autolink inside its label (outer destination wins).
-// Only a Link with a destination (`isUnresolvedReference` is false) counts: a destination-less inner `[b]`
-// in `[a [b] c](u)` is skipped for the outer one, and a lone unresolved `[t]` is no link at all.
-export const enclosingLink = (node, state) => {
-    let hit = null;
-    for (let n = node; n; n = n.parent) {
-        if (n.name === "Link" && !isUnresolvedReference(n, state)) return n;
-        if (n.name === "Autolink") hit ??= n;
-    }
-    return hit;
 };
 
 // Pure body of linkTooltip: { pos, end, text } for an inactive link with an openable/relative destination.

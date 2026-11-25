@@ -43,7 +43,7 @@ export function decodeEntity(entity) {
     return namedCache.get(content);
 }
 
-// Attribute values (abbr title, link destination): every HTML5 entity, one pass, same as export. The platform
+// Every HTML5 entity in a string, one pass, same as export (abbr titles, link destinations, autolink hrefs, decodeEntity's names). The platform
 // parser decodes each matched entity inside a detached <textarea>, which is RCDATA: it makes text only, never
 // elements (even </textarea> is no end tag without a start tag), so nothing can fire; CSP script-src 'self' backs it. Unknown names and malformed numerics come back unchanged.
 let scratch;

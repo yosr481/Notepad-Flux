@@ -174,8 +174,6 @@ URLs in angle brackets will automatically get turned into links:
 [1]: https://www.example.com
 ```
 
-Relative links like `[notes](notes.md)` are not opened from the editor; they work in exported HTML.
-
 **Renders as:**
 
 [I'm an inline-style link](https://www.google.com)
@@ -188,6 +186,8 @@ URLs in angle brackets will automatically get turned into links:
 <http://www.example.com>
 
 [1]: https://www.example.com
+
+Relative links like `[notes](notes.md)` are not opened from the editor; they work in exported HTML.
 
 ### Links to headings
 

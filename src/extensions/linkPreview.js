@@ -3,8 +3,8 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
-import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination, autolinkHref } from "./linkDefs";
-import { isSafeExternalUrl, enclosingLink } from "./linkHandler";
+import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination, autolinkHref, insideLinkLabel } from "./linkDefs";
+import { isSafeExternalUrl } from "./linkHandler";
 import { linkLabelParts, appendParts } from "./tableCells";
 import { resolveFootnotes } from "./footnotes";
 
@@ -77,7 +77,7 @@ function computeLinkDecorations(view) {
 
             const { from, to } = node;
             // an outer Link with a destination owns it (and, for an Autolink, a table widget too)
-            if (enclosingLink(node.node.parent, state)?.name === "Link") return;
+            if (insideLinkLabel(node.node, state)) return;
             if (isAutolink) {
                 for (let p = node.node.parent; p; p = p.parent) if (p.name === "Table") return;
             }
