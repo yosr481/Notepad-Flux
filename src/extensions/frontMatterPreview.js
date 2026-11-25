@@ -1,6 +1,6 @@
 import { EditorView, Decoration, WidgetType } from "@codemirror/view";
 import { StateField } from "@codemirror/state";
-import yaml from "js-yaml";
+import { loadAll, dump, CORE_SCHEMA } from "js-yaml";
 import { scanFrontMatter, FRONT_MATTER_MAX_LINES } from "./frontMatterSyntax";
 import { isCursorTouching } from "./selection";
 
@@ -10,7 +10,7 @@ const scalarText = (v) => (v == null ? "" : String(v));
 function rowOf(key, v) {
     if (v == null || v === "") return { key, kind: "empty", value: "" };
     if (Array.isArray(v) && !v.some(isObject)) return { key, kind: "list", value: v.map(scalarText) };
-    if (isObject(v)) return { key, kind: "yaml", value: yaml.dump(v, { flowLevel: 0 }).trim() };
+    if (isObject(v)) return { key, kind: "yaml", value: dump(v, { flowLevel: 0 }).trim() };
     const kind = typeof v === "number" ? "number" : typeof v === "boolean" ? "boolean" : "text";
     return { key, kind, value: String(v) };
 }
@@ -20,7 +20,10 @@ function rowOf(key, v) {
 export function propertiesFromYaml(yamlText) {
     let data;
     try {
-        data = yaml.load(yamlText, { schema: yaml.CORE_SCHEMA });
+        // v5 `load` throws on empty/comment-only input; loadAll returns [] there (v4 `load` gave undefined).
+        const docs = loadAll(yamlText, { schema: CORE_SCHEMA });
+        if (docs.length > 1) return { error: "expected a single document in the stream, but found more" };
+        data = docs[0];
     } catch (e) {
         return { error: String(e.message).split("\n")[0] };
     }

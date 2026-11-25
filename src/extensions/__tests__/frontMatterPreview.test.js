@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
@@ -14,12 +14,12 @@ import { frontMatterPreview, propertiesFromYaml } from '../frontMatterPreview';
 
 // Spec: Docs/internal/frontmatter-spec.md ("Parsing", "Editor"). Offsets via doc.indexOf / scanFrontMatter, never by hand.
 // Pinned choices (spec silent / task contract):
-//  - propertiesFromYaml(yamlText) -> { rows: [{ key, kind, value }] } | { error }. js-yaml `load`, default schema.
+//  - propertiesFromYaml(yamlText) -> { rows: [{ key, kind, value }] } | { error }. js-yaml `loadAll` (v5 `load` throws on empty input; >1 document is an error), CORE_SCHEMA.
 //    Schema is js-yaml CORE_SCHEMA: timestamps are plain strings shown as written (kind 'text'), no 'date' kind.
 //    kinds: text (string), number (String(n)), boolean ('true'/'false'), list (array of scalars -> string[]; an empty array is a list with []), empty
 //    (null/undefined/'' -> ''), yaml (nested map, or array containing a map/array -> dump(v,{flowLevel:0}).trim()).
 //  - Empty / whitespace / comment-only content -> { rows: [] }. Top level not a mapping, YAML syntax error and
-//    duplicate keys and !!binary/!!set/!!omap/!!timestamp tags (unknown under CORE_SCHEMA) -> { error } (error = first line of js-yaml's message; assertion is toContain).
+//    duplicate keys and !!binary/!!set/!!omap/!!timestamp tags (unknown under CORE_SCHEMA) -> { error } (error = first line of js-yaml's message, v5 wording e.g. "unknown scalar|mapping|sequence tag ..."'; assertion is toContain / regex).
 //  - Widget range = the FrontMatter node range (from..to as scanFrontMatter gives it). Any selection range with
 //    range.from <= to && range.to >= from shows raw YAML and NO widget. Block replace, ONE widget div.cm-properties.
 //  - Header: widget text contains "Properties" (non-error, incl. empty). Error box: div.cm-properties-error holds the
@@ -190,12 +190,20 @@ describe('propertiesFromYaml: errors', () => {
     it('syntax error carries js-yaml message (first line)', () => {
         const bad = 'a: [1, 2';
         let msg;
-        try { yaml.load(bad); } catch (e) { msg = e.message.split('\n')[0]; }
+        try { load(bad); } catch (e) { msg = e.message.split('\n')[0]; }
         expect(msg).toBeTruthy();
         expect(propertiesFromYaml(bad).error).toContain(msg);
     });
     it('error is the first line only (no multi-line snippet)', () => {
         expect(err('a: [1, 2')).not.toContain('\n');
+    });
+    it('multi-document body (--- separator) is an error with no rows; trailing --- too; ... end is fine', () => {
+        for (const y of ['a: 1\n---\nb: 2', 'a: 1\n---']) {
+            const r = propertiesFromYaml(y);
+            expect(r).toEqual({ error: 'expected a single document in the stream, but found more' });
+        }
+        expect(propertiesFromYaml('a: 1\n...')).toEqual({ rows: [{ key: 'a', kind: 'number', value: '1' }] });
+        expect(propertiesFromYaml('---\na: 1').rows).toHaveLength(1);
     });
     it('duplicate keys are an error (js-yaml throws, no silent last-wins)', () => {
         err('a: 1\na: 2');
@@ -207,7 +215,7 @@ describe('propertiesFromYaml: errors', () => {
         for (const y of ['a: !!binary aGVsbG8=', 'a: !!set {x}', 'a: !!omap [x: 1]', 'a: !!timestamp 2001-01-01']) {
             const r = propertiesFromYaml(y);
             expect(typeof r.error, y).toBe('string');
-            expect(r.error).toContain('unknown tag');
+            expect(r.error).toMatch(/unknown (scalar |mapping |sequence )?tag/);
             expect('rows' in r).toBe(false);
         }
     });
