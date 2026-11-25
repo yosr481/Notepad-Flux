@@ -699,6 +699,10 @@ Use backslash to escape markdown characters:
 \# This is not a heading  
 \[This is not a link\]
 
+## HTML entities
+
+`&eacute;`, `&#233;` and `&#xE9;` all show as é in the editor when the cursor is off them. Put the cursor on one to see the source. Names the browser does not know, like `&notreal;`, stay as typed. Entity names are case-sensitive: `&Eacute;` is É.
+
 ---
 
 ## HTML Tags

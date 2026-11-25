@@ -27,8 +27,8 @@ import { renderMarkdownHtml } from '../../utils/export';
 //     the rendered abbr title in the editor and in table cells, and the rendered link href outside tables and in cells.
 //  4. Decoding never creates markup: `&lt;img ...&gt;` stays literal TEXT in the title/href, no element appears, no
 //     handler attribute exists. Decoded link hrefs still go through isSafeExternalUrl (B15 guards stay).
-//  5. Text-node rendering is unchanged: the existing livePreview Entity tests are the guard (not duplicated here);
-//     one pin below: a named entity beyond today's table is NOT decoded in plain text by this task.
+//  5. Text-node rendering uses the same full-set decoder since B19 T1 (entities.named.test.js owns the detail):
+//     a named entity beyond the old 7 IS decoded in plain text.
 //  Export is the oracle for abbr title / href parity.
 
 const mocks = vi.hoisted(() => ({ renderTex: vi.fn(), isMathLoaded: vi.fn(() => false) }));
@@ -201,9 +201,10 @@ describe.each([
     });
 });
 
-describe('text nodes unchanged', () => {
-    it('a named entity beyond today\'s table is not decoded in plain text by this task', () => {
+describe('text nodes (B19 T1: full set)', () => {
+    it('a named entity beyond the old 7 is decoded in plain text', () => {
         const v = mkView('p\n\nx &eacute; y\n\nz\n');
-        expect(v.dom.querySelector('.cm-content').textContent).toContain('&eacute;');
+        expect(v.dom.querySelector('.cm-content').textContent).toContain('x é y');
+        expect(v.dom.querySelector('.cm-content').textContent).not.toContain('&eacute;');
     });
 });
