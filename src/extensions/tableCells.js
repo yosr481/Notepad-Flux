@@ -2,12 +2,12 @@ import { emojiFor } from "../utils/emojiTable";
 import { normalizeLabel } from "./linkDefs";
 import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
-import { isSafeExternalUrl } from "./linkHandler";
-import { resolveReference, normalizeDestination } from "./linkDefs";
+import { isSafeExternalUrl, enclosingLink } from "./linkHandler";
+import { resolveReference, normalizeDestination, autolinkHref } from "./linkDefs";
 import { resolveFootnotes, FootnoteWidget } from "./footnotes";
 import { EmojiWidget } from "./emojiPreview";
 import { HIGHLIGHT } from "./highlight";
-import { decodeEntity, decodeAttrEntities } from "./entities";
+import { decodeEntity } from "./entities";
 import { syntaxTree } from "@codemirror/language";
 import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 
@@ -113,8 +113,8 @@ function inlineWalker(state, footnotes) {
                 const url = n.node.getChild("URL");
                 if (!url) return raw(n);
                 const label = text(url.from, url.to);
-                // autolinks: entities decode, backslash stays literal (CommonMark) as %5C since the browser reads a raw one as "/"
-                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? decodeAttrEntities(label).replace(/\\/g, "%5C") : "mailto:" + label, c: [label] }];
+                if (enclosingLink(n.node.parent)?.name === "Link") return [label]; // no link inside a link label; export shows the bare label
+                return [{ k: "a", href: autolinkHref(label), c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");

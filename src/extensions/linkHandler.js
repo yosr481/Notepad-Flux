@@ -1,6 +1,6 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
-import { resolveReference, normalizeDestination } from "./linkDefs";
+import { resolveReference, normalizeDestination, autolinkHref } from "./linkDefs";
 import { createSlugger } from "./headingSlug";
 
 // Scheme allowlist for URLs pulled straight from document content.
@@ -81,6 +81,10 @@ const openLink = (view, url) => {
 
 // Normalized destination of a Link node (inline URL, else resolved reference), or null.
 const linkDestination = (linkNode, state) => {
+    if (linkNode.name === "Autolink") {
+        const u = linkNode.getChild("URL");
+        return u ? autolinkHref(state.doc.sliceString(u.from, u.to)) : null;
+    }
     const urlNode = linkNode.getChild("URL");
     if (urlNode) return normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
     const ref = resolveReference(linkNode, state);
@@ -97,14 +101,21 @@ const TOOLTIP_TEXT = {
     relative: "Relative link: opens only in exported files",
 };
 
+// Link or Autolink at/around a tree node; a Link beats an Autolink inside its label (outer destination wins).
+export const enclosingLink = (node) => {
+    let hit = null;
+    for (let n = node; n; n = n.parent) {
+        if (n.name === "Link") return n;
+        if (n.name === "Autolink") hit ??= n;
+    }
+    return hit;
+};
+
 // Pure body of linkTooltip: { pos, end, text } for an inactive link with an openable/relative destination.
 export const linkTooltipInfo = (state, pos, side) => {
     // The cursor inside the link means we are editing it: no tooltip.
-    let linkNode = syntaxTree(state).resolveInner(pos, side);
-    if (linkNode.name !== "Link") {
-        if (linkNode.parent && linkNode.parent.name === "Link") linkNode = linkNode.parent;
-        else return null;
-    }
+    const linkNode = enclosingLink(syntaxTree(state).resolveInner(pos, side));
+    if (!linkNode) return null;
     if (state.selection.ranges.some(r => r.from <= linkNode.to && r.to >= linkNode.from)) return null;
 
     const url = linkDestination(linkNode, state);
@@ -137,8 +148,8 @@ export const linkClickHandler = EditorView.domEventHandlers({
         const pos = view.posAtCoords({ x: event.clientX, y: event.clientY });
         if (pos === null) return;
 
-        let linkNode = syntaxTree(view.state).resolveInner(pos);
-        while (linkNode && linkNode.name !== "Link") linkNode = linkNode.parent;
+        // 1: a click on a node's first char (`<`) must resolve inside it
+        const linkNode = enclosingLink(syntaxTree(view.state).resolveInner(pos, 1));
         if (!linkNode) return;
 
         const url = linkDestination(linkNode, view.state);

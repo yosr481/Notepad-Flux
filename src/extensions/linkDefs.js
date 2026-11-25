@@ -7,6 +7,12 @@ export const normalizeDestination = (raw) => decodeAttrEntities(raw
     .replace(/^<(.*)>$/, "$1")
     .replace(/\\([!-/:-@[-`{-~])/g, "$1"));
 
+// Autolink label (text between `<` `>`) -> href. Entities decode, backslash stays literal (CommonMark)
+// as %5C since the browser reads a raw one as "/"; no scheme = email.
+export const autolinkHref = (label) => /^[a-z][a-z0-9+.-]*:/i.test(label)
+    ? decodeAttrEntities(label).replace(/\\/g, "%5C")
+    : "mailto:" + label;
+
 // Memoization cache
 const cache = new WeakMap();
 
