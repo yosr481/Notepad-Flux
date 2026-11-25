@@ -376,12 +376,12 @@ describe('Ctrl/Cmd+click on a #fragment link', () => {
             expect(scrollTargets(r.effects)).toEqual([]);
         });
 
-        it('a non-fragment relative path still warns (only `#` is special)', () => {
+        it('a non-fragment relative path is inert and silent (only `#` is special; T2 policy 2026-11-25)', () => {
             const doc = '[Go](page.md#target)\n\n# Target\n';
             const v = mkView(doc);
             click(v, doc.indexOf('Go'));
             expect(open).not.toHaveBeenCalled();
-            expect(unsafeWarned()).toBe(true);
+            expect(unsafeWarned()).toBe(false);
             expect(v.state.selection.main.head).toBe(0);
         });
     });

@@ -1,14 +1,6 @@
-const namedEntities = {
-    'amp': '&',
-    'lt': '<',
-    'gt': '>',
-    'quot': '"',
-    'apos': "'",
-    'copy': '©',
-    'nbsp': ' '
-};
+const namedCache = new Map();
 
-// The entities live preview shows decoded; null for anything else (unknown, no semicolon).
+// Numeric and every HTML5 named entity (via the platform decoder below); null for anything else (unknown, no semicolon).
 export function decodeEntity(entity) {
     // entity is the whole token including & and ;
     if (!entity.startsWith('&') || !entity.endsWith(';')) {
@@ -40,15 +32,18 @@ export function decodeEntity(entity) {
         }
     }
 
-    // Named entity — use own-property lookup, not inherited
-    if (Object.hasOwn(namedEntities, content)) {
-        return namedEntities[content];
+    // Named: platform decoder answers; unchanged = unknown. Map, not object, so inherited names can't hit.
+    if (!/^[A-Za-z0-9]+$/.test(content)) return null;
+    if (!namedCache.has(content)) {
+        const out = decodeAttrEntities(entity);
+        // Legacy no-semicolon names (&not, &amp...) match as a prefix of an unknown name: &notreal; -> "¬real;".
+        // Only &semi; yields a lone ";", no real name decodes to text ending in ";".
+        namedCache.set(content, out === entity || (out.length > 1 && out.endsWith(';')) ? null : out);
     }
-
-    return null;
+    return namedCache.get(content);
 }
 
-// Attribute values (abbr title, link destination): every HTML5 entity, one pass, same as export. The platform
+// Every HTML5 entity in a string, one pass, same as export (abbr titles, link destinations, autolink hrefs, decodeEntity's names). The platform
 // parser decodes each matched entity inside a detached <textarea>, which is RCDATA: it makes text only, never
 // elements (even </textarea> is no end tag without a start tag), so nothing can fire; CSP script-src 'self' backs it. Unknown names and malformed numerics come back unchanged.
 let scratch;

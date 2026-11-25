@@ -219,12 +219,19 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Security: `rel="noopener noreferrer"`
 
 **Tooltip:**
-- Hover over inactive link shows: "Ctrl + Click to open link"
+- Hover over an inactive link shows what it does: "Ctrl + Click to open link" (http, https, mailto), "Ctrl + Click to jump to heading" (`#heading`), or "Relative link: opens only in exported files" (no scheme, like `notes.md`). Other schemes show no tooltip
 - Tooltip disappears when cursor touches link
 
 **Click Behavior:**
-- `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab; a `#heading` link jumps to that heading in the document
+- `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab; a `#heading` link jumps to that heading in the document; a relative link (like `notes.md`) does nothing from the editor, silently
 - Regular click moves cursor to link for editing
+
+### Autolinks (`<https://…>`, `<a@b.co>`)
+
+- Off the cursor, the URL shows as typed, with the link icon; `<a@b.co>` opens as `mailto:`
+- `Ctrl + Click` (or `Cmd + Click`) and the hover tooltip work as for links
+- In table cells the table renders the autolink
+- Cursor touching it shows the `<…>` source
 
 ---
 

@@ -329,9 +329,11 @@ describe('link labels outside tables: regression guards', () => {
         expect(v.dom.querySelector('.cm-content .cm-link-icon')).toBeNull();
     });
 
-    it('autolink <https://e.com> is not a label link (no cm-link-icon widget)', () => {
-        const v = mkView('p\n\n<https://e.com>\n\nz');
-        expect(v.dom.querySelector('.cm-content .cm-link-icon')).toBeNull();
+    it('autolink <https://e.com> is not resolved as a reference label (href is its own text)', () => {
+        const v = mkView('p\n\n<https://e.com>\n\n[https://e.com]: https://other.test\n\nz');
+        const a = v.dom.querySelector('.cm-content a.cm-link');
+        expect(a).not.toBeNull();
+        expect(a.href).toBe('https://e.com/');
     });
 
     it('click behaviour: ctrl/meta mousedown+click are left to the handler, plain ones go to CodeMirror (caret)', () => {

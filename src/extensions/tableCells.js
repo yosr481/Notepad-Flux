@@ -3,11 +3,11 @@ import { normalizeLabel } from "./linkDefs";
 import { mathSource } from "./mathSyntax";
 import { MathWidget } from "./mathPreview";
 import { isSafeExternalUrl } from "./linkHandler";
-import { resolveReference, normalizeDestination } from "./linkDefs";
+import { resolveReference, normalizeDestination, autolinkHref, insideLinkLabel } from "./linkDefs";
 import { resolveFootnotes, FootnoteWidget } from "./footnotes";
 import { EmojiWidget } from "./emojiPreview";
 import { HIGHLIGHT } from "./highlight";
-import { decodeEntity, decodeAttrEntities } from "./entities";
+import { decodeEntity } from "./entities";
 import { syntaxTree } from "@codemirror/language";
 import { pairHtmlTags, abbrTitle, HTML_TAG_CLASS } from "./htmlInlinePreview";
 
@@ -113,13 +113,14 @@ function inlineWalker(state, footnotes) {
                 const url = n.node.getChild("URL");
                 if (!url) return raw(n);
                 const label = text(url.from, url.to);
-                // autolinks: entities decode, backslash stays literal (CommonMark) as %5C since the browser reads a raw one as "/"
-                return [{ k: "a", href: /^[a-z][a-z0-9+.-]*:/i.test(label) ? decodeAttrEntities(label).replace(/\\/g, "%5C") : "mailto:" + label, c: [label] }];
+                if (insideLinkLabel(n.node, state)) return [label]; // no link inside a link label; export shows the bare label
+                return [{ k: "a", href: autolinkHref(label), c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");
                 const marks = n.node.getChildren("LinkMark");
                 if (marks.length < 2) return raw(n);
+                if (insideLinkLabel(n.node, state)) return raw(n); // no link inside a link label
                 let href;
                 if (url) href = normalizeDestination(text(url.from, url.to));
                 else {
@@ -129,7 +130,7 @@ function inlineWalker(state, footnotes) {
                 }
                 return [{ k: "a", href, c: walk(n, marks[0].to, marks[1].from) }];
             }
-            default: return raw(n); // HTML, images, entities, autolinks...: shown as the source text
+            default: return raw(n); // HTML, images...: shown as the source text
         }
     }
 

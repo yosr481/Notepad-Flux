@@ -3,7 +3,7 @@ import { RangeSetBuilder } from "@codemirror/state";
 import { syntaxTree } from "@codemirror/language";
 import { isCursorTouching } from './selection';
 import { makeDebouncedDecorationPlugin } from "./decorationPlugin";
-import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination } from "./linkDefs";
+import { resolveReference, getVisibleTextBetweenMarks, normalizeDestination, autolinkHref, insideLinkLabel } from "./linkDefs";
 import { isSafeExternalUrl } from "./linkHandler";
 import { linkLabelParts, appendParts } from "./tableCells";
 import { resolveFootnotes } from "./footnotes";
@@ -72,9 +72,15 @@ function computeLinkDecorations(view) {
     // Iterate over the syntax tree to find Links
     syntaxTree(state).iterate({
         enter: (node) => {
-            if (node.name !== "Link") return;
+            const isAutolink = node.name === "Autolink";
+            if (node.name !== "Link" && !isAutolink) return;
 
             const { from, to } = node;
+            // an outer Link with a destination owns it (and, for an Autolink, a table widget too)
+            if (insideLinkLabel(node.node, state)) return;
+            if (isAutolink) {
+                for (let p = node.node.parent; p; p = p.parent) if (p.name === "Table") return;
+            }
 
             // Check if cursor is active inside or touching the link
             let shouldReveal = isCursorTouching(selection, from, to);
@@ -102,7 +108,15 @@ function computeLinkDecorations(view) {
                 }
             }
 
-            if (!shouldReveal) {
+            if (!shouldReveal && isAutolink) {
+                const url = node.node.getChild("URL");
+                if (!url) return;
+                const label = doc.sliceString(url.from, url.to);
+                builder.add(from, to, Decoration.replace({
+                    widget: new LinkWidget(label, autolinkHref(label), { bold, italic }, [label]),
+                    inclusive: false
+                }));
+            } else if (!shouldReveal) {
                 // #14: skip image-in-link
                 if (node.node.getChild("Image")) return;
 

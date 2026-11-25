@@ -13,6 +13,36 @@ const dump = (parser, text) => {
 };
 const same = (text) => expect(dump(fast, text), JSON.stringify(text)).toBe(dump(stock, text));
 
+// TEST MAINTENANCE (B18 T4): fastLinkEnd deliberately differs from stock in one case: a link that closed in bare
+// shortcut form `[x]` no longer invalidates earlier `[` openers. Inputs where that matters can no longer be compared
+// with stock, so they use this oracle instead: the same rule written the slow way (full re-walk of every earlier part
+// after each non-shortcut link, no per-paragraph cursor). See fastLinkEnd.brackets.test.js for the pinned behaviour.
+const stockOf = (name) => stock.inlineParsers[stock.inlineNames.indexOf(name)];
+const delim = (name, next) => {
+    let type = null;
+    stockOf(name)({ append: (d) => { type = d.type; return 0; }, char: () => 91 }, next, 0);
+    return type;
+};
+const LinkStartT = delim('Link', 91), ImageStartT = delim('Image', 33);
+const naive = stock.configure({ parseInline: [{ name: 'LinkEnd', parse(cx, next, start) {
+    if (next !== 93) return -1;
+    const { parts } = cx;
+    let i = parts.length - 1;
+    while (i >= 0 && !(parts[i] && (parts[i].type === LinkStartT || parts[i].type === ImageStartT))) i--;
+    if (i < 0) return -1;
+    const opener = parts[i];
+    const view = Object.create(cx);
+    view.parts = parts.slice(i);
+    const result = stockOf('LinkEnd')(view, next, start);
+    parts.length = i;
+    for (const p of view.parts) parts.push(p);
+    if (result >= 0 && opener.type === LinkStartT && result !== start + 1) {
+        for (let j = 0; j < i; j++) if (parts[j] && parts[j].type === LinkStartT) parts[j].side = 0;
+    }
+    return result;
+} }] });
+const sameAsNaive = (text) => expect(dump(fast, text), JSON.stringify(text)).toBe(dump(naive, text));
+
 describe('fastLinkEnd: same syntax tree as stock @lezer/markdown', () => {
     it('normal inline links, images, reference links, autolinks, titles', () => {
         for (const t of [
@@ -33,12 +63,12 @@ describe('fastLinkEnd: same syntax tree as stock @lezer/markdown', () => {
     it('hostile bracket soup: unclosed [, [[x]], stray ], empty and adjacent forms', () => {
         for (const t of ['[', ']', '[[x]]', '[[x]](y)', '[x', 'x]', '[x](', '[x](y', '[](a)', '[][]', '[]()', '![', '![]', '![](', '[x][', '[[[[[a]]]]]', '[a]]]](b)', '[a](b)](c)', '[[a](b)', '[a](b)]',
             '[x](y) [z', '[z [x](y)', '\\[x](y)', '[x\\](y)', '[x](y\\)', '`[x](y)`', '[`x`](y)', '[x]\n(y)', '[x](y\nz)', '[x]: y\n[x]', '![x]\n\n[x]: y'])
-            same(t);
+            sameAsNaive(t);
     });
     it('multi-paragraph and multi-line paragraphs', () => {
         same('[a](1)\n[b](2)\n[c](3)\n\n[d](4) [e [f](5)](6)\n\n[g');
     });
-    it('deterministic fuzz: 1500 random bracket/paren/link-ish strings give identical trees', () => {
+    it('deterministic fuzz: 1500 random bracket/paren/link-ish strings give the same trees as the naive oracle', () => {
         let seed = 12345;
         const rnd = () => (seed = (seed * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
         const alphabet = ['[', ']', '(', ')', '!', 'a', 'b', ' ', '*', '`', '<', '>', '\n', '\\', ':', 'http://x', '"t"', '[r]'];
@@ -46,12 +76,12 @@ describe('fastLinkEnd: same syntax tree as stock @lezer/markdown', () => {
             const n = 1 + Math.floor(rnd() * 24);
             let t = '';
             for (let k = 0; k < n; k++) t += alphabet[Math.floor(rnd() * alphabet.length)];
-            same(t);
+            sameAsNaive(t);
         }
     });
     it('is a no-op for text without links and for very long unclosed-bracket runs', () => {
         same('just some words\n\nand another paragraph');
-        same('['.repeat(2000) + 'x' + ']'.repeat(10));
+        sameAsNaive('['.repeat(2000) + 'x' + ']'.repeat(10));
     });
 });
 
