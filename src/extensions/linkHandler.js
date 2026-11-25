@@ -1,6 +1,7 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
-import { syntaxTree } from "@codemirror/language";
+import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
 import { resolveReference, normalizeDestination } from "./linkDefs";
+import { createSlugger } from "./headingSlug";
 
 // Scheme allowlist for URLs pulled straight from document content.
 // Anything not http/https/mailto (file:, smb:, javascript:, custom protocols) is refused.
@@ -10,6 +11,64 @@ export const isSafeExternalUrl = (url) => {
     } catch {
         return false;
     }
+};
+
+// Every counted heading in document order: [{ slug, from }], from = start of its first line.
+// Same slugs as export ids (shared createSlugger; footnote definitions, front matter and code are skipped).
+export const headingTargets = (state) => {
+    const { doc } = state;
+    const tree = ensureSyntaxTree(state, doc.length, 1000) ?? syntaxTree(state);
+    const slugger = createSlugger();
+    const out = [];
+    tree.iterate({
+        enter: (node) => {
+            if (node.name === "FootnoteDefinition") return false;
+            const atx = /^ATXHeading\d$/.test(node.name);
+            if (!atx && !/^SetextHeading\d$/.test(node.name)) return;
+            const marks = node.node.getChildren("HeaderMark");
+            let a = node.from;
+            let b = node.to;
+            if (atx) {
+                a = marks[0].to;
+                if (marks.length > 1) b = marks[marks.length - 1].from;
+            } else {
+                b = doc.lineAt(marks[marks.length - 1].from).from; // underline line, not its mark: `> ===`
+            }
+            // drop continuation-line `>` marks; headingSlug joins the leftover indent
+            let text = "";
+            for (const q of node.node.getChildren("QuoteMark")) {
+                if (q.from < a || q.to > b) continue;
+                text += doc.sliceString(a, q.from);
+                a = q.to;
+            }
+            text += doc.sliceString(a, Math.max(a, b));
+            const slug = slugger.slug(text);
+            if (slug) out.push({ slug, from: doc.lineAt(node.from).from });
+            return false;
+        },
+    });
+    return out;
+};
+
+// Jump to the heading a `#fragment` link points at; a miss does nothing.
+const jumpToHeading = (view, fragment) => {
+    let frag = fragment;
+    try { frag = decodeURIComponent(fragment); } catch { /* keep raw */ }
+    const targets = headingTargets(view.state);
+    const hit = targets.find((h) => h.slug === frag) ?? targets.find((h) => h.slug === frag.toLowerCase());
+    if (!hit) return;
+    view.dispatch({
+        selection: { anchor: hit.from },
+        effects: EditorView.scrollIntoView(hit.from, { y: "start" }),
+    });
+    view.focus();
+};
+
+// One place for the open-URL rule: http/https/mailto open, `#x` jumps, anything else warns.
+const openLink = (view, url) => {
+    if (url.startsWith("#")) jumpToHeading(view, url.slice(1));
+    else if (isSafeExternalUrl(url)) window.open(url, '_blank');
+    else console.warn('Blocked unsafe link scheme:', url);
 };
 
 // Tooltip to show "Ctrl + Click to open"
@@ -73,21 +132,12 @@ export const linkClickHandler = EditorView.domEventHandlers({
             const url = normalizeDestination(state.doc.sliceString(urlNode.from, urlNode.to));
 
             if (url) {
-                if (isSafeExternalUrl(url)) {
-                    window.open(url, '_blank');
-                } else {
-                    console.warn('Blocked unsafe link scheme:', url);
-                }
+                openLink(view, url);
                 event.preventDefault();
             }
         } else if (resolveReference(linkNode, state)) {
             // Reference link, e.g. [![alt][img]][site] with [site]: url elsewhere
-            const url = resolveReference(linkNode, state).url;
-            if (isSafeExternalUrl(url)) {
-                window.open(url, '_blank');
-            } else {
-                console.warn('Blocked unsafe link scheme:', url);
-            }
+            openLink(view, resolveReference(linkNode, state).url);
             event.preventDefault();
         } else if (linkNode.name === "Link") {
             // Maybe it's an autolink where the whole thing is a URL?
@@ -96,12 +146,7 @@ export const linkClickHandler = EditorView.domEventHandlers({
             // Simple regex to extract url from [text](url) or <url>
             const match = text.match(/\((.*?)\)$/) || text.match(/^<(.*)>$/);
             if (match) {
-                const url = normalizeDestination(match[1]);
-                if (isSafeExternalUrl(url)) {
-                    window.open(url, '_blank');
-                } else {
-                    console.warn('Blocked unsafe link scheme:', url);
-                }
+                openLink(view, normalizeDestination(match[1]));
                 event.preventDefault();
             }
         }

@@ -144,7 +144,8 @@ describe('renderMarkdownHtml: regression vs existing pipeline', () => {
             'Price: $5 and $10, also \\$5.', '', '![alt](https://e.com/x.png)', '', '---', '',
             '<script>alert(1)</script>', '', '<b onclick="x()">bold</b>',
         ].join('\n');
-        expect(await renderMarkdownHtml(md)).toBe(sanitizeHTML(marked(md)));
+        // headings now carry a slug id (heading-links); everything else must stay byte-identical
+        expect((await renderMarkdownHtml(md)).replace('<h1 id="title">', '<h1>')).toBe(sanitizeHTML(marked(md)));
     }, T);
 
     it('equals sanitizeHTML(marked(md)) for an empty document', async () => {

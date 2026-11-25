@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Links to headings like `[Lists](#lists)` now work: Ctrl/Cmd+click jumps to the heading in the editor, and exported HTML, PDF and Print jump too.
 - `<details>` blocks are now collapsible in the editor: click the chevron to fold or unfold them, and `<details open>` starts open.
 
 ### Changed

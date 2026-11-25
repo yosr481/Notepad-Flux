@@ -166,7 +166,7 @@ describe('renderMarkdownHtml mermaid: other fences untouched', () => {
     it('a doc with no mermaid never calls renderMermaid (fast path), output equals the plain sanitized render', async () => {
         const html = await renderMarkdownHtml('# T\n\ntext **b**\n\n' + fence('x', 'js'));
         expect(renderMermaid).not.toHaveBeenCalled();
-        expect(html).toContain('<h1>');
+        expect(html).toContain('<h1 id="t">T</h1>');
         expect(html).not.toMatch(/NFMERMAID/i);
     }, T);
 });
