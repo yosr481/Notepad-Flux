@@ -229,13 +229,29 @@ describe('table data: blockquote tables (rows carry "> " in the source)', () => 
         expect(texts(t, 'td')).toEqual(['1', '2']);
     });
 
+    // @lezer/markdown 1.8.1 parses these as Table nodes (1.6.1 did not): CommonMark/GFM treat them as tables, and export
+    // (marked) renders <blockquote><table> / <blockquote><blockquote><table> with cells a,b / 1,2. The editor matches export:
+    // off the cursor one TableWidget with exactly those cells and no ">" in any cell; on the cursor the source shows.
     it.each([
         ['an extra space after ">"', T('>  | a | b |', '>  | - | - |', '>  | 1 | 2 |')],
         ['a nested "> > " quote', T('> > | a | b |', '> > | - | - |', '> > | 1 | 2 |')],
-    ])('%s is NOT a table for the parser: no Table node, no widget (the source stays visible)', (_n, doc) => {
-        // Old convertTableToHTML tested these on raw strings; lezer never hands them over as a Table.
-        expect(tableNode(stateOf(doc))).toBeNull();
-        expect(widgetsIn(doc)).toEqual([]);
+    ])('%s is a table, as export: widget cells a,b / 1,2 with no ">", source shown on the cursor', (_n, row) => {
+        const doc = 'x\n\n' + row + '\n';
+        expect(tableNode(stateOf(row))).not.toBeNull();
+        const t = domOf(row);
+        expect(texts(t, 'th')).toEqual(['a', 'b']);
+        expect(texts(t, 'td')).toEqual(['1', '2']);
+        expect(t.textContent).not.toContain('>');
+        const ws = widgetsIn(doc);
+        expect(ws.length).toBe(1);
+        expect(ws[0].data.head).toEqual([['a'], ['b']]);
+        expect(ws[0].data.body).toEqual([[['1'], ['2']]]);
+        // cursor inside the table: no widget, the source stays visible
+        const s = stateOf(doc);
+        const on = s.update({ selection: { anchor: doc.indexOf('| 1 | 2 |') + 2 } }).state;
+        let n = 0;
+        buildDecorations(on, { from: 0, to: doc.length }).between(0, doc.length, (f, to, v) => { if (v.spec && v.spec.widget instanceof TableWidget) n++; });
+        expect(n).toBe(0);
     });
 
     it('livePreview gives exactly one widget for a blockquote table, holding data with the right cells', () => {
