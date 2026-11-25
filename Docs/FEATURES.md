@@ -223,7 +223,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
 - Tooltip disappears when cursor touches link
 
 **Click Behavior:**
-- `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab
+- `Ctrl + Click` (or `Cmd + Click` on Mac) opens link in new tab; a `#heading` link jumps to that heading in the document
 - Regular click moves cursor to link for editing
 
 ---
@@ -547,7 +547,7 @@ Supports ATX-style headings (`# H1` through `###### H6`)
    - Cursor-based activation
 
 5. **`linkHandler.js`**: Link interaction
-   - Ctrl+Click to open links
+   - Ctrl+Click to open links; `#heading` links jump to the heading
    - Hover tooltip
    - URL extraction from syntax tree
 

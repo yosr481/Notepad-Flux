@@ -63,7 +63,7 @@ describe('exportToHtml — body sanitization (P0-3)', () => {
     it('keeps ordinary rendered markdown in the body', async () => {
         await exportToHtml('doc', '# Hello\n\nsome **bold** text');
         const html = lastHtml();
-        expect(html).toContain('<h1>Hello</h1>');
+        expect(html).toContain('<h1 id="hello">Hello</h1>');
         expect(html).toContain('<strong>bold</strong>');
     });
 });
