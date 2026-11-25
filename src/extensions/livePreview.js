@@ -4,6 +4,7 @@ import { RangeSetBuilder, StateField } from "@codemirror/state";
 import { BulletWidget, CheckboxWidget, TableWidget, HRWidget, TextSpanWidget } from "./widgets";
 import { isCursorTouching, isCursorOnLine } from "./selection";
 import { isUnresolvedReference } from "./linkDefs";
+import { enclosingLink } from "./linkHandler";
 import { buildTableData } from "./tableCells";
 import { resolveFootnotes } from "./footnotes";
 import { HIGHLIGHT } from "./highlight";
@@ -48,7 +49,8 @@ const linkMarkOrUrl = (node, { state, selection, decorations }) => {
     const { name, from: nodeFrom, to: nodeTo } = node;
     const parent = node.node.parent;
     if (parent && (parent.name === "Link" || (parent.name === "Autolink" && name === "LinkMark"))
-        && !(parent.name === "Link" && isUnresolvedReference(parent, state))) {
+        && !(parent.name === "Link" && (isUnresolvedReference(parent, state)
+            || enclosingLink(parent.parent, state)?.name === "Link"))) { // no link inside a link label
         let isTouching = isCursorTouching(selection, parent.from, parent.to);
 
         if (!isTouching) {

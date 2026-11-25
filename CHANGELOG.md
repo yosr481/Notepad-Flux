@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Links in angle brackets like `<https://example.com>` now show as links in the editor and open with Ctrl/Cmd+click, as they already did in tables and export.
 - Print and PDF export now show the content of a closed `<details>` block instead of printing it closed and hiding it.
 - Named entities like `&eacute;`, `&frac12;` and `&hellip;` now show the real character in the editor body and in table cells, as they already did in export. Before, only seven names did.
+- A link whose text contains brackets, like `[a [b] c](url)`, now shows as one link in the editor.
 
 ## [2.0.1] — 2026-11-24
 

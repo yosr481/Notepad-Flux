@@ -89,8 +89,9 @@ src/
 │   ├── emojiSyntax.js      - Emoji shortcodes: shared `scanEmoji` + lezer node
 │   ├── emojiPreview.js     - Emoji widget (`span.cm-emoji`) outside the cursor, raw shortcode inside
 │   ├── htmlInlinePreview.js - Safe inline HTML tags (kbd, mark, u, ins, small, abbr, sub/sup, span): tags hidden, content styled outside the cursor
-│   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (small set) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link destinations
+│   ├── entities.js        - Shared HTML entity decoders: `decodeEntity` (every HTML5 named entity) serves entity text spans and table-cell Entity nodes; `decodeAttrEntities` (full HTML5 set, via textarea RCDATA) serves abbr titles and link destinations
 │   ├── decorationField.js - Shared StateField helpers for decoration fields (`selectionKeyedField`: math, footnotes, subSup, emoji, htmlInline). callouts, mermaid and frontMatter still use their own field (backlog C5)
+│   ├── fastLinkEnd.js     - Wraps lezer's `LinkEnd`: amortised O(1) opener invalidation per paragraph (stock is O(n²)), plus one rule change: a bare shortcut `[x]` close keeps earlier `[` openers alive, so `[a [b] c](url)` is one link
 │   ├── nodeIndex.js       - `nodesOf(state, name)`: one shared tree walk per syntax tree, indexed by node name (see `INDEXED_NODES`), cached on doc + tree
 │   └── ...
 ├── hooks/                  - Custom React Hooks

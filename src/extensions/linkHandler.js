@@ -1,6 +1,6 @@
 import { EditorView, hoverTooltip } from "@codemirror/view";
 import { syntaxTree, ensureSyntaxTree } from "@codemirror/language";
-import { resolveReference, normalizeDestination, autolinkHref } from "./linkDefs";
+import { resolveReference, isUnresolvedReference, normalizeDestination, autolinkHref } from "./linkDefs";
 import { createSlugger } from "./headingSlug";
 
 // Scheme allowlist for URLs pulled straight from document content.
@@ -102,10 +102,12 @@ const TOOLTIP_TEXT = {
 };
 
 // Link or Autolink at/around a tree node; a Link beats an Autolink inside its label (outer destination wins).
-export const enclosingLink = (node) => {
+// Only a Link with a destination (`isUnresolvedReference` is false) counts: a destination-less inner `[b]`
+// in `[a [b] c](u)` is skipped for the outer one, and a lone unresolved `[t]` is no link at all.
+export const enclosingLink = (node, state) => {
     let hit = null;
     for (let n = node; n; n = n.parent) {
-        if (n.name === "Link") return n;
+        if (n.name === "Link" && !isUnresolvedReference(n, state)) return n;
         if (n.name === "Autolink") hit ??= n;
     }
     return hit;
@@ -114,7 +116,7 @@ export const enclosingLink = (node) => {
 // Pure body of linkTooltip: { pos, end, text } for an inactive link with an openable/relative destination.
 export const linkTooltipInfo = (state, pos, side) => {
     // The cursor inside the link means we are editing it: no tooltip.
-    const linkNode = enclosingLink(syntaxTree(state).resolveInner(pos, side));
+    const linkNode = enclosingLink(syntaxTree(state).resolveInner(pos, side), state);
     if (!linkNode) return null;
     if (state.selection.ranges.some(r => r.from <= linkNode.to && r.to >= linkNode.from)) return null;
 
@@ -149,7 +151,7 @@ export const linkClickHandler = EditorView.domEventHandlers({
         if (pos === null) return;
 
         // 1: a click on a node's first char (`<`) must resolve inside it
-        const linkNode = enclosingLink(syntaxTree(view.state).resolveInner(pos, 1));
+        const linkNode = enclosingLink(syntaxTree(view.state).resolveInner(pos, 1), view.state);
         if (!linkNode) return;
 
         const url = linkDestination(linkNode, view.state);

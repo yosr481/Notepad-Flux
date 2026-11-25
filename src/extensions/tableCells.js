@@ -113,13 +113,14 @@ function inlineWalker(state, footnotes) {
                 const url = n.node.getChild("URL");
                 if (!url) return raw(n);
                 const label = text(url.from, url.to);
-                if (enclosingLink(n.node.parent)?.name === "Link") return [label]; // no link inside a link label; export shows the bare label
+                if (enclosingLink(n.node.parent, state)?.name === "Link") return [label]; // no link inside a link label; export shows the bare label
                 return [{ k: "a", href: autolinkHref(label), c: [label] }];
             }
             case "Link": {
                 const url = n.node.getChild("URL");
                 const marks = n.node.getChildren("LinkMark");
                 if (marks.length < 2) return raw(n);
+                if (enclosingLink(n.node.parent, state)?.name === "Link") return raw(n); // no link inside a link label
                 let href;
                 if (url) href = normalizeDestination(text(url.from, url.to));
                 else {
