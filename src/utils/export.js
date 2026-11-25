@@ -65,12 +65,14 @@ export const renderMarkdownHtml = async (markdown, options = {}) => {
     const bodyHtml = m.parser(m.lexer(body));
     inBody = false;
     const html = sanitizeHTML(footnotes.appendSection(m, bodyHtml));
-    if (!math.has() && !mermaid.has() && !html.includes(idMark)) return html;
+    const unfold = options.expandFolds === true && /<details/i.test(html);
+    if (!math.has() && !mermaid.has() && !html.includes(idMark) && !unfold) return html;
 
     await Promise.all([math.prepare(), mermaid.prepare()]);
     const tpl = document.createElement('template');
     tpl.innerHTML = html;
     callouts.finish(tpl.content);
+    if (unfold) for (const d of tpl.content.querySelectorAll('details')) d.setAttribute('open', '');
     footnotes.finish(tpl.content);
     math.finish(tpl.content);
     mermaid.finish(tpl.content);

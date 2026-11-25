@@ -11,6 +11,7 @@ import { mathPreview } from '../extensions/mathPreview';
 import { Subscript, Superscript } from '@lezer/markdown';
 import { footnoteSyntax } from '../extensions/footnoteSyntax';
 import { footnotePreview } from '../extensions/footnotes';
+import { detailsPreview } from '../extensions/detailsPreview';
 import { calloutPreview } from '../extensions/callouts';
 import { mermaidPreview } from '../extensions/mermaidPreview';
 import { subSupPreview } from '../extensions/subSupPreview';
@@ -286,6 +287,7 @@ const Editor = forwardRef(({ activeTabId, tabIds, onStatsUpdate, initialContent 
         emojiPreview,
         mathPreview,
         footnotePreview,
+        detailsPreview,
         calloutPreview,
         mermaidPreview,
         frontMatterPreview,

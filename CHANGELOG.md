@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Links to headings like `[Lists](#lists)` now work: Ctrl/Cmd+click jumps to the heading in the editor, and exported HTML, PDF and Print jump too.
+- `<details>` blocks are now collapsible in the editor: click the chevron to fold or unfold them, and `<details open>` starts open.
 
 ### Changed
 
@@ -19,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - Code-block comments, numbers and property names are now readable in dark mode, and comments in light mode.
+- Print and PDF export now show the content of a closed `<details>` block instead of printing it closed and hiding it.
 
 ## [2.0.1] — 2026-11-24
 
